@@ -83,4 +83,5 @@ class DefaultFirebaseOptions {
     authDomain: 'expensesplit-pro-9e1c8.firebaseapp.com',
     storageBucket: 'expensesplit-pro-9e1c8.firebasestorage.app',
   );
+
 }
