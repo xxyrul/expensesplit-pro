@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "539814694384",
+    "project_id": "expensesplit-pro-9e1c8",
+    "storage_bucket": "expensesplit-pro-9e1c8.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:539814694384:android:6bec9235c978b5f4fbe135",
+        "android_client_info": {
+          "package_name": "com.example.expensesplit_pro"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBnlKEMvIWstNXrfAq1VufS_kaixPXYprA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
