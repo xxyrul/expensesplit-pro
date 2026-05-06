@@ -43,3 +43,9 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+# Android/Memory dumps
+*.hprof
+.gradle/
+build/
+.dart_tool/
+.idea/
