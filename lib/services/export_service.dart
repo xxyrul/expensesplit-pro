@@ -38,6 +38,6 @@ class ExportService {
 
     await file.writeAsString(csvData);
 
-    await Share.shareXFiles([XFile(filePath)], text: 'Expense Report for \$monthLabel');
+    await Share.shareXFiles([XFile(filePath, mimeType: 'text/csv')], text: 'Expense Report for $monthLabel');
   }
 }

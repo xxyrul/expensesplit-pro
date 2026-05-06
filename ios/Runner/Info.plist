@@ -45,5 +45,23 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>This app requires access to the camera to scan receipts.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>This app requires access to your photo library to pick receipts.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>This app does not use the microphone, but the camera package requires this permission.</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<!-- TODO: Replace this value with the REVERSED_CLIENT_ID from your GoogleService-Info.plist -->
+				<string>REVERSED_CLIENT_ID_FROM_GOOGLE_SERVICE_INFO</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>

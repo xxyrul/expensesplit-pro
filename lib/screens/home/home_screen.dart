@@ -26,6 +26,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       onSettingsPressed: () {
         setState(() => _selectedIndex = 4); // Navigate to Settings
       },
+      onViewAllPressed: () {
+        setState(() => _selectedIndex = 1); // Navigate to Expenses
+      },
     ),
     ExpensesView(
       onBack: () {

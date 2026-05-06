@@ -527,10 +527,25 @@ class _FinancialGoalsViewState extends ConsumerState<FinancialGoalsView>
                   ],
                 )
               else
-                const Icon(
-                  Icons.check_circle,
-                  color: Color(0xFF10B981),
-                  size: 30,
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      onPressed: () => _confirmDeleteGoal(goal),
+                      icon: const Icon(
+                        Icons.delete_outline,
+                        color: Color(0xFFDC2626),
+                        size: 28,
+                      ),
+                      padding: const EdgeInsets.only(right: 12),
+                      constraints: const BoxConstraints(),
+                    ),
+                    const Icon(
+                      Icons.check_circle,
+                      color: Color(0xFF10B981),
+                      size: 30,
+                    ),
+                  ],
                 ),
             ],
           ),

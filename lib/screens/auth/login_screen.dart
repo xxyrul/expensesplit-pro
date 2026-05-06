@@ -133,7 +133,50 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
                   const SizedBox(height: 20),
 
-                  // 4. REGISTER LINK
+                  // 4. OR DIVIDER
+                  Row(
+                    children: [
+                      Expanded(child: Divider(color: Colors.grey.shade300)),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 15),
+                        child: Text("OR", style: TextStyle(color: Colors.grey.shade500, fontWeight: FontWeight.bold)),
+                      ),
+                      Expanded(child: Divider(color: Colors.grey.shade300)),
+                    ],
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  // 5. GOOGLE SIGN IN
+                  SizedBox(
+                    width: double.infinity,
+                    height: 55,
+                    child: OutlinedButton.icon(
+                      onPressed: _isLoading ? null : () async {
+                        setState(() => _isLoading = true);
+                        try {
+                          await ref.read(authServiceProvider).signInWithGoogle();
+                        } catch (e) {
+                          setState(() => _errorMessage = e.toString());
+                        } finally {
+                          if (mounted) setState(() => _isLoading = false);
+                        }
+                      },
+                      icon: Image.network('https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg', height: 24),
+                      label: const Text(
+                        "Sign in with Google",
+                        style: TextStyle(color: Colors.black87, fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                        side: BorderSide(color: Colors.grey.shade300),
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  // 6. REGISTER LINK
                   TextButton(
                     onPressed: () {
                       Navigator.of(context).push(

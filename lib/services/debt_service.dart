@@ -48,6 +48,22 @@ class DebtService {
     await _debtsCollection.doc(debtId).delete();
   }
 
+  Future<void> addPayment(String debtId, double amount) async {
+    final docRef = _debtsCollection.doc(debtId);
+    
+    await _firestore.runTransaction((transaction) async {
+      final snapshot = await transaction.get(docRef);
+      if (!snapshot.exists) return;
+      
+      final currentBalance = (snapshot.data() as Map<String, dynamic>)['currentBalance'] as num? ?? 0.0;
+      final newBalance = currentBalance - amount;
+      
+      transaction.update(docRef, {
+        'currentBalance': newBalance < 0 ? 0.0 : newBalance,
+      });
+    });
+  }
+
   /// Calculates estimated months to payoff using the amortization formula.
   /// balance: A, monthlyPayment: P, annualRate: r (as decimal, e.g. 0.05 for 5%)
   /// n = -log(1 - (r/12 * A) / P) / log(1 + r/12)

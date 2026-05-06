@@ -6,6 +6,7 @@ import '../../models/debt_model.dart';
 import '../../services/debt_service.dart';
 import '../../utils/category_styles.dart';
 import '../../widgets/add_debt_sheet.dart';
+import '../../widgets/update_debt_sheet.dart';
 
 class DebtManagementView extends ConsumerStatefulWidget {
   const DebtManagementView({super.key});
@@ -27,6 +28,15 @@ class _DebtManagementViewState extends ConsumerState<DebtManagementView> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => const AddDebtSheet(),
+    );
+  }
+
+  void _showUpdateDebtSheet(DebtModel debt) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => UpdateDebtSheet(debt: debt),
     );
   }
 
@@ -362,16 +372,27 @@ class _DebtManagementViewState extends ConsumerState<DebtManagementView> {
                   if (debt.currentBalance > 0) ...[
                     const SizedBox(width: 12),
                     IconButton(
-                      onPressed: () => _confirmDeleteDebt(debt),
+                      onPressed: () => _showUpdateDebtSheet(debt),
                       icon: const Icon(
-                        Icons.delete_outline,
-                        color: Color(0xFFDC2626),
-                        size: 26,
+                        Icons.add_circle,
+                        color: Color(0xFF0F766E),
+                        size: 30,
                       ),
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(),
                     ),
                   ],
+                  const SizedBox(width: 12),
+                  IconButton(
+                    onPressed: () => _confirmDeleteDebt(debt),
+                    icon: const Icon(
+                      Icons.delete_outline,
+                      color: Color(0xFFDC2626),
+                      size: 26,
+                    ),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
                 ],
               ),
             ],

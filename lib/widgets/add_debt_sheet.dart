@@ -174,7 +174,7 @@ class _AddDebtSheetState extends ConsumerState<AddDebtSheet> {
               child: ElevatedButton(
                 onPressed: _isSaving ? null : _saveDebt,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF6366f1),
+                  backgroundColor: const Color(0xFF0F766E),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
                 ),
                 child: _isSaving 

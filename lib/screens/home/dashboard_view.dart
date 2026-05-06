@@ -12,8 +12,9 @@ import '../debts/debt_management_view.dart';
 class DashboardView extends ConsumerWidget {
   // NEW: Add the onSettingsPressed callback
   final VoidCallback? onSettingsPressed;
+  final VoidCallback? onViewAllPressed;
 
-  const DashboardView({super.key, this.onSettingsPressed});
+  const DashboardView({super.key, this.onSettingsPressed, this.onViewAllPressed});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -36,19 +37,21 @@ class DashboardView extends ConsumerWidget {
                 (sum, e) => sum + e.amount,
               );
 
-              return SingleChildScrollView(
-                child: Column(
-                  children: [
-                    // 1. GRADIENT HEADER WITH BUDGET CONTROLS
-                    _buildHeader(context, ref, totalLimit, totalSpent),
+              return Column(
+                children: [
+                  // 1. GRADIENT HEADER WITH BUDGET CONTROLS
+                  _buildHeader(context, ref, totalLimit, totalSpent),
 
-                    // 2. QUICK ACTIONS (Add Expense Linked)
-                    _buildQuickActions(context, ref),
+                  // 2. QUICK ACTIONS (Add Expense Linked)
+                  _buildQuickActions(context, ref),
 
-                    // 3. RECENT EXPENSES
-                    _buildRecentExpenses(expenses),
-                  ],
-                ),
+                  // 3. RECENT EXPENSES
+                  Expanded(
+                    child: SingleChildScrollView(
+                      child: _buildRecentExpenses(currentMonthExpenses),
+                    ),
+                  ),
+                ],
               );
             },
             loading: () => const Center(child: CircularProgressIndicator()),
@@ -336,7 +339,7 @@ class DashboardView extends ConsumerWidget {
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
               ),
               TextButton(
-                onPressed: () {},
+                onPressed: onViewAllPressed,
                 child: const Text(
                   "View All",
                   style: TextStyle(color: Color(0xFF0F766E)),

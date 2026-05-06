@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import '../models/user_model.dart';
 
 class AuthService {
@@ -60,6 +61,37 @@ class AuthService {
       return _auth.currentUser;
     } on FirebaseAuthException catch (e) {
       throw e.message ?? e.code;
+    } catch (e) {
+      throw e.toString();
+    }
+  }
+
+  // Google Sign-In
+  Future<User?> signInWithGoogle() async {
+    try {
+      final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
+      if (googleUser == null) return null;
+
+      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      final AuthCredential credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+
+      final result = await _auth.signInWithCredential(credential);
+      final user = result.user;
+      
+      if (user != null && result.additionalUserInfo?.isNewUser == true) {
+        final String name = user.displayName ?? user.email?.split('@')[0] ?? 'User';
+        final newUser = UserModel(
+          id: user.uid,
+          name: name,
+          email: user.email ?? '',
+          displayName: name,
+        );
+        await _firestore.collection('users').doc(user.uid).set(newUser.toFirestore());
+      }
+      return user;
     } catch (e) {
       throw e.toString();
     }
