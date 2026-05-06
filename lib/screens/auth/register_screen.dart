@@ -199,7 +199,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                           if (mounted) setState(() => _isLoading = false);
                         }
                       },
-                      icon: Image.network('https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg', height: 24),
+                      icon: Image.asset('assets/google_logo.png', height: 24),
                       label: const Text(
                         "Continue with Google",
                         style: TextStyle(color: Colors.black87, fontSize: 16, fontWeight: FontWeight.bold),
