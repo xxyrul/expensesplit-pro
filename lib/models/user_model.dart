@@ -1,12 +1,17 @@
-// lib/models/user_model.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class UserModel {
   final String id;
-  final String name;
+  final String name; // You can keep this as a fallback if needed
+  final String displayName; // This is the field your UI is looking for
   final String email;
 
-  UserModel({required this.id, required this.name, required this.email});
+  UserModel({
+    required this.id, 
+    required this.name, 
+    required this.email,
+    required this.displayName,
+  });
 
   // Factory constructor for creating a UserModel from a Firestore document
   factory UserModel.fromFirestore(
@@ -18,8 +23,11 @@ class UserModel {
     }
     return UserModel(
       id: snapshot.id,
-      name: data['displayName'],
-      email: data['email'],
+      // Default to empty string if field is missing
+      name: data['name'] ?? 'User', 
+      email: data['email'] ?? '',
+      // This is what the UI wants
+      displayName: data['displayName'] ?? data['name'] ?? 'User',
     );
   }
 
@@ -28,6 +36,7 @@ class UserModel {
     return {
       "id": id,
       "name": name,
+      "displayName": displayName,
       "email": email,
       "createdAt": FieldValue.serverTimestamp(),
     };

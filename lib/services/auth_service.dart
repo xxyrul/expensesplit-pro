@@ -9,7 +9,6 @@ class AuthService {
 
   Stream<User?> get authStateChanges => _auth.authStateChanges();
 
-  // ADD THIS: Simple getter to access the current user synchronously
   User? get currentUser => _auth.currentUser;
 
   // Sign In
@@ -38,14 +37,15 @@ class AuthService {
       if (user != null) {
         final String initialName = email.split('@')[0];
 
-        // 1. Update Firebase Auth Profile (So user.displayName works immediately)
+        // 1. Update Firebase Auth Profile
         await user.updateDisplayName(initialName);
 
-        // 2. Create User Model
+        // 2. Create User Model (MATCHES THE 4 REQUIRED FIELDS)
         final newUser = UserModel(
           id: user.uid,
+          name: initialName,
           email: email,
-          displayName: initialName,
+          displayName: initialName, 
         );
 
         // 3. Save to Firestore
@@ -69,8 +69,14 @@ class AuthService {
     await _auth.signOut();
   }
 
+  // Updated to include all 4 required fields
   Future<UserModel?> getCurrentUser() async {
-    return UserModel(id: '1', name: 'John Doe', email: 'john.doe@example.com');
+    return UserModel(
+      id: '1', 
+      name: 'John Doe', 
+      email: 'john.doe@example.com',
+      displayName: 'John Doe',
+    );
   }
 }
 
@@ -89,7 +95,7 @@ final userProfileProvider = StreamProvider<UserModel?>((ref) {
   return authState.when(
     data: (user) {
       if (user == null) return Stream.value(null);
-      // Fetches real-time updates from the 'users' collection
+      
       return FirebaseFirestore.instance
           .collection('users')
           .doc(user.uid)
