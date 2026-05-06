@@ -125,7 +125,7 @@ class _CameraScannerViewState extends State<CameraScannerView>
         backCamera,
         ResolutionPreset.high,
         enableAudio: false,
-        imageFormatGroup: ImageFormatGroup.jpeg,
+        imageFormatGroup: Platform.isIOS ? ImageFormatGroup.bgra8888 : ImageFormatGroup.yuv420,
       );
 
       await _controller!.initialize();

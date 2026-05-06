@@ -151,7 +151,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   SizedBox(
                     width: double.infinity,
                     height: 55,
-                    child: OutlinedButton.icon(
+                    child: ElevatedButton.icon(
                       onPressed: _isLoading ? null : () async {
                         setState(() => _isLoading = true);
                         try {
@@ -164,12 +164,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       },
                       icon: Image.network('https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg', height: 24),
                       label: const Text(
-                        "Sign in with Google",
+                        "Continue with Google",
                         style: TextStyle(color: Colors.black87, fontSize: 16, fontWeight: FontWeight.bold),
                       ),
-                      style: OutlinedButton.styleFrom(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFF3F4F6),
+                        elevation: 0,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-                        side: BorderSide(color: Colors.grey.shade300),
                       ),
                     ),
                   ),
