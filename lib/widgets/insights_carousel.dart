@@ -20,6 +20,7 @@ class InsightsCarousel extends StatelessWidget {
   Widget build(BuildContext context) {
     if (expenses.isEmpty) return const SizedBox.shrink();
 
+    final colorScheme = Theme.of(context).colorScheme;
     final List<Widget> cards = [];
 
     // 1. Top Single Expense
@@ -31,10 +32,11 @@ class InsightsCarousel extends StatelessWidget {
     }
     if (topExpense != null) {
       cards.add(_buildCard(
+        context,
         title: "Top Expense",
         subtitle: "RM ${topExpense.amount.toStringAsFixed(2)} at ${topExpense.vendor}",
         icon: Icons.emoji_events_rounded,
-        colors: [const Color(0xFFf59e0b), const Color(0xFFfbbf24)],
+        accentColor: colorScheme.primary,
         onTap: onTopExpenseTapped != null ? () => onTopExpenseTapped!(topExpense!) : null,
       ));
     }
@@ -57,10 +59,11 @@ class InsightsCarousel extends StatelessWidget {
 
     if (topVendor != null && maxCount > 1) {
       cards.add(_buildCard(
+        context,
         title: "Frequent Shopper",
         subtitle: "Visited $topVendor $maxCount times",
         icon: Icons.storefront_rounded,
-        colors: [const Color(0xFF3b82f6), const Color(0xFF60a5fa)],
+        accentColor: colorScheme.secondary,
         onTap: onFrequentVendorTapped != null ? () => onFrequentVendorTapped!(topVendor!) : null,
       ));
     }
@@ -80,11 +83,13 @@ class InsightsCarousel extends StatelessWidget {
     });
 
     if (topCat != null) {
+      final style = getCategoryStyle(topCat!);
       cards.add(_buildCard(
+        context,
         title: "Biggest Category",
         subtitle: "RM ${maxCatSpend.toStringAsFixed(2)} on $topCat",
-        icon: getCategoryStyle(topCat!).icon,
-        colors: [const Color(0xFFec4899), const Color(0xFFf43f5e)],
+        icon: style.icon,
+        accentColor: style.color,
         onTap: onTopCategoryTapped != null ? () => onTopCategoryTapped!(topCat!) : null,
       ));
     }
@@ -94,24 +99,25 @@ class InsightsCarousel extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
           child: Text(
             "Quick Insights",
             style: TextStyle(
-              fontSize: 16,
+              fontSize: 14,
               fontWeight: FontWeight.bold,
-              color: Colors.blueGrey,
+              color: colorScheme.onSurfaceVariant,
+              letterSpacing: 0.2,
             ),
           ),
         ),
         SizedBox(
-          height: 120,
+          height: 94,
           child: ListView.separated(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
             scrollDirection: Axis.horizontal,
             itemCount: cards.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 15),
+            separatorBuilder: (_, __) => const SizedBox(width: 12),
             itemBuilder: (context, index) => cards[index],
           ),
         ),
@@ -119,65 +125,74 @@ class InsightsCarousel extends StatelessWidget {
     );
   }
 
-  Widget _buildCard({
+  Widget _buildCard(
+    BuildContext context, {
     required String title,
     required String subtitle,
     required IconData icon,
-    required List<Color> colors,
+    required Color accentColor,
     VoidCallback? onTap,
   }) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Container(
-      width: 220,
+      width: 250,
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: colors,
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+        color: colorScheme.surfaceContainer,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: colorScheme.outlineVariant,
         ),
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: colors.last.withOpacity(0.3),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
-          ),
-        ],
       ),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(18),
           child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                Row(
-                  children: [
-                    Icon(icon, color: Colors.white, size: 20),
-                    const SizedBox(width: 8),
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 13,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  subtitle,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: accentColor.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: accentColor.withOpacity(0.15)),
                   ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
+                  child: Icon(icon, color: accentColor, size: 22),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        title.toUpperCase(),
+                        style: TextStyle(
+                          color: colorScheme.onSurfaceVariant,
+                          fontSize: 9.5,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        subtitle,
+                        style: TextStyle(
+                          color: colorScheme.onSurface,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          height: 1.25,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),

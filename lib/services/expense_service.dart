@@ -18,6 +18,28 @@ class ExpenseService {
         .add(expense.toMap());
   }
 
+  Future<void> deleteExpense(String expenseId) async {
+    final uid = _auth.currentUser?.uid;
+    if (uid == null) return;
+    await _db
+        .collection('users')
+        .doc(uid)
+        .collection('expenses')
+        .doc(expenseId)
+        .delete();
+  }
+
+  Future<void> updateExpense(String expenseId, ExpenseModel expense) async {
+    final uid = _auth.currentUser?.uid;
+    if (uid == null) return;
+    await _db
+        .collection('users')
+        .doc(uid)
+        .collection('expenses')
+        .doc(expenseId)
+        .update(expense.toMap());
+  }
+
   Stream<List<ExpenseModel>> getExpenses() {
     final uid = _auth.currentUser?.uid;
     if (uid == null) return Stream.value([]);

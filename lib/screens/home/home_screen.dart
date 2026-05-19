@@ -1,5 +1,9 @@
+import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/auth_service.dart';
 import 'dashboard_view.dart';
 import 'add_expense_screen.dart';
@@ -19,20 +23,83 @@ class HomeScreen extends ConsumerStatefulWidget {
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   int _selectedIndex = 0;
+  String? _focusExpenseId;
+  StreamSubscription? _broadcastSub;
+  String? _activeBroadcastMsg;
+  int _currentBroadcastTs = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _listenForBroadcasts();
+  }
+
+  void _listenForBroadcasts() async {
+    final prefs = await SharedPreferences.getInstance();
+    _broadcastSub = FirebaseFirestore.instance.collection('system_config').doc('broadcast').snapshots().listen((doc) {
+      if (doc.exists && doc.data() != null) {
+        final data = doc.data()!;
+        final bool active = data['active'] ?? false;
+        final String msg = data['message'] ?? '';
+        final Timestamp? ts = data['timestamp'] as Timestamp?;
+        
+        final String lastDismissedMsg = prefs.getString('last_dismissed_broadcast_msg') ?? '';
+        final int lastDismissed = prefs.getInt('last_dismissed_broadcast') ?? 0;
+        final int currentTs = ts?.millisecondsSinceEpoch ?? 0;
+
+        final bool alreadyDismissed = (currentTs <= lastDismissed) || (msg == lastDismissedMsg);
+
+        if (active && msg.isNotEmpty && !alreadyDismissed && mounted) {
+          setState(() {
+            _activeBroadcastMsg = msg;
+            _currentBroadcastTs = currentTs;
+          });
+        } else if (mounted) {
+          setState(() {
+            _activeBroadcastMsg = null;
+          });
+        }
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _broadcastSub?.cancel();
+    super.dispose();
+  }
 
   // We use a getter for screens so it can access 'setState'
   List<Widget> get _screens => [
     DashboardView(
       onSettingsPressed: () {
-        setState(() => _selectedIndex = 4); // Navigate to Settings
+        setState(() => _selectedIndex = 4);
       },
       onViewAllPressed: () {
-        setState(() => _selectedIndex = 1); // Navigate to Expenses
+        setState(() {
+          _focusExpenseId = null;
+          _selectedIndex = 1;
+        });
+      },
+      onExpenseTap: (expense) {
+        setState(() {
+          _focusExpenseId = expense.id;
+          _selectedIndex = 1;
+        });
       },
     ),
     ExpensesView(
+      focusExpenseId: _focusExpenseId,
+      onFocusHandled: () {
+        if (_focusExpenseId != null) {
+          setState(() => _focusExpenseId = null);
+        }
+      },
       onBack: () {
-        setState(() => _selectedIndex = 0); // Back to Dashboard
+        setState(() {
+          _focusExpenseId = null;
+          _selectedIndex = 0;
+        });
       },
     ),
     const AddExpenseScreen(),
@@ -57,111 +124,202 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Widget build(BuildContext context) {
     // Keep the budget alert listener alive while HomeScreen is mounted.
     ref.watch(budgetAlertListenerProvider);
+    final currentScreen = _screens[_selectedIndex];
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFF3F7F8),
+    return PopScope(
+      canPop: _selectedIndex == 0,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        setState(() {
+          _focusExpenseId = null;
+          _selectedIndex = 0;
+        });
+      },
+      child: Scaffold(
+      backgroundColor: Theme.of(context).colorScheme.surface,
       extendBody: true,
       body: Stack(
         children: [
-          Positioned(
-            top: -120,
-            right: -70,
-            child: _ambientCircle(
-              size: 250,
-              color: const Color(0xFF99F6E4).withOpacity(0.35),
+          Positioned.fill(
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 240),
+              switchInCurve: Curves.easeOutCubic,
+              switchOutCurve: Curves.easeInCubic,
+              transitionBuilder: (child, animation) {
+                final slide = Tween<Offset>(
+                  begin: const Offset(0.04, 0.02),
+                  end: Offset.zero,
+                ).animate(animation);
+                return FadeTransition(
+                  opacity: animation,
+                  child: SlideTransition(position: slide, child: child),
+                );
+              },
+              child: Stack(
+                key: ValueKey(_selectedIndex),
+                children: [
+                  Positioned(
+                    top: -120,
+                    right: -70,
+                    child: _ambientCircle(
+                      size: 250,
+                      color: Theme.of(context).colorScheme.primary.withOpacity(0.12),
+                    ),
+                  ),
+                  Positioned(
+                    bottom: -80,
+                    left: -90,
+                    child: _ambientCircle(
+                      size: 220,
+                      color: Theme.of(context).colorScheme.secondary.withOpacity(0.10),
+                    ),
+                  ),
+                  currentScreen,
+                ],
+              ),
             ),
           ),
-          Positioned(
-            bottom: -80,
-            left: -90,
-            child: _ambientCircle(
-              size: 220,
-              color: const Color(0xFFBFDBFE).withOpacity(0.30),
+          if (_activeBroadcastMsg != null)
+            Positioned(
+              top: MediaQuery.of(context).padding.top + 8,
+              left: 16,
+              right: 16,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.95),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: Theme.of(context).colorScheme.primary.withOpacity(0.35),
+                    width: 1.5,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.25),
+                      blurRadius: 18,
+                      offset: const Offset(0, 6),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.primary.withOpacity(0.12),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        Icons.campaign_rounded,
+                        color: Theme.of(context).colorScheme.primary,
+                        size: 20,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'SYSTEM ANNOUNCEMENT',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w800,
+                              color: Theme.of(context).colorScheme.primary,
+                              letterSpacing: 0.8,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            _activeBroadcastMsg!,
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: Theme.of(context).colorScheme.onSurface,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    TextButton(
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      onPressed: () async {
+                        final prefs = await SharedPreferences.getInstance();
+                        await prefs.setInt('last_dismissed_broadcast', _currentBroadcastTs);
+                        await prefs.setString('last_dismissed_broadcast_msg', _activeBroadcastMsg ?? '');
+                        if (mounted) {
+                          setState(() => _activeBroadcastMsg = null);
+                        }
+                      },
+                      child: Text(
+                        'DISMISS',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
-          ),
-          IndexedStack(index: _selectedIndex, children: _screens),
         ],
       ),
 
-      floatingActionButton: Transform.translate(
-        offset: const Offset(0, 14),
-        child: Container(
-          height: 74,
-          width: 74,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            gradient: const LinearGradient(
-              colors: [Color(0xFF0F766E), Color(0xFF0EA5A0)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFF0F766E).withOpacity(0.35),
-                blurRadius: 18,
-                offset: const Offset(0, 10),
-              ),
-            ],
-          ),
-          child: FloatingActionButton(
-            onPressed: () {
-              ReceiptProcessingUI.startLiveScanFlow(context);
-            },
-            backgroundColor: Colors.transparent,
-            elevation: 0,
-            shape: const CircleBorder(),
-            child: const Icon(
-              Icons.document_scanner_rounded,
-              color: Colors.white,
-              size: 32,
-            ),
-          ),
-        ),
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-
-      bottomNavigationBar: SafeArea(
-        minimum: const EdgeInsets.only(left: 12, right: 12, bottom: 8),
-        child: Container(
-          height: 88,
-          padding: const EdgeInsets.symmetric(horizontal: 10),
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.96),
-            borderRadius: BorderRadius.circular(28),
-            border: Border.all(color: const Color(0xFFE2E8F0)),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.06),
-                blurRadius: 26,
-                offset: const Offset(0, 8),
-              ),
-            ],
-          ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Expanded(child: _buildNavItem(Icons.home_rounded, "Home", 0)),
-              Expanded(
-                child: _buildNavItem(
-                  Icons.account_balance_wallet_outlined,
-                  "Expenses",
-                  1,
+      bottomNavigationBar: _selectedIndex == 4
+          ? null
+          : SafeArea(
+              minimum: const EdgeInsets.only(left: 36, right: 36, bottom: 14),
+              child: Container(
+                height: 72,
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.surfaceContainer.withOpacity(0.96),
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(
+                    color: Theme.of(context).colorScheme.outlineVariant.withOpacity(0.6),
+                    width: 1.5,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.16),
+                      blurRadius: 28,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Expanded(child: _buildNavItem(Icons.home_rounded, "Home", 0)),
+                    Expanded(
+                      child: _buildNavItem(
+                        Icons.account_balance_wallet_outlined,
+                        "Expenses",
+                        1,
+                      ),
+                    ),
+                    Expanded(
+                      child: _buildNavItem(
+                        Icons.pie_chart_outline_rounded,
+                        "Budget",
+                        3,
+                      ),
+                    ),
+                    Expanded(
+                      child: _buildNavItem(Icons.bar_chart_rounded, "Reports", 5),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(width: 54),
-              Expanded(
-                child: _buildNavItem(
-                  Icons.pie_chart_outline_rounded,
-                  "Budget",
-                  3,
-                ),
-              ),
-              Expanded(
-                child: _buildNavItem(Icons.bar_chart_rounded, "Reports", 5),
-              ),
-            ],
-          ),
-        ),
+            ),
       ),
     );
   }
@@ -183,11 +341,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 220),
         curve: Curves.easeOut,
-        margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
+        margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 6),
         padding: const EdgeInsets.symmetric(vertical: 4),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          color: isSelected ? const Color(0xFFE6FFFB) : Colors.transparent,
+          borderRadius: BorderRadius.circular(999),
+          color: isSelected 
+              ? Theme.of(context).colorScheme.onSurface.withOpacity(0.08) 
+              : Colors.transparent,
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -196,20 +356,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             Icon(
               icon,
               color: isSelected
-                  ? const Color(0xFF0F766E)
-                  : const Color(0xFF64748B),
-              size: 24,
+                  ? Theme.of(context).colorScheme.onSurface
+                  : Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.7),
+              size: 21,
             ),
-            const SizedBox(height: 2),
+            const SizedBox(height: 3),
             Text(
               label,
               style: TextStyle(
                 fontSize: 10,
                 color: isSelected
-                    ? const Color(0xFF0F766E)
-                    : const Color(0xFF64748B),
-                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                letterSpacing: 0.1,
+                    ? Theme.of(context).colorScheme.onSurface
+                    : Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.7),
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                letterSpacing: 0.05,
               ),
             ),
           ],

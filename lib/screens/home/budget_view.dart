@@ -11,7 +11,9 @@ import '../../services/goal_service.dart';
 import '../../services/month_end_surplus_service.dart';
 import '../../services/budget_reallocation_service.dart';
 import '../../services/burst_detection_provider.dart';
+import '../../theme/brand_theme.dart';
 import '../../utils/category_styles.dart';
+import '../../widgets/modern_bottom_toast.dart';
 import 'set_budget_screen.dart';
 
 class BudgetView extends ConsumerWidget {
@@ -25,7 +27,7 @@ class BudgetView extends ConsumerWidget {
     final budgetsAsync = ref.watch(budgetsStreamProvider);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF3F7F8),
+      backgroundColor: Theme.of(context).colorScheme.surface,
       body: budgetsAsync.when(
         data: (budgetLimits) {
           return expensesAsync.when(
@@ -99,39 +101,26 @@ class BudgetView extends ConsumerWidget {
           left: 16,
           right: 16,
         ),
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Color(0xFF134E4A), Color(0xFF0F766E), Color(0xFF0EA5A0)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.vertical(bottom: Radius.circular(34)),
+        decoration: BoxDecoration(
+          gradient: context.brandHeaderGradient,
+          borderRadius: const BorderRadius.vertical(bottom: Radius.circular(34)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(
-                  children: [
-                    IconButton(
-                      icon: const Icon(
-                        Icons.arrow_back_ios_new,
-                        color: Colors.white,
-                        size: 20,
-                      ),
-                      onPressed: onBack,
+                const SizedBox(width: 48),
+                const Expanded(
+                  child: Text(
+                    "Budget Overview",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
                     ),
-                    const Text(
-                      "Budget Overview",
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
                 IconButton(
                   icon: const Icon(
@@ -237,9 +226,11 @@ class BudgetView extends ConsumerWidget {
       margin: const EdgeInsets.only(bottom: 15),
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surfaceContainer,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(
+          color: Theme.of(context).colorScheme.outlineVariant,
+        ),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.02),
@@ -298,7 +289,7 @@ class BudgetView extends ConsumerWidget {
             borderRadius: BorderRadius.circular(10),
             child: LinearProgressIndicator(
               value: progress,
-              backgroundColor: Colors.grey[200],
+              backgroundColor: Theme.of(context).brightness == Brightness.dark ? Colors.grey[800] : Colors.grey[200],
               color: getBudgetProgressColor(progress),
               minHeight: 8,
             ),
@@ -314,16 +305,21 @@ class BudgetView extends ConsumerWidget {
               if (isBurst)
                 SizedBox(
                   height: 28,
-                  child: ElevatedButton(
+                  child: FilledButton(
                     onPressed: () => _handleFixBudget(context, ref, category),
-                    style: ElevatedButton.styleFrom(
+                    style: FilledButton.styleFrom(
                       backgroundColor: Colors.red.shade400,
+                      foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(horizontal: 12),
                       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      side: BorderSide(
+                        color: Colors.red.shade700,
+                        width: 1.5,
+                      ),
                     ),
                     child: const Text(
                       'Fix Budget',
-                      style: TextStyle(fontSize: 11, color: Colors.white),
+                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
                     ),
                   ),
                 ),
@@ -343,8 +339,10 @@ class BudgetView extends ConsumerWidget {
     final surplus = limit - spent;
 
     if (surplus <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No surplus available to redirect.')),
+      ModernBottomToast.show(
+        context,
+        message: 'No surplus available to redirect.',
+        type: ModernToastType.info,
       );
       return;
     }
@@ -395,8 +393,10 @@ class BudgetView extends ConsumerWidget {
           final goals = await ref.read(goalsStreamProvider.future);
           if (!context.mounted) return;
           if (goals.isEmpty) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('No goals found to invest in.')),
+            ModernBottomToast.show(
+              context,
+              message: 'No goals found to invest in.',
+              type: ModernToastType.info,
             );
             return;
           }
@@ -414,8 +414,10 @@ class BudgetView extends ConsumerWidget {
           final debts = await ref.read(debtsStreamProvider.future);
           if (!context.mounted) return;
           if (debts.isEmpty) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('No debts found to pay down.')),
+            ModernBottomToast.show(
+              context,
+              message: 'No debts found to pay down.',
+              type: ModernToastType.info,
             );
             return;
           }
@@ -432,17 +434,18 @@ class BudgetView extends ConsumerWidget {
       }
 
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
+      ModernBottomToast.show(
+        context,
+        message:
             'Surplus of RM ${surplus.toStringAsFixed(2)} has been successfully redirected!',
-          ),
-        ),
+        type: ModernToastType.success,
       );
     } catch (err) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to redirect surplus: $err')),
+      ModernBottomToast.show(
+        context,
+        message: 'Failed to redirect surplus: $err',
+        type: ModernToastType.error,
       );
     }
   }
@@ -525,10 +528,10 @@ class BudgetView extends ConsumerWidget {
     if (!context.mounted) return;
 
     if (available.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('No categories with available balance to borrow from.'),
-        ),
+      ModernBottomToast.show(
+        context,
+        message: 'No categories with available balance to borrow from.',
+        type: ModernToastType.info,
       );
       return;
     }
@@ -580,21 +583,21 @@ class BudgetView extends ConsumerWidget {
 
       if (!context.mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
+      ModernBottomToast.show(
+        context,
+        message:
             'Reallocated RM ${amount.toStringAsFixed(2)} from $sourceCategory to $burstCategory',
-          ),
-          duration: const Duration(seconds: 3),
-        ),
+        type: ModernToastType.success,
       );
 
       // The UI will update automatically via the budget stream
     } catch (err) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(
+      ModernBottomToast.show(
         context,
-      ).showSnackBar(SnackBar(content: Text('Failed to reallocate: $err')));
+        message: 'Failed to reallocate: $err',
+        type: ModernToastType.error,
+      );
     }
   }
 }
@@ -645,9 +648,9 @@ class _ReallocationSheetState extends State<_ReallocationSheet> {
       maxChildSize: 0.9,
       builder: (context, scrollController) {
         return Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          decoration: BoxDecoration(
+            color: Theme.of(context).brightness == Brightness.dark ? Theme.of(context).colorScheme.surfaceContainerHigh : Colors.white,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
           ),
           child: SingleChildScrollView(
             controller: scrollController,
@@ -743,7 +746,7 @@ class _ReallocationSheetState extends State<_ReallocationSheet> {
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: Colors.grey[100],
+                        color: Theme.of(context).brightness == Brightness.dark ? Theme.of(context).colorScheme.surfaceContainerHighest : Colors.grey[100],
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Column(
@@ -800,7 +803,7 @@ class _ReallocationSheetState extends State<_ReallocationSheet> {
                                 style: const TextStyle(
                                   fontSize: 12,
                                   fontWeight: FontWeight.bold,
-                                  color: Color(0xFF0F766E),
+                                  color: Color(0xFF115E59),
                                 ),
                               ),
                             ],
@@ -813,7 +816,8 @@ class _ReallocationSheetState extends State<_ReallocationSheet> {
                   // Confirm button
                   SizedBox(
                     width: double.infinity,
-                    child: ElevatedButton(
+                    height: 52,
+                    child: FilledButton(
                       onPressed:
                           borrowAmount > 0 &&
                               borrowAmount <= (selectedCategory?.available ?? 0)
@@ -822,14 +826,9 @@ class _ReallocationSheetState extends State<_ReallocationSheet> {
                               borrowAmount,
                             )
                           : null,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF0F766E),
-                        disabledBackgroundColor: Colors.grey[300],
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                      ),
                       child: const Text(
                         'Confirm Reallocation',
-                        style: TextStyle(color: Colors.white),
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                       ),
                     ),
                   ),

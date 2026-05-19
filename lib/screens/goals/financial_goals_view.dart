@@ -7,6 +7,8 @@ import '../../services/goal_service.dart';
 import '../../utils/category_styles.dart';
 import '../../widgets/add_goal_sheet.dart';
 import '../../widgets/add_savings_sheet.dart';
+import '../../widgets/modern_bottom_toast.dart';
+import '../../theme/brand_theme.dart';
 
 class FinancialGoalsView extends ConsumerStatefulWidget {
   const FinancialGoalsView({super.key});
@@ -65,8 +67,10 @@ class _FinancialGoalsViewState extends ConsumerState<FinancialGoalsView>
     if (confirm == true && goal.id != null) {
       await ref.read(goalServiceProvider).deleteGoal(goal.id!);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Goal deleted successfully")),
+        ModernBottomToast.show(
+          context,
+          message: 'Goal deleted successfully',
+          type: ModernToastType.success,
         );
       }
     }
@@ -75,12 +79,13 @@ class _FinancialGoalsViewState extends ConsumerState<FinancialGoalsView>
   @override
   Widget build(BuildContext context) {
     final goalsAsync = ref.watch(goalsStreamProvider);
+    final scheme = Theme.of(context).colorScheme;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF3F7F8),
+      backgroundColor: scheme.surface,
       body: goalsAsync.when(
-        loading: () => const Center(
-          child: CircularProgressIndicator(color: Color(0xFF0F766E)),
+        loading: () => Center(
+          child: CircularProgressIndicator(color: scheme.primary),
         ),
         error: (err, stack) => Center(child: Text('Error: $err')),
         data: (goals) {
@@ -158,7 +163,7 @@ class _FinancialGoalsViewState extends ConsumerState<FinancialGoalsView>
                                 Icon(
                                   Icons.flag_outlined,
                                   size: 60,
-                                  color: Colors.blueGrey.withOpacity(0.3),
+                                  color: scheme.onSurfaceVariant.withOpacity(0.35),
                                 ),
                                 const SizedBox(height: 20),
                                 Text(
@@ -166,8 +171,8 @@ class _FinancialGoalsViewState extends ConsumerState<FinancialGoalsView>
                                       ? "No completed goals yet."
                                       : "No active goals.\nTap + to start saving!",
                                   textAlign: TextAlign.center,
-                                  style: const TextStyle(
-                                    color: Colors.blueGrey,
+                                  style: TextStyle(
+                                    color: scheme.onSurfaceVariant,
                                     fontSize: 16,
                                   ),
                                 ),
@@ -200,48 +205,58 @@ class _FinancialGoalsViewState extends ConsumerState<FinancialGoalsView>
     return Container(
       height: 280,
       width: double.infinity,
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Color(0xFF134E4A), Color(0xFF0F766E), Color(0xFF0EA5A0)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.vertical(bottom: Radius.circular(34)),
+      decoration: BoxDecoration(
+        gradient: context.brandHeaderGradient,
+        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(34)),
       ),
     );
   }
 
   Widget _buildAppBar() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          IconButton(
-            icon: const Icon(Icons.arrow_back, color: Colors.white),
-            onPressed: () => Navigator.pop(context),
-          ),
-          const Text(
-            "Financial Goals",
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          Container(
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.16),
-              border: Border.all(color: Colors.white.withOpacity(0.24)),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: IconButton(
-              icon: const Icon(
-                Icons.add_circle_outline,
-                color: Colors.white,
-                size: 26,
+          SizedBox(
+            width: 48,
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: IconButton(
+                icon: const Icon(Icons.arrow_back, color: Colors.white),
+                onPressed: () => Navigator.pop(context),
               ),
-              onPressed: _showAddGoalSheet,
+            ),
+          ),
+          const Expanded(
+            child: Text(
+              "Financial Goals",
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          SizedBox(
+            width: 48,
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: IconButton(
+                  icon: const Icon(
+                    Icons.add_rounded,
+                    color: Colors.white,
+                    size: 22,
+                  ),
+                  onPressed: _showAddGoalSheet,
+                ),
+              ),
             ),
           ),
         ],
@@ -250,14 +265,15 @@ class _FinancialGoalsViewState extends ConsumerState<FinancialGoalsView>
   }
 
   Widget _buildSummaryCard(double saved, double target, double progress) {
+    final scheme = Theme.of(context).colorScheme;
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20),
       padding: const EdgeInsets.all(22),
       width: double.infinity,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: scheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: scheme.outlineVariant),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.04),
@@ -275,10 +291,10 @@ class _FinancialGoalsViewState extends ConsumerState<FinancialGoalsView>
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     "Total Saved",
                     style: TextStyle(
-                      color: Color(0xFF64748B),
+                      color: scheme.onSurfaceVariant,
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
                     ),
@@ -286,8 +302,8 @@ class _FinancialGoalsViewState extends ConsumerState<FinancialGoalsView>
                   const SizedBox(height: 5),
                   Text(
                     _currencyFormat.format(saved),
-                    style: const TextStyle(
-                      color: Color(0xFF0F172A),
+                    style: TextStyle(
+                      color: scheme.onSurface,
                       fontSize: 32,
                       fontWeight: FontWeight.bold,
                     ),
@@ -297,12 +313,12 @@ class _FinancialGoalsViewState extends ConsumerState<FinancialGoalsView>
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFE6FFFB),
+                  color: scheme.primary.withOpacity(0.12),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.emoji_events,
-                  color: Color(0xFF0F766E),
+                  color: scheme.primary,
                   size: 28,
                 ),
               ),
@@ -314,16 +330,16 @@ class _FinancialGoalsViewState extends ConsumerState<FinancialGoalsView>
             children: [
               Text(
                 "Target: ${_currencyFormat.format(target)}",
-                style: const TextStyle(
-                  color: Color(0xFF64748B),
+                style: TextStyle(
+                  color: scheme.onSurfaceVariant,
                   fontSize: 13,
                   fontWeight: FontWeight.bold,
                 ),
               ),
               Text(
                 "${(progress * 100).toStringAsFixed(0)}%",
-                style: const TextStyle(
-                  color: Color(0xFF0F766E),
+                style: TextStyle(
+                  color: scheme.primary,
                   fontSize: 14,
                   fontWeight: FontWeight.bold,
                 ),
@@ -336,9 +352,9 @@ class _FinancialGoalsViewState extends ConsumerState<FinancialGoalsView>
             child: LinearProgressIndicator(
               value: progress,
               minHeight: 10,
-              backgroundColor: const Color(0xFFF1F5F9),
-              valueColor: const AlwaysStoppedAnimation<Color>(
-                Color(0xFF0F766E),
+              backgroundColor: scheme.surfaceContainerHighest,
+              valueColor: AlwaysStoppedAnimation<Color>(
+                scheme.primary,
               ),
             ),
           ),
@@ -348,12 +364,13 @@ class _FinancialGoalsViewState extends ConsumerState<FinancialGoalsView>
   }
 
   Widget _buildTabSelector(int activeCount, int completedCount) {
+    final scheme = Theme.of(context).colorScheme;
     return Container(
       height: 50,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: scheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(25),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: scheme.outlineVariant),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.03),
@@ -375,13 +392,11 @@ class _FinancialGoalsViewState extends ConsumerState<FinancialGoalsView>
               heightFactor: 1.0,
               child: Container(
                 decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF0F766E), Color(0xFF0EA5A0)],
-                  ),
+                  color: scheme.primary,
                   borderRadius: BorderRadius.circular(25),
                   boxShadow: [
                     BoxShadow(
-                      color: const Color(0xFF0F766E).withOpacity(0.24),
+                      color: scheme.primary.withOpacity(0.24),
                       blurRadius: 8,
                       offset: const Offset(0, 4),
                     ),
@@ -401,7 +416,7 @@ class _FinancialGoalsViewState extends ConsumerState<FinancialGoalsView>
                       "Active ($activeCount)",
                       style: TextStyle(
                         color: _showCompleted
-                            ? const Color(0xFF64748B)
+                            ? scheme.onSurfaceVariant
                             : Colors.white,
                         fontWeight: FontWeight.bold,
                         fontSize: 14,
@@ -420,7 +435,7 @@ class _FinancialGoalsViewState extends ConsumerState<FinancialGoalsView>
                       style: TextStyle(
                         color: _showCompleted
                             ? Colors.white
-                            : const Color(0xFF64748B),
+                            : scheme.onSurfaceVariant,
                         fontWeight: FontWeight.bold,
                         fontSize: 14,
                       ),
@@ -436,6 +451,7 @@ class _FinancialGoalsViewState extends ConsumerState<FinancialGoalsView>
   }
 
   Widget _buildGoalCard(GoalModel goal) {
+    final scheme = Theme.of(context).colorScheme;
     final type = getGoalType(goal.category);
     final progress = goal.targetAmount > 0
         ? (goal.currentAmount / goal.targetAmount).clamp(0.0, 1.0)
@@ -449,9 +465,9 @@ class _FinancialGoalsViewState extends ConsumerState<FinancialGoalsView>
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: scheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: scheme.outlineVariant),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.03),
@@ -480,8 +496,8 @@ class _FinancialGoalsViewState extends ConsumerState<FinancialGoalsView>
                   children: [
                     Text(
                       goal.name,
-                      style: const TextStyle(
-                        color: Color(0xFF0F172A),
+                      style: TextStyle(
+                        color: scheme.onSurface,
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                       ),
@@ -491,8 +507,8 @@ class _FinancialGoalsViewState extends ConsumerState<FinancialGoalsView>
                     const SizedBox(height: 4),
                     Text(
                       "Target ${DateFormat('MMM d, yyyy').format(goal.targetDate)}",
-                      style: const TextStyle(
-                        color: Color(0xFF64748B),
+                      style: TextStyle(
+                        color: scheme.onSurfaceVariant,
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
                       ),
@@ -516,9 +532,9 @@ class _FinancialGoalsViewState extends ConsumerState<FinancialGoalsView>
                     ),
                     IconButton(
                       onPressed: () => _showAddSavingsSheet(goal),
-                      icon: const Icon(
+                      icon: Icon(
                         Icons.add_circle,
-                        color: Color(0xFF0F766E),
+                        color: scheme.primary,
                         size: 30,
                       ),
                       padding: EdgeInsets.zero,
@@ -555,8 +571,8 @@ class _FinancialGoalsViewState extends ConsumerState<FinancialGoalsView>
             children: [
               Text(
                 "${_currencyFormat.format(goal.currentAmount)} / ${_currencyFormat.format(goal.targetAmount)}",
-                style: const TextStyle(
-                  color: Color(0xFF1E293B),
+                style: TextStyle(
+                  color: scheme.onSurface,
                   fontSize: 14,
                   fontWeight: FontWeight.bold,
                 ),
@@ -585,17 +601,17 @@ class _FinancialGoalsViewState extends ConsumerState<FinancialGoalsView>
           if (!goal.isCompleted)
             Text(
               "${_currencyFormat.format(remaining)} remaining to go",
-              style: const TextStyle(
-                color: Color(0xFF64748B),
+              style: TextStyle(
+                color: scheme.onSurfaceVariant,
                 fontSize: 12,
                 fontWeight: FontWeight.w500,
               ),
             )
           else
-            const Text(
+            Text(
               "Goal achieved! 🎉",
               style: TextStyle(
-                color: Color(0xFF0F766E),
+                color: scheme.primary,
                 fontSize: 12,
                 fontWeight: FontWeight.bold,
               ),

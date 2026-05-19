@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -7,21 +8,29 @@ import '../../services/expense_service.dart';
 import '../../services/vendor_intelligence_service.dart';
 import '../../widgets/scan_receipt_button.dart';
 import '../../utils/category_styles.dart';
+import '../../widgets/modern_bottom_toast.dart';
+import '../../theme/brand_theme.dart';
 
 class AddExpenseScreen extends ConsumerStatefulWidget {
   final double? initialAmount;
   final String? initialVendor;
   final DateTime? initialDate;
+  final String? initialCategory;
   final String? rawText;
   final String? capturedImagePath;
+  final String? expenseIdToEdit;
+  final bool showScanSuccessBanner;
 
   const AddExpenseScreen({
     super.key,
     this.initialAmount,
     this.initialVendor,
     this.initialDate,
+    this.initialCategory,
     this.rawText,
     this.capturedImagePath,
+    this.expenseIdToEdit,
+    this.showScanSuccessBanner = false,
   });
 
   @override
@@ -32,14 +41,17 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
   late final TextEditingController _amountController;
   late final TextEditingController _vendorController;
   String _selectedCategory = 'Food';
-  DateTime _selectedDate = DateTime.now(); // Automatically sets today's date
+  DateTime _selectedDate = DateTime.now();
   bool _isAiCategory = false;
+  bool _isSaving = false;
 
   @override
   void initState() {
     super.initState();
     _amountController = TextEditingController(
-      text: widget.initialAmount != null ? widget.initialAmount.toString() : '',
+      text: widget.initialAmount != null
+          ? widget.initialAmount!.toStringAsFixed(2)
+          : '',
     );
     _vendorController = TextEditingController(text: widget.initialVendor ?? '');
 
@@ -49,10 +61,27 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
       _selectedDate = DateTime.now();
     }
 
+    if (widget.initialCategory != null) {
+      _selectedCategory = widget.initialCategory!;
+    }
+
     _checkSmartVendor();
+
+    if (widget.showScanSuccessBanner) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          ModernBottomToast.show(
+            context,
+            message: 'Receipt scanned successfully',
+            type: ModernToastType.success,
+          );
+        }
+      });
+    }
   }
 
   Future<void> _checkSmartVendor() async {
+    if (widget.expenseIdToEdit != null) return;
     if (widget.initialVendor != null && widget.initialVendor!.isNotEmpty) {
       final vendorService = ref.read(vendorIntelligenceServiceProvider);
       final category = await vendorService.getCategoryForVendor(
@@ -74,11 +103,8 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
     super.dispose();
   }
 
-  // Category styles come from the shared utility (category_styles.dart)
-  // so colours/icons are always consistent with the rest of the app.
-
-  // Date Picker Logic
   Future<void> _selectDate(BuildContext context) async {
+    final theme = Theme.of(context);
     final DateTime? picked = await showDatePicker(
       context: context,
       initialDate: _selectedDate,
@@ -86,11 +112,10 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
       lastDate: DateTime.now(),
       builder: (context, child) {
         return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.light(
-              primary: Color(0xFF0F766E),
-              onPrimary: Colors.white,
-              onSurface: Colors.black,
+          data: theme.copyWith(
+            colorScheme: theme.colorScheme.copyWith(
+              primary: theme.colorScheme.primary,
+              onPrimary: theme.colorScheme.onPrimary,
             ),
           ),
           child: child!,
@@ -104,7 +129,16 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
     }
   }
 
+  void _showSnackBar(String message) {
+    ModernBottomToast.show(
+      context,
+      message: message,
+      type: ModernToastType.error,
+    );
+  }
+
   void _submitData() async {
+    if (_isSaving) return;
     final enteredAmount = double.tryParse(_amountController.text);
     final enteredVendor = _vendorController.text.trim();
 
@@ -120,68 +154,88 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
 
     final newExpense = ExpenseModel(
       amount: enteredAmount,
-      vendor: enteredVendor, // Saves names like "Zus Coffee"
+      vendor: enteredVendor,
       category: _selectedCategory,
-      date: _selectedDate, // Saves either the auto-date or manually picked date
+      date: _selectedDate,
     );
 
+    setState(() => _isSaving = true);
     try {
-      await ref.read(expenseServiceProvider).addExpense(newExpense);
+      final svc = ref.read(expenseServiceProvider);
+      if (widget.expenseIdToEdit != null) {
+        // Edit mode
+        await svc.updateExpense(widget.expenseIdToEdit!, newExpense);
+      } else {
+        // Add mode
+        await svc.addExpense(newExpense);
+      }
 
       final vendorService = ref.read(vendorIntelligenceServiceProvider);
-      // AI Logic: Save user's selected category for this vendor
       await vendorService.saveVendorCategory(enteredVendor, _selectedCategory);
 
-      // AI Logic: Check for OCR corrections
-      if (widget.initialAmount != null && widget.rawText != null) {
-        if (widget.initialAmount != enteredAmount) {
+      // AI Logic: Check for OCR corrections (amount and/or vendor)
+      if (widget.rawText != null) {
+        final amountChanged =
+            widget.initialAmount != null &&
+            widget.initialAmount != enteredAmount;
+        final vendorChanged =
+            widget.initialVendor != null &&
+            widget.initialVendor != enteredVendor;
+
+        if (amountChanged || vendorChanged) {
           await vendorService.logOcrCorrection(
             rawText: widget.rawText!,
-            systemSuggestedAmount: widget.initialAmount!,
+            systemSuggestedAmount: widget.initialAmount ?? enteredAmount,
             userCorrectedAmount: enteredAmount,
+            systemSuggestedVendor: widget.initialVendor,
+            userCorrectedVendor: enteredVendor,
           );
         }
       }
 
       if (mounted) {
-        _showSnackBar("Expense Saved Successfully!");
-        // Returns to Home (bypassing any intermediate screens like camera scanner)
-        // and refreshes the list
+        ModernBottomToast.show(
+          context,
+          message: 'Expense saved successfully',
+          type: ModernToastType.success,
+        );
         Navigator.of(context).popUntil((route) => route.isFirst);
       }
     } catch (e) {
-      if (mounted) _showSnackBar("Error saving expense: $e");
+      if (mounted) {
+        ModernBottomToast.show(
+          context,
+          message: 'Error saving expense: $e',
+          type: ModernToastType.error,
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
     }
-  }
-
-  void _showSnackBar(String message) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
-      backgroundColor: const Color(0xFFF3F7F8),
+      backgroundColor: isDark
+          ? Theme.of(context).scaffoldBackgroundColor
+          : const Color(0xFFF3F7F8),
       body: SingleChildScrollView(
         child: Column(
           children: [
             _buildHeader(),
-
             const SizedBox(height: 20),
-
-            // 1. AMOUNT CARD
             _buildInputCard(
               label: "Amount",
               child: Row(
                 children: [
-                  const Text(
+                  Text(
                     "RM ",
                     style: TextStyle(
                       fontSize: 28,
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF475569),
+                      color: isDark ? Colors.white70 : const Color(0xFF475569),
                     ),
                   ),
                   Expanded(
@@ -192,17 +246,18 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                         fontSize: 40,
                         fontWeight: FontWeight.bold,
                       ),
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         border: InputBorder.none,
                         hintText: "0.00",
+                        hintStyle: TextStyle(
+                          color: isDark ? Colors.white24 : Colors.grey[400],
+                        ),
                       ),
                     ),
                   ),
                 ],
               ),
             ),
-
-            // 2. VENDOR/MERCHANT CARD
             _buildInputCard(
               label: "Merchant / Vendor",
               child: TextField(
@@ -211,24 +266,28 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                   fontSize: 18,
                   fontWeight: FontWeight.w600,
                 ),
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   border: InputBorder.none,
                   hintText: "e.g. Starbucks, Zus Coffee",
-                  icon: Icon(Icons.storefront, color: Color(0xFF0F766E)),
+                  hintStyle: TextStyle(
+                    color: isDark ? Colors.white24 : Colors.grey[400],
+                  ),
+                  icon: Icon(
+                    Icons.storefront,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
                 ),
               ),
             ),
-
-            // 3. DATE PICKER CARD
             _buildInputCard(
               label: "Date",
               child: InkWell(
                 onTap: () => _selectDate(context),
                 child: Row(
                   children: [
-                    const Icon(
+                    Icon(
                       Icons.calendar_today_rounded,
-                      color: Color(0xFF0F766E),
+                      color: Theme.of(context).colorScheme.primary,
                     ),
                     const SizedBox(width: 15),
                     Text(
@@ -248,21 +307,44 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                 ),
               ),
             ),
-
-            // 4. CATEGORY GRID
             _buildCategorySection(),
-
-            const SizedBox(height: 30),
-
-            // AI SCAN BUTTON
-            const ScanReceiptButton(),
-
-            const SizedBox(height: 15),
-
-            // 5. SAVE BUTTON
-            _buildGradientSaveButton(),
-
-            const SizedBox(height: 40),
+            const SizedBox(height: 10),
+          ],
+        ),
+      ),
+      bottomNavigationBar: Container(
+        padding: EdgeInsets.only(
+          left: 20,
+          right: 20,
+          bottom: MediaQuery.of(context).padding.bottom + 10,
+          top: 10,
+        ),
+        decoration: BoxDecoration(
+          color: isDark
+              ? Theme.of(context).scaffoldBackgroundColor
+              : const Color(0xFFF3F7F8),
+          boxShadow: [
+            if (isDark)
+              BoxShadow(
+                color: Colors.black.withOpacity(0.2),
+                blurRadius: 10,
+                offset: const Offset(0, -2),
+              ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (!kIsWeb)
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 40),
+                child: ScanReceiptButton(),
+              ),
+            const SizedBox(height: 12),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 40),
+              child: _buildGradientSaveButton(),
+            ),
           ],
         ),
       ),
@@ -270,15 +352,21 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
   }
 
   Widget _buildInputCard({required String label, required Widget child}) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDark
+            ? Theme.of(context).colorScheme.surfaceContainerHighest
+            : Colors.white,
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(
+          color: isDark ? Colors.transparent : const Color(0xFFE2E8F0),
+        ),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 12),
+          if (!isDark)
+            BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 12),
         ],
       ),
       child: Column(
@@ -304,54 +392,109 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
     return Container(
       width: double.infinity,
       padding: EdgeInsets.only(
-        top: MediaQuery.of(context).padding.top + 10,
-        left: 20,
-        right: 20,
+        top: MediaQuery.of(context).padding.top + 8,
+        left: 16,
+        right: 16,
         bottom: 24,
       ),
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Color(0xFF134E4A), Color(0xFF0F766E), Color(0xFF0EA5A0)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.vertical(bottom: Radius.circular(34)),
+      decoration: BoxDecoration(
+        gradient: context.brandHeaderGradient,
+        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(30)),
       ),
       child: Column(
         children: [
           Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              IconButton(
-                icon: const Icon(Icons.arrow_back, color: Colors.white),
-                onPressed: () {
-                  if (Navigator.canPop(context)) {
-                    Navigator.pop(context);
-                  } else {
-                    Navigator.of(context).pushReplacementNamed('/');
-                  }
-                },
-              ),
-              const Text(
-                "Add Expense",
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
+              SizedBox(
+                width: 48,
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: IconButton(
+                    icon: const Icon(Icons.close_rounded, color: Colors.white),
+                    onPressed: () {
+                      if (Navigator.canPop(context)) {
+                        Navigator.pop(context);
+                      } else {
+                        Navigator.of(context).pushReplacementNamed('/');
+                      }
+                    },
+                  ),
                 ),
               ),
+              Expanded(
+                child: Text(
+                  widget.expenseIdToEdit != null
+                      ? "Edit Expense"
+                      : "Add Expense",
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 48),
             ],
           ),
           const SizedBox(height: 20),
           if (hasImage)
-            Hero(
-              tag: 'receipt_image',
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(20),
-                child: Image.file(
-                  File(widget.capturedImagePath!),
-                  height: 140,
-                  width: double.infinity,
-                  fit: BoxFit.cover,
+            GestureDetector(
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => _FullScreenImageViewer(
+                    imagePath: widget.capturedImagePath!,
+                  ),
+                ),
+              ),
+              child: Hero(
+                tag: 'receipt_image',
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(20),
+                  child: Stack(
+                    children: [
+                      Image.file(
+                        File(widget.capturedImagePath!),
+                        height: 140,
+                        width: double.infinity,
+                        fit: BoxFit.cover,
+                      ),
+                      Positioned(
+                        bottom: 8,
+                        right: 8,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(0.55),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                  Icons.zoom_out_map,
+                                  color: Colors.white,
+                                  size: 14,
+                                ),
+                              SizedBox(width: 4),
+                              Text(
+                                'Tap to expand',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 11,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             )
@@ -359,9 +502,8 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
             Container(
               padding: const EdgeInsets.all(15),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.18),
-                border: Border.all(color: Colors.white.withOpacity(0.24)),
-                borderRadius: BorderRadius.circular(25),
+                color: Colors.white.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(20),
               ),
               child: const Row(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -384,15 +526,21 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
   }
 
   Widget _buildCategorySection() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDark
+            ? Theme.of(context).colorScheme.surfaceContainerHighest
+            : Colors.white,
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(
+          color: isDark ? Colors.transparent : const Color(0xFFE2E8F0),
+        ),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 12),
+          if (!isDark)
+            BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 12),
         ],
       ),
       child: Column(
@@ -441,7 +589,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                 onTap: () {
                   setState(() {
                     _selectedCategory = key;
-                    _isAiCategory = false; // User manually changed category
+                    _isAiCategory = false;
                   });
                 },
                 child: AnimatedContainer(
@@ -450,11 +598,15 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                   decoration: BoxDecoration(
                     color: isSelected
                         ? style.color
-                        : style.color.withOpacity(0.06),
+                        : (isDark
+                              ? style.color.withOpacity(0.12)
+                              : style.color.withOpacity(0.06)),
                     border: Border.all(
                       color: isSelected
                           ? style.color
-                          : style.color.withOpacity(0.18),
+                          : (isDark
+                                ? style.color.withOpacity(0.35)
+                                : style.color.withOpacity(0.18)),
                     ),
                     borderRadius: BorderRadius.circular(20),
                     boxShadow: [
@@ -481,7 +633,11 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.bold,
-                          color: isSelected ? Colors.white : style.color,
+                          color: isSelected
+                              ? Colors.white
+                              : (isDark
+                                    ? style.color.withOpacity(0.9)
+                                    : style.color),
                         ),
                       ),
                     ],
@@ -496,39 +652,56 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
   }
 
   Widget _buildGradientSaveButton() {
-    return Container(
+    return SizedBox(
       width: double.infinity,
-      height: 60,
-      margin: const EdgeInsets.symmetric(horizontal: 20),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF0F766E), Color(0xFF0EA5A0)],
-        ),
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF0F766E).withOpacity(0.28),
-            blurRadius: 10,
-            offset: const Offset(0, 5),
-          ),
-        ],
+      height: 52,
+      child: FilledButton(
+        onPressed: _isSaving ? null : _submitData,
+        child: _isSaving
+            ? const SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(
+                  color: Colors.white,
+                  strokeWidth: 2.5,
+                ),
+              )
+            : const Text(
+                "Save Expense",
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
       ),
-      child: ElevatedButton(
-        onPressed: _submitData,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.transparent,
-          shadowColor: Colors.transparent,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Full-screen image viewer with pinch-to-zoom
+// ─────────────────────────────────────────────────────────────────────────────
+class _FullScreenImageViewer extends StatelessWidget {
+  final String imagePath;
+  const _FullScreenImageViewer({required this.imagePath});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        iconTheme: const IconThemeData(color: Colors.white),
+        title: const Text(
+          'Receipt',
+          style: TextStyle(color: Colors.white, fontSize: 16),
         ),
-        child: const Text(
-          "Save Expense",
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-          ),
+      ),
+      body: Center(
+        child: InteractiveViewer(
+          minScale: 0.5,
+          maxScale: 5.0,
+          child: Hero(tag: 'receipt_image', child: Image.file(File(imagePath))),
         ),
       ),
     );

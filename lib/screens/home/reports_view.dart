@@ -4,10 +4,12 @@ import '../../services/expense_service.dart';
 import '../../models/expense_model.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
+import '../../theme/brand_theme.dart';
 import '../../utils/category_styles.dart';
 import '../../services/export_service.dart';
 import '../../widgets/insights_carousel.dart';
 import '../../widgets/ai_advisor_card.dart';
+import '../../widgets/modern_bottom_toast.dart';
 
 class ReportsView extends ConsumerStatefulWidget {
   final VoidCallback? onBack;
@@ -43,7 +45,7 @@ class _ReportsViewState extends ConsumerState<ReportsView> {
     final expensesAsync = ref.watch(expensesStreamProvider);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF3F7F8),
+      backgroundColor: Theme.of(context).colorScheme.surface,
       body: expensesAsync.when(
         data: (expenses) {
           final filtered = _filterExpenses(expenses, _selectedMonth);
@@ -58,17 +60,9 @@ class _ReportsViewState extends ConsumerState<ReportsView> {
                   top: MediaQuery.of(context).padding.top + 8,
                   bottom: 20,
                 ),
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      Color(0xFF134E4A),
-                      Color(0xFF0F766E),
-                      Color(0xFF0EA5A0),
-                    ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.vertical(
+                decoration: BoxDecoration(
+                  gradient: context.brandHeaderGradient,
+                  borderRadius: const BorderRadius.vertical(
                     bottom: Radius.circular(30),
                   ),
                 ),
@@ -142,21 +136,28 @@ class _ReportsViewState extends ConsumerState<ReportsView> {
         .toList();
   }
 
-  // ── Top bar (title + back / options) ──
   Widget _buildTopBar(BuildContext context, List<ExpenseModel> filtered) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          // Back button — same frosted-glass style as expenses_view
-          Container(
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: IconButton(
-              icon: const Icon(Icons.arrow_back, color: Colors.white),
-              onPressed: widget.onBack ?? () {},
+          SizedBox(
+            width: 48,
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: widget.onBack != null
+                  ? Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.12),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: IconButton(
+                        icon: const Icon(Icons.arrow_back, color: Colors.white, size: 20),
+                        onPressed: widget.onBack,
+                      ),
+                    )
+                  : const SizedBox(),
             ),
           ),
           const Expanded(
@@ -165,34 +166,44 @@ class _ReportsViewState extends ConsumerState<ReportsView> {
               textAlign: TextAlign.center,
               style: TextStyle(
                 color: Colors.white,
-                fontSize: 20,
+                fontSize: 18,
                 fontWeight: FontWeight.bold,
               ),
             ),
           ),
-          Container(
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: IconButton(
-              icon: const Icon(Icons.download_rounded, color: Colors.white),
-              onPressed: () async {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Generating CSV Report...')),
-                );
-                try {
-                  final exportService = ref.read(exportServiceProvider);
-                  await exportService.exportExpensesToCsv(
-                    filtered,
-                    _selectedMonth,
-                  );
-                } catch (e) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Error sharing report: $e')),
-                  );
-                }
-              },
+          SizedBox(
+            width: 48,
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: IconButton(
+                  icon: const Icon(Icons.download_rounded, color: Colors.white, size: 20),
+                  onPressed: () async {
+                    ModernBottomToast.show(
+                      context,
+                      message: 'Generating CSV Report...',
+                      type: ModernToastType.info,
+                    );
+                    try {
+                      final exportService = ref.read(exportServiceProvider);
+                      await exportService.exportExpensesToCsv(
+                        filtered,
+                        _selectedMonth,
+                      );
+                    } catch (e) {
+                      ModernBottomToast.show(
+                        context,
+                        message: 'Error sharing report: $e',
+                        type: ModernToastType.error,
+                      );
+                    }
+                  },
+                ),
+              ),
             ),
           ),
         ],
@@ -349,10 +360,10 @@ class _ReportsViewState extends ConsumerState<ReportsView> {
                   const SizedBox(height: 8),
                   Text(
                     '$pct%',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 26,
                       fontWeight: FontWeight.bold,
-                      color: Colors.black,
+                      color: Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
                   const SizedBox(height: 4),
@@ -380,7 +391,7 @@ class _ReportsViewState extends ConsumerState<ReportsView> {
                 child: Icon(
                   Icons.keyboard_arrow_up,
                   color: _showDailyAverage
-                      ? const Color(0xFF0F766E)
+                      ? Theme.of(context).colorScheme.primary
                       : Colors.grey.withOpacity(0.4),
                   size: 24,
                 ),
@@ -408,8 +419,8 @@ class _ReportsViewState extends ConsumerState<ReportsView> {
               const SizedBox(height: 4),
               Text(
                 'RM ${displayValue.toStringAsFixed(2)}',
-                style: const TextStyle(
-                  color: Colors.black,
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurface,
                   fontSize: 22,
                   fontWeight: FontWeight.w800,
                 ),
@@ -423,7 +434,7 @@ class _ReportsViewState extends ConsumerState<ReportsView> {
                 child: Icon(
                   Icons.keyboard_arrow_down,
                   color: !_showDailyAverage
-                      ? const Color(0xFF0F766E)
+                      ? Theme.of(context).colorScheme.primary
                       : Colors.grey.withOpacity(0.4),
                   size: 24,
                 ),
@@ -448,18 +459,11 @@ class _ReportsViewState extends ConsumerState<ReportsView> {
               margin: const EdgeInsets.only(right: 12),
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
               decoration: BoxDecoration(
-                gradient: isSelected
-                    ? const LinearGradient(
-                        colors: [Color(0xFF0F766E), Color(0xFF0EA5A0)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      )
-                    : null,
-                color: isSelected ? null : Colors.transparent,
+                color: isSelected ? Theme.of(context).colorScheme.primary : Colors.transparent,
                 borderRadius: BorderRadius.circular(20),
                 border: isSelected
                     ? null
-                    : Border.all(color: const Color(0xFFe2e8f0), width: 1.5),
+                    : Border.all(color: Theme.of(context).colorScheme.outlineVariant, width: 1.5),
               ),
               child: Text(
                 tab,
@@ -564,7 +568,7 @@ class _ReportsViewState extends ConsumerState<ReportsView> {
                     borderRadius: BorderRadius.circular(6),
                     child: LinearProgressIndicator(
                       value: pct,
-                      backgroundColor: Colors.grey.shade100,
+                      backgroundColor: Theme.of(context).brightness == Brightness.dark ? Colors.grey[800] : Colors.grey.shade100,
                       valueColor: AlwaysStoppedAnimation<Color>(style.color),
                       minHeight: 7,
                     ),
@@ -613,18 +617,14 @@ class _ReportsViewState extends ConsumerState<ReportsView> {
             width: 44,
             height: 44,
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF0F766E), Color(0xFF0EA5A0)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
+              color: Theme.of(context).colorScheme.primaryContainer,
               borderRadius: BorderRadius.circular(12),
             ),
             child: Center(
               child: Text(
                 initials,
-                style: const TextStyle(
-                  color: Colors.white,
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onPrimaryContainer,
                   fontWeight: FontWeight.bold,
                   fontSize: 16,
                 ),
@@ -651,7 +651,7 @@ class _ReportsViewState extends ConsumerState<ReportsView> {
     final style = getCategoryStyle(expense.category);
     showModalBottomSheet(
       context: context,
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).brightness == Brightness.dark ? Theme.of(context).colorScheme.surfaceContainerHigh : Colors.white,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -704,18 +704,11 @@ class _ReportsViewState extends ConsumerState<ReportsView> {
               const SizedBox(height: 24),
               SizedBox(
                 width: double.infinity,
-                child: ElevatedButton(
+                child: FilledButton(
                   onPressed: () => Navigator.pop(context),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF0F766E),
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                  ),
                   child: const Text(
                     'Close',
-                    style: TextStyle(fontSize: 16, color: Colors.white),
+                    style: TextStyle(fontSize: 16),
                   ),
                 ),
               ),
@@ -736,7 +729,7 @@ class _ReportsViewState extends ConsumerState<ReportsView> {
           style: TextStyle(
             fontWeight: isAmount ? FontWeight.w800 : FontWeight.w600,
             fontSize: isAmount ? 18 : 15,
-            color: isAmount ? const Color(0xFFf43f5e) : Colors.black87,
+            color: isAmount ? const Color(0xFFf43f5e) : Theme.of(context).colorScheme.onSurface,
           ),
         ),
       ],
@@ -762,7 +755,7 @@ class _ReportsViewState extends ConsumerState<ReportsView> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).brightness == Brightness.dark ? Theme.of(context).colorScheme.surfaceContainerHigh : Colors.white,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),

@@ -13,6 +13,125 @@ class AuthService {
 
   User? get currentUser => _auth.currentUser;
 
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    final user = _auth.currentUser;
+    final email = user?.email;
+
+    if (user == null || email == null || email.isEmpty) {
+      throw 'No signed-in email account found.';
+    }
+
+    final credential = EmailAuthProvider.credential(
+      email: email,
+      password: currentPassword,
+    );
+
+    try {
+      await user.reauthenticateWithCredential(credential);
+      await user.updatePassword(newPassword);
+    } on FirebaseAuthException catch (e) {
+      throw e.message ?? e.code;
+    }
+  }
+
+  Future<void> setPassword({required String newPassword}) async {
+    final user = _auth.currentUser;
+    final email = user?.email;
+
+    if (user == null || email == null || email.isEmpty) {
+      throw 'No signed-in email account found.';
+    }
+
+    final credential = EmailAuthProvider.credential(
+      email: email,
+      password: newPassword,
+    );
+
+    final hasPasswordProvider = user.providerData.any(
+      (provider) => provider.providerId == 'password',
+    );
+
+    try {
+      if (hasPasswordProvider) {
+        await user.updatePassword(newPassword);
+      } else {
+        await user.linkWithCredential(credential);
+      }
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'provider-already-linked') {
+        await user.updatePassword(newPassword);
+        return;
+      }
+      throw e.message ?? e.code;
+    }
+  }
+
+  Future<void> linkGoogle() async {
+    final user = _auth.currentUser;
+    if (user == null) throw 'No authenticated user found.';
+
+    try {
+      if (kIsWeb) {
+        final GoogleAuthProvider googleProvider = GoogleAuthProvider();
+        googleProvider.addScope('email');
+        googleProvider.setCustomParameters({'prompt': 'select_account'});
+        await user.linkWithPopup(googleProvider);
+      } else {
+        final GoogleSignIn googleSignIn = GoogleSignIn();
+        try {
+          await googleSignIn.disconnect();
+        } catch (_) {}
+        final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
+        if (googleUser == null) throw 'Google Sign-In cancelled.';
+
+        final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+        final AuthCredential credential = GoogleAuthProvider.credential(
+          accessToken: googleAuth.accessToken,
+          idToken: googleAuth.idToken,
+        );
+
+        await user.linkWithCredential(credential);
+      }
+      
+      // Update Firestore user document metadata
+      final name = user.displayName ?? user.email?.split('@')[0] ?? 'User';
+      final newUser = UserModel(
+        id: user.uid,
+        name: name,
+        email: user.email ?? '',
+        displayName: name,
+      );
+      await _firestore
+          .collection('users')
+          .doc(user.uid)
+          .set(newUser.toFirestore(), SetOptions(merge: true));
+    } on FirebaseAuthException catch (e) {
+      throw e.message ?? e.code;
+    }
+  }
+
+  Future<void> unlinkGoogle() async {
+    final user = _auth.currentUser;
+    if (user == null) throw 'No authenticated user found.';
+
+    // Check if they have another sign-in method
+    final hasOtherProvider = user.providerData.any(
+      (p) => p.providerId != 'google.com',
+    );
+    if (!hasOtherProvider) {
+      throw 'Please set a password first before unlinking your Google account.';
+    }
+
+    try {
+      await user.unlink('google.com');
+    } on FirebaseAuthException catch (e) {
+      throw e.message ?? e.code;
+    }
+  }
+
   // Sign In
   Future<User?> signIn(String email, String password) async {
     try {
@@ -75,9 +194,14 @@ class AuthService {
       if (kIsWeb) {
         final GoogleAuthProvider googleProvider = GoogleAuthProvider();
         googleProvider.addScope('email');
+        googleProvider.setCustomParameters({'prompt': 'select_account'});
         result = await _auth.signInWithPopup(googleProvider);
       } else {
-        final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
+        final GoogleSignIn googleSignIn = GoogleSignIn();
+        try {
+          await googleSignIn.disconnect();
+        } catch (_) {}
+        final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
         if (googleUser == null) return null;
 
         final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
@@ -91,7 +215,7 @@ class AuthService {
 
       final user = result.user;
       
-      if (user != null && result.additionalUserInfo?.isNewUser == true) {
+      if (user != null) {
         final String name = user.displayName ?? user.email?.split('@')[0] ?? 'User';
         final newUser = UserModel(
           id: user.uid,
@@ -99,7 +223,12 @@ class AuthService {
           email: user.email ?? '',
           displayName: name,
         );
-        await _firestore.collection('users').doc(user.uid).set(newUser.toFirestore());
+        // Use merge:true so this never overwrites existing data,
+        // but always ensures the document exists.
+        await _firestore
+            .collection('users')
+            .doc(user.uid)
+            .set(newUser.toFirestore(), SetOptions(merge: true));
       }
       return user;
     } catch (e) {
@@ -109,6 +238,13 @@ class AuthService {
 
   Future<void> signOut() async {
     await _auth.signOut();
+    if (!kIsWeb) {
+      try {
+        await GoogleSignIn().disconnect();
+      } catch (e) {
+        // Ignore if not signed in with Google
+      }
+    }
   }
 
   // Updated to include all 4 required fields

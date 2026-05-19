@@ -22,16 +22,12 @@ class AiAdvisorCard extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.6),
+              color: Theme.of(context).colorScheme.surfaceContainer.withOpacity(0.85),
               borderRadius: BorderRadius.circular(25),
-              border: Border.all(color: Colors.white.withOpacity(0.8), width: 1.5),
-              boxShadow: [
-                BoxShadow(
-                  color: const Color(0xFF6366f1).withOpacity(0.1),
-                  blurRadius: 20,
-                  spreadRadius: 5,
-                ),
-              ],
+              border: Border.all(
+                color: Theme.of(context).colorScheme.outlineVariant,
+                width: 1.5,
+              ),
             ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -39,19 +35,15 @@ class AiAdvisorCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFFa855f7), Color(0xFFec4899)],
+                    gradient: LinearGradient(
+                      colors: [
+                        Theme.of(context).colorScheme.primary,
+                        Theme.of(context).colorScheme.secondary,
+                      ],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                     ),
                     shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color(0xFFec4899).withOpacity(0.4),
-                        blurRadius: 8,
-                        offset: const Offset(0, 3),
-                      ),
-                    ],
                   ),
                   child: const Icon(Icons.auto_awesome, color: Colors.white, size: 24),
                 ),
@@ -60,20 +52,20 @@ class AiAdvisorCard extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
+                      Text(
                         "AI Advisor",
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.bold,
-                          color: Color(0xFF6366f1),
+                          color: Theme.of(context).colorScheme.secondary,
                         ),
                       ),
                       const SizedBox(height: 6),
                       Text(
                         advice,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 14,
-                          color: Colors.black87,
+                          color: Theme.of(context).brightness == Brightness.dark ? Colors.white70 : Colors.black87,
                           height: 1.4,
                           fontWeight: FontWeight.w500,
                         ),

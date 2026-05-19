@@ -1,0 +1,367 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../../services/expense_service.dart';
+import '../../services/budget_service.dart';
+import '../../theme/brand_theme.dart';
+
+class NotificationsSheet extends ConsumerStatefulWidget {
+  const NotificationsSheet({super.key});
+
+  static Future<void> show(BuildContext context) {
+    return showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => const NotificationsSheet(),
+    );
+  }
+
+  @override
+  ConsumerState<NotificationsSheet> createState() => _NotificationsSheetState();
+}
+
+class _NotificationsSheetState extends ConsumerState<NotificationsSheet> {
+  String? _broadcastMsg;
+  int _broadcastTs = 0;
+  bool _broadcastActive = false;
+  bool _broadcastDismissed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadBroadcastAndDismissedState();
+  }
+
+  Future<void> _loadBroadcastAndDismissedState() async {
+    final prefs = await SharedPreferences.getInstance();
+    
+    // Listen to Firebase system config for broadcasts
+    FirebaseFirestore.instance
+        .collection('system_config')
+        .doc('broadcast')
+        .get()
+        .then((doc) {
+      if (doc.exists && doc.data() != null && mounted) {
+        final data = doc.data()!;
+        final bool active = data['active'] ?? false;
+        final String msg = data['message'] ?? '';
+        final Timestamp? ts = data['timestamp'] as Timestamp?;
+        final int currentTs = ts?.millisecondsSinceEpoch ?? 0;
+
+        final String lastDismissedMsg = prefs.getString('last_dismissed_broadcast_msg') ?? '';
+        final int lastDismissed = prefs.getInt('last_dismissed_broadcast') ?? 0;
+        final bool alreadyDismissed = (currentTs <= lastDismissed) || (msg == lastDismissedMsg);
+
+        setState(() {
+          _broadcastMsg = msg;
+          _broadcastTs = currentTs;
+          _broadcastActive = active && msg.isNotEmpty;
+          _broadcastDismissed = alreadyDismissed;
+        });
+      }
+    });
+  }
+
+  Future<void> _dismissBroadcast() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (_broadcastMsg != null) {
+      await prefs.setInt('last_dismissed_broadcast', _broadcastTs);
+      await prefs.setString('last_dismissed_broadcast_msg', _broadcastMsg!);
+    }
+    setState(() {
+      _broadcastDismissed = true;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final expensesAsync = ref.watch(expensesStreamProvider);
+    final budgetsAsync = ref.watch(budgetsStreamProvider);
+
+    return Container(
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHigh,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      padding: EdgeInsets.only(
+        top: 20,
+        left: 20,
+        right: 20,
+        bottom: MediaQuery.of(context).padding.bottom + 20,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Drag handle
+          Center(
+            child: Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: theme.colorScheme.onSurfaceVariant.withOpacity(0.4),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          const SizedBox(height: 18),
+          
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Notifications & Alerts',
+                style: theme.textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: -0.5,
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.close),
+                onPressed: () => Navigator.pop(context),
+              ),
+            ],
+          ),
+          const Divider(height: 24),
+
+          // Build dynamic lists of alerts
+          expensesAsync.when(
+            data: (expenses) {
+              return budgetsAsync.when(
+                data: (budgets) {
+                  final now = DateTime.now();
+                  final monthExpenses = expenses.where((e) {
+                    return e.date.year == now.year && e.date.month == now.month;
+                  }).toList();
+
+                  final totalSpent = monthExpenses.fold(0.0, (sum, e) => sum + e.amount);
+                  final totalLimit = budgets['Total'] ?? 0.0;
+
+                  final List<Widget> alertWidgets = [];
+
+                  // 1. System Broadcast (if active, even if dismissed from banner, show here as read/dismissed or unread)
+                  if (_broadcastActive) {
+                    alertWidgets.add(
+                      _buildAlertCard(
+                        context: context,
+                        title: 'SYSTEM ANNOUNCEMENT',
+                        subtitle: _broadcastMsg ?? '',
+                        icon: Icons.campaign_rounded,
+                        color: theme.colorScheme.primary,
+                        isDismissed: _broadcastDismissed,
+                        action: _broadcastDismissed
+                            ? null
+                            : TextButton(
+                                onPressed: _dismissBroadcast,
+                                child: const Text('Mark Read'),
+                              ),
+                      ),
+                    );
+                  }
+
+                  // 2. Budget Alert
+                  if (totalLimit > 0) {
+                    final progress = totalSpent / totalLimit;
+                    if (progress >= 0.8) {
+                      alertWidgets.add(
+                        _buildAlertCard(
+                          context: context,
+                          title: 'BUDGET WARNING',
+                          subtitle: 'You have spent RM ${totalSpent.toStringAsFixed(2)} of your RM ${totalLimit.toStringAsFixed(0)} monthly budget (${(progress * 100).toStringAsFixed(0)}%).',
+                          icon: Icons.warning_amber_rounded,
+                          color: progress >= 1.0 ? Colors.red : Colors.orange,
+                          progress: progress,
+                        ),
+                      );
+                    }
+                  }
+
+                  // 3. Category Budget Alerts
+                  for (final entry in budgets.entries) {
+                    if (entry.key == 'Total' || entry.value <= 0) continue;
+
+                    final categorySpent = monthExpenses
+                        .where((e) => e.category == entry.key)
+                        .fold(0.0, (sum, e) => sum + e.amount);
+
+                    final progress = categorySpent / entry.value;
+                    if (progress >= 0.8) {
+                      alertWidgets.add(
+                        _buildAlertCard(
+                          context: context,
+                          title: '${entry.key.toUpperCase()} BUDGET WARNING',
+                          subtitle: 'Spent RM ${categorySpent.toStringAsFixed(2)} of RM ${entry.value.toStringAsFixed(0)} allocation.',
+                          icon: Icons.pie_chart_outline_rounded,
+                          color: progress >= 1.0 ? Colors.red : Colors.orange,
+                          progress: progress,
+                        ),
+                      );
+                    }
+                  }
+
+                  if (alertWidgets.isEmpty) {
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 40),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.notifications_none_rounded,
+                            size: 64,
+                            color: theme.colorScheme.onSurfaceVariant.withOpacity(0.3),
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'All Quiet Here',
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            'You have no active alerts or warnings.',
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+
+                  return ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxHeight: MediaQuery.of(context).size.height * 0.5,
+                    ),
+                    child: ListView.separated(
+                      shrinkWrap: true,
+                      itemCount: alertWidgets.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 12),
+                      itemBuilder: (context, index) => alertWidgets[index],
+                    ),
+                  );
+                },
+                loading: () => const Center(child: CircularProgressIndicator()),
+                error: (_, __) => const SizedBox.shrink(),
+              );
+            },
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (_, __) => const SizedBox.shrink(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAlertCard({
+    required BuildContext context,
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required Color color,
+    double? progress,
+    bool isDismissed = false,
+    Widget? action,
+  }) {
+    final theme = Theme.of(context);
+    final cardColor = isDismissed
+        ? theme.colorScheme.surfaceContainer
+        : color.withOpacity(0.08);
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: cardColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isDismissed
+              ? theme.colorScheme.outlineVariant.withOpacity(0.5)
+              : color.withOpacity(0.24),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: isDismissed
+                  ? theme.colorScheme.onSurface.withOpacity(0.08)
+                  : color.withOpacity(0.12),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              icon,
+              color: isDismissed ? theme.colorScheme.onSurfaceVariant : color,
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        title,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          color: isDismissed ? theme.colorScheme.onSurfaceVariant : color,
+                          letterSpacing: 0.8,
+                        ),
+                      ),
+                    ),
+                    if (isDismissed)
+                      Text(
+                        'READ',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: theme.colorScheme.onSurfaceVariant.withOpacity(0.6),
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  subtitle,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: isDismissed ? FontWeight.normal : FontWeight.w600,
+                    color: isDismissed
+                        ? theme.colorScheme.onSurfaceVariant
+                        : theme.colorScheme.onSurface,
+                  ),
+                ),
+                if (progress != null) ...[
+                  const SizedBox(height: 10),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(4),
+                    child: LinearProgressIndicator(
+                      value: progress,
+                      backgroundColor: theme.colorScheme.onSurface.withOpacity(0.08),
+                      valueColor: AlwaysStoppedAnimation<Color>(color),
+                      minHeight: 4,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          if (action != null) ...[
+            const SizedBox(width: 8),
+            action,
+          ],
+        ],
+      ),
+    );
+  }
+}

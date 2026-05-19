@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../models/debt_model.dart';
 import '../../services/debt_service.dart';
+import 'modern_bottom_toast.dart';
 
 class UpdateDebtSheet extends ConsumerStatefulWidget {
   final DebtModel debt;
@@ -19,16 +20,20 @@ class _UpdateDebtSheetState extends ConsumerState<UpdateDebtSheet> {
   Future<void> _addPayment() async {
     final amountStr = _amountController.text.trim();
     if (amountStr.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter an amount')),
+      ModernBottomToast.show(
+        context,
+        message: 'Please enter an amount',
+        type: ModernToastType.error,
       );
       return;
     }
 
     final amount = double.tryParse(amountStr);
     if (amount == null || amount <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter a valid amount')),
+      ModernBottomToast.show(
+        context,
+        message: 'Please enter a valid amount',
+        type: ModernToastType.error,
       );
       return;
     }
@@ -44,8 +49,10 @@ class _UpdateDebtSheetState extends ConsumerState<UpdateDebtSheet> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
+        ModernBottomToast.show(
+          context,
+          message: 'Error: $e',
+          type: ModernToastType.error,
         );
       }
     } finally {
@@ -55,6 +62,9 @@ class _UpdateDebtSheetState extends ConsumerState<UpdateDebtSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Container(
       padding: EdgeInsets.only(
         left: 20,
@@ -62,9 +72,9 @@ class _UpdateDebtSheetState extends ConsumerState<UpdateDebtSheet> {
         top: 20,
         bottom: MediaQuery.of(context).viewInsets.bottom + 20,
       ),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
+      decoration: BoxDecoration(
+        color: isDark ? colorScheme.surfaceContainerHigh : Colors.white,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
       ),
       child: SingleChildScrollView(
         child: Column(
@@ -76,7 +86,7 @@ class _UpdateDebtSheetState extends ConsumerState<UpdateDebtSheet> {
                 width: 50,
                 height: 5,
                 decoration: BoxDecoration(
-                  color: Colors.grey[300],
+                  color: isDark ? colorScheme.outlineVariant : Colors.grey[300],
                   borderRadius: BorderRadius.circular(10),
                 ),
               ),
@@ -84,26 +94,20 @@ class _UpdateDebtSheetState extends ConsumerState<UpdateDebtSheet> {
             const SizedBox(height: 20),
             Text(
               "Add Payment for ${widget.debt.title}",
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
-                color: Color(0xFF1E293B),
+                color: colorScheme.onSurface,
               ),
             ),
             const SizedBox(height: 20),
             TextField(
               controller: _amountController,
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.black87),
-              decoration: InputDecoration(
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: colorScheme.onSurface),
+              decoration: const InputDecoration(
                 labelText: 'Payment Amount (RM)',
                 prefixText: 'RM ',
-                filled: true,
-                fillColor: const Color(0xFFF8F9FE),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(15),
-                  borderSide: BorderSide.none,
-                ),
               ),
               autofocus: true,
             ),
@@ -111,19 +115,20 @@ class _UpdateDebtSheetState extends ConsumerState<UpdateDebtSheet> {
             SizedBox(
               width: double.infinity,
               height: 55,
-              child: ElevatedButton(
+              child: FilledButton(
                 onPressed: _isSaving ? null : _addPayment,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF0F766E),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(15),
-                  ),
-                ),
                 child: _isSaving
-                    ? const CircularProgressIndicator(color: Colors.white)
+                    ? const SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
+                      )
                     : const Text(
                         "Add Payment",
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                       ),
               ),
             ),

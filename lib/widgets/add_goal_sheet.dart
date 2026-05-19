@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../models/goal_model.dart';
 import '../../services/goal_service.dart';
 import '../../utils/category_styles.dart';
+import 'modern_bottom_toast.dart';
 
 class AddGoalSheet extends ConsumerStatefulWidget {
   const AddGoalSheet({super.key});
@@ -48,16 +49,20 @@ class _AddGoalSheetState extends ConsumerState<AddGoalSheet> {
     final targetStr = _targetController.text.trim();
     
     if (name.isEmpty || targetStr.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please fill all fields')),
+      ModernBottomToast.show(
+        context,
+        message: 'Please fill all fields',
+        type: ModernToastType.error,
       );
       return;
     }
 
     final target = double.tryParse(targetStr);
     if (target == null || target <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter a valid target amount')),
+      ModernBottomToast.show(
+        context,
+        message: 'Please enter a valid target amount',
+        type: ModernToastType.error,
       );
       return;
     }
@@ -79,8 +84,10 @@ class _AddGoalSheetState extends ConsumerState<AddGoalSheet> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
+        ModernBottomToast.show(
+          context,
+          message: 'Error: $e',
+          type: ModernToastType.error,
         );
       }
     } finally {
@@ -90,6 +97,9 @@ class _AddGoalSheetState extends ConsumerState<AddGoalSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Container(
       padding: EdgeInsets.only(
         left: 20,
@@ -97,9 +107,9 @@ class _AddGoalSheetState extends ConsumerState<AddGoalSheet> {
         top: 20,
         bottom: MediaQuery.of(context).viewInsets.bottom + 20,
       ),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
+      decoration: BoxDecoration(
+        color: isDark ? colorScheme.surfaceContainerHigh : Colors.white,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -110,47 +120,37 @@ class _AddGoalSheetState extends ConsumerState<AddGoalSheet> {
               width: 50,
               height: 5,
               decoration: BoxDecoration(
-                color: Colors.grey[300],
+                color: isDark ? colorScheme.outlineVariant : Colors.grey[300],
                 borderRadius: BorderRadius.circular(10),
               ),
             ),
           ),
           const SizedBox(height: 20),
-          const Text(
+          Text(
             "Create New Goal",
             style: TextStyle(
               fontSize: 22,
               fontWeight: FontWeight.bold,
-              color: Color(0xFF1E293B),
+              color: colorScheme.onSurface,
             ),
           ),
           const SizedBox(height: 20),
           // Goal Name
           TextField(
             controller: _nameController,
-            decoration: InputDecoration(
+            style: TextStyle(color: colorScheme.onSurface),
+            decoration: const InputDecoration(
               labelText: 'Goal Name (e.g. New Laptop)',
-              filled: true,
-              fillColor: const Color(0xFFF8F9FE),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(15),
-                borderSide: BorderSide.none,
-              ),
             ),
           ),
           const SizedBox(height: 15),
           // Target Amount
           TextField(
             controller: _targetController,
+            style: TextStyle(color: colorScheme.onSurface),
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            decoration: InputDecoration(
+            decoration: const InputDecoration(
               labelText: 'Target Amount (RM)',
-              filled: true,
-              fillColor: const Color(0xFFF8F9FE),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(15),
-                borderSide: BorderSide.none,
-              ),
             ),
           ),
           const SizedBox(height: 15),
@@ -160,16 +160,16 @@ class _AddGoalSheetState extends ConsumerState<AddGoalSheet> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 18),
               decoration: BoxDecoration(
-                color: const Color(0xFFF8F9FE),
+                color: isDark ? colorScheme.surfaceContainerHighest : const Color(0xFFF8F9FE),
                 borderRadius: BorderRadius.circular(15),
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.calendar_today, color: Color(0xFF6366f1), size: 20),
+                  Icon(Icons.calendar_today, color: colorScheme.primary, size: 20),
                   const SizedBox(width: 10),
                   Text(
                     "Target Date: ${DateFormat('MMM d, yyyy').format(_selectedDate)}",
-                    style: const TextStyle(fontSize: 16, color: Color(0xFF1E293B)),
+                    style: TextStyle(fontSize: 16, color: colorScheme.onSurface),
                   ),
                 ],
               ),
@@ -177,9 +177,9 @@ class _AddGoalSheetState extends ConsumerState<AddGoalSheet> {
           ),
           const SizedBox(height: 15),
           // Category / Goal Type Picker
-          const Text(
+          Text(
             "What is this for?",
-            style: TextStyle(color: Colors.grey, fontWeight: FontWeight.w600, fontSize: 14),
+            style: TextStyle(color: colorScheme.onSurfaceVariant, fontWeight: FontWeight.w600, fontSize: 14),
           ),
           const SizedBox(height: 12),
           SizedBox(
@@ -197,7 +197,7 @@ class _AddGoalSheetState extends ConsumerState<AddGoalSheet> {
                     margin: const EdgeInsets.only(right: 15),
                     width: 75,
                     decoration: BoxDecoration(
-                      color: isSelected ? type.color : const Color(0xFFF8F9FE),
+                      color: isSelected ? type.color : (isDark ? colorScheme.surfaceContainerHighest : const Color(0xFFF8F9FE)),
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(
                         color: isSelected ? type.color : Colors.transparent,
@@ -209,7 +209,7 @@ class _AddGoalSheetState extends ConsumerState<AddGoalSheet> {
                       children: [
                         Icon(
                           type.icon,
-                          color: isSelected ? Colors.white : Colors.blueGrey,
+                          color: isSelected ? Colors.white : colorScheme.onSurfaceVariant,
                           size: 28,
                         ),
                         const SizedBox(height: 6),
@@ -218,7 +218,7 @@ class _AddGoalSheetState extends ConsumerState<AddGoalSheet> {
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.bold,
-                            color: isSelected ? Colors.white : Colors.blueGrey,
+                            color: isSelected ? Colors.white : colorScheme.onSurfaceVariant,
                           ),
                         ),
                       ],
@@ -233,19 +233,20 @@ class _AddGoalSheetState extends ConsumerState<AddGoalSheet> {
           SizedBox(
             width: double.infinity,
             height: 55,
-            child: ElevatedButton(
+            child: FilledButton(
               onPressed: _isSaving ? null : _saveGoal,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF0F766E),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(15),
-                ),
-              ),
               child: _isSaving
-                  ? const CircularProgressIndicator(color: Colors.white)
+                  ? const SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      ),
+                    )
                   : const Text(
                       "Create Goal",
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                     ),
             ),
           ),

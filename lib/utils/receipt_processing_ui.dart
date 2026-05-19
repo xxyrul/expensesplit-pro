@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/receipt_scanner_service.dart';
@@ -7,6 +8,23 @@ import '../screens/home/camera_scanner_view.dart';
 class ReceiptProcessingUI {
   /// Opens the high-fidelity live camera scanner screen.
   static Future<void> startLiveScanFlow(BuildContext context) async {
+    if (kIsWeb) {
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Mobile Only Feature'),
+          content: const Text(
+              'The AI receipt scanner is only available on mobile devices.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
     await Navigator.push(
       context,
       MaterialPageRoute(
@@ -62,6 +80,7 @@ class ReceiptProcessingUI {
             initialVendor: vendor,
             initialDate: date,
             rawText: rawText,
+            showScanSuccessBanner: true,
           ),
         ),
       );

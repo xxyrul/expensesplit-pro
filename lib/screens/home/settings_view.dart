@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -10,6 +11,10 @@ import '../../services/auth_service.dart';
 import '../../services/expense_service.dart';
 import '../../services/export_service.dart';
 import '../../services/budget_alert_provider.dart';
+import '../../providers/theme_provider.dart';
+import '../../theme/brand_theme.dart';
+import '../../widgets/modern_bottom_toast.dart';
+import 'edit_profile_screen.dart';
 import 'set_budget_screen.dart';
 
 class SettingsView extends ConsumerStatefulWidget {
@@ -21,7 +26,8 @@ class SettingsView extends ConsumerStatefulWidget {
   ConsumerState<SettingsView> createState() => _SettingsViewState();
 }
 
-class _SettingsViewState extends ConsumerState<SettingsView> {
+class _SettingsViewState extends ConsumerState<SettingsView>
+  with WidgetsBindingObserver {
   bool _loadingSettings = true;
 
   bool _notificationsEnabled = true;
@@ -30,12 +36,39 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
   String _currency = 'RM';
   bool _weekStartsMonday = true;
   String _surplusAction = 'rollover';
-  bool _appLockEnabled = false;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadSettings();
+    _refreshAuthProviderState();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _refreshAuthProviderState();
+    }
+  }
+
+  Future<void> _refreshAuthProviderState() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    try {
+      await user.reload();
+      if (!mounted) return;
+      setState(() {});
+    } catch (_) {
+      // Ignore refresh failures; account UI can still render from current data.
+    }
   }
 
   Future<void> _loadSettings() async {
@@ -51,7 +84,6 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
       _currency = prefs.getString(kSettingsCurrency) ?? 'RM';
       _weekStartsMonday = prefs.getBool(kSettingsWeekStartsMonday) ?? true;
       _surplusAction = prefs.getString(kSettingsSurplusAction) ?? 'rollover';
-      _appLockEnabled = prefs.getBool(kSettingsAppLockEnabled) ?? false;
       _loadingSettings = false;
     });
   }
@@ -71,43 +103,20 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
     await prefs.setString(key, value);
   }
 
-  Future<void> _showEditProfileDialog() async {
-    final profile = ref.read(userProfileProvider).valueOrNull;
-    final controller = TextEditingController(
-      text:
-          profile?.displayName ??
-          FirebaseAuth.instance.currentUser?.displayName ??
-          '',
-    );
-
-    final saved = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Edit Profile'),
-        content: TextField(
-          controller: controller,
-          decoration: const InputDecoration(labelText: 'Display name'),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Save'),
-          ),
-        ],
-      ),
-    );
-
-    if (saved != true) return;
-    if (!mounted) return;
-
-    final newName = controller.text.trim();
+  Future<void> _saveProfileDetails(String newName, String newUsername, String newEmail) async {
     if (newName.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Display name cannot be empty')),
+      ModernBottomToast.show(
+        context,
+        message: 'Display name cannot be empty',
+        type: ModernToastType.error,
+      );
+      return;
+    }
+    if (newUsername.isEmpty) {
+      ModernBottomToast.show(
+        context,
+        message: 'Username cannot be empty',
+        type: ModernToastType.error,
       );
       return;
     }
@@ -116,29 +125,454 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
     if (user == null) return;
 
     try {
-      await user.updateDisplayName(newName);
-      await FirebaseFirestore.instance.collection('users').doc(user.uid).update(
-        {'displayName': newName},
-      );
+      if (newName != user.displayName) {
+        await user.updateDisplayName(newName);
+      }
+
+      if (newEmail.isNotEmpty && newEmail != user.email) {
+        await user.verifyBeforeUpdateEmail(newEmail);
+        if (mounted) {
+          ModernBottomToast.show(
+            context,
+            message: 'Verification email sent to $newEmail. Please verify to update your email.',
+            type: ModernToastType.info,
+          );
+        }
+      }
+
+      await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
+        'displayName': newName,
+        'name': newUsername,
+        'email': newEmail,
+      });
 
       if (!mounted) return;
-      ScaffoldMessenger.of(
+      ModernBottomToast.show(
         context,
-      ).showSnackBar(const SnackBar(content: Text('Profile updated')));
+        message: 'Profile updated',
+        type: ModernToastType.success,
+      );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
+      ModernBottomToast.show(
         context,
-      ).showSnackBar(SnackBar(content: Text('Failed to update profile: $e')));
+        message: 'Failed to update profile: $e',
+        type: ModernToastType.error,
+      );
+    }
+  }
+
+  Future<void> _linkGoogleAccount() async {
+    try {
+      final authService = ref.read(authServiceProvider);
+      await authService.linkGoogle();
+      if (!mounted) return;
+      ModernBottomToast.show(
+        context,
+        message: 'Google account linked successfully.',
+        type: ModernToastType.success,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ModernBottomToast.show(
+        context,
+        message: 'Failed to link Google: $e',
+        type: ModernToastType.error,
+      );
+    } finally {
+      await _refreshAuthProviderState();
+    }
+  }
+
+  Future<void> _unlinkGoogleAccount() async {
+    try {
+      final authService = ref.read(authServiceProvider);
+      await authService.unlinkGoogle();
+      if (!mounted) return;
+      ModernBottomToast.show(
+        context,
+        message: 'Google account unlinked successfully.',
+        type: ModernToastType.success,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ModernBottomToast.show(
+        context,
+        message: 'Failed to unlink Google: $e',
+        type: ModernToastType.error,
+      );
+    } finally {
+      await _refreshAuthProviderState();
+    }
+  }
+
+  Future<void> _setPasswordForGoogleUser() async {
+    final user = FirebaseAuth.instance.currentUser;
+    final email = user?.email;
+
+    if (user == null || email == null || email.isEmpty) {
+      ModernBottomToast.show(
+        context,
+        message: 'No account email found',
+        type: ModernToastType.info,
+      );
+      return;
+    }
+
+    final newPasswordController = TextEditingController();
+    final confirmPasswordController = TextEditingController();
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Set Password'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Add a password so you can sign in with email and password too.',
+              style: Theme.of(dialogContext).textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: newPasswordController,
+              obscureText: true,
+              decoration: const InputDecoration(labelText: 'New password'),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: confirmPasswordController,
+              obscureText: true,
+              decoration: const InputDecoration(labelText: 'Confirm new password'),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    final newPassword = newPasswordController.text.trim();
+    final confirmPassword = confirmPasswordController.text.trim();
+
+    if (newPassword.isEmpty || confirmPassword.isEmpty) {
+      ModernBottomToast.show(
+        context,
+        message: 'Please fill in all password fields.',
+        type: ModernToastType.error,
+      );
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      ModernBottomToast.show(
+        context,
+        message: 'New password must be at least 6 characters.',
+        type: ModernToastType.error,
+      );
+      return;
+    }
+
+    if (newPassword != confirmPassword) {
+      ModernBottomToast.show(
+        context,
+        message: 'New passwords do not match.',
+        type: ModernToastType.error,
+      );
+      return;
+    }
+
+    try {
+      await ref.read(authServiceProvider).setPassword(newPassword: newPassword);
+      await _refreshAuthProviderState();
+      if (!mounted) return;
+      ModernBottomToast.show(
+        context,
+        message: 'Password added successfully.',
+        type: ModernToastType.success,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ModernBottomToast.show(
+        context,
+        message: 'Failed to add password: $e',
+        type: ModernToastType.error,
+      );
+    }
+  }
+
+  Future<void> _changePassword() async {
+    if (_isGoogleUser && !_hasPasswordProvider) {
+      await _setPasswordForGoogleUser();
+      return;
+    }
+
+    final currentPasswordController = TextEditingController();
+    final newPasswordController = TextEditingController();
+    final confirmPasswordController = TextEditingController();
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Change Password'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: currentPasswordController,
+              obscureText: true,
+              decoration: const InputDecoration(labelText: 'Current password'),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: newPasswordController,
+              obscureText: true,
+              decoration: const InputDecoration(labelText: 'New password'),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: confirmPasswordController,
+              obscureText: true,
+              decoration: const InputDecoration(labelText: 'Confirm new password'),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Update'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    final currentPassword = currentPasswordController.text.trim();
+    final newPassword = newPasswordController.text.trim();
+    final confirmPassword = confirmPasswordController.text.trim();
+
+    if (currentPassword.isEmpty || newPassword.isEmpty || confirmPassword.isEmpty) {
+      ModernBottomToast.show(
+        context,
+        message: 'Please fill in all password fields.',
+        type: ModernToastType.error,
+      );
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      ModernBottomToast.show(
+        context,
+        message: 'New password must be at least 6 characters.',
+        type: ModernToastType.error,
+      );
+      return;
+    }
+
+    if (newPassword != confirmPassword) {
+      ModernBottomToast.show(
+        context,
+        message: 'New passwords do not match.',
+        type: ModernToastType.error,
+      );
+      return;
+    }
+
+    try {
+      await ref.read(authServiceProvider).changePassword(
+        currentPassword: currentPassword,
+        newPassword: newPassword,
+      );
+      await _refreshAuthProviderState();
+      if (!mounted) return;
+      ModernBottomToast.show(
+        context,
+        message: 'Password updated successfully.',
+        type: ModernToastType.success,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ModernBottomToast.show(
+        context,
+        message: 'Failed to update password: $e',
+        type: ModernToastType.error,
+      );
+    }
+  }
+
+  // True when signed in via Google (no password)
+  bool get _isGoogleUser {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return false;
+    return user.providerData.any((p) => p.providerId == 'google.com');
+  }
+
+  bool get _hasPasswordProvider {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return false;
+    return user.providerData.any((p) => p.providerId == 'password');
+  }
+
+  bool get _canUsePasswordAuth => !_isGoogleUser || _hasPasswordProvider;
+
+  Future<void> _openEditProfileScreen(String name, String rawUsername, String email) async {
+    await Navigator.of(context).push(
+      PageRouteBuilder(
+        transitionDuration: const Duration(milliseconds: 320),
+        reverseTransitionDuration: const Duration(milliseconds: 260),
+        pageBuilder: (_, __, ___) => EditProfileScreen(
+          initialDisplayName: name,
+          initialUsername: rawUsername,
+          email: email,
+          isGoogleUser: _isGoogleUser,
+          hasPasswordProvider: _hasPasswordProvider,
+          onSaveProfile: _saveProfileDetails,
+          onSetOrChangePassword: _changePassword,
+          onResetPassword: _sendPasswordReset,
+          onChangeEmail: _changeEmail,
+          onDeleteAccount: _deleteAccount,
+          onLinkGoogle: _linkGoogleAccount,
+          onUnlinkGoogle: _unlinkGoogleAccount,
+        ),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          final slide = Tween<Offset>(
+            begin: const Offset(0.06, 0.0),
+            end: Offset.zero,
+          ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic));
+          return FadeTransition(
+            opacity: animation,
+            child: SlideTransition(position: slide, child: child),
+          );
+        },
+      ),
+    );
+
+    await _refreshAuthProviderState();
+  }
+
+  Future<void> _changeEmail() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    final controller = TextEditingController(text: user.email ?? '');
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Change Email'),
+        content: TextField(
+          controller: controller,
+          keyboardType: TextInputType.emailAddress,
+          decoration: const InputDecoration(labelText: 'New email address'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Update'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+    final newEmail = controller.text.trim();
+    if (newEmail.isEmpty || newEmail == user.email) return;
+
+    try {
+      await user.verifyBeforeUpdateEmail(newEmail);
+      if (!mounted) return;
+      ModernBottomToast.show(
+        context,
+        message:
+            'Verification email sent to $newEmail. Please verify to complete the change.',
+        type: ModernToastType.info,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ModernBottomToast.show(
+        context,
+        message: 'Failed to update email: $e',
+        type: ModernToastType.error,
+      );
+    }
+  }
+
+  Future<void> _deleteAccount() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete Account'),
+        content: const Text(
+          'This will permanently delete your account and ALL your expense data. This cannot be undone.\n\nAre you absolutely sure?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Delete', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+
+      // Delete Firestore data
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .delete();
+
+      // Delete Firebase Auth account
+      await user.delete();
+
+      // Sign out Google too
+      await GoogleSignIn().disconnect();
+    } catch (e) {
+      if (!mounted) return;
+      ModernBottomToast.show(
+        context,
+        message:
+            'Could not delete account. You may need to re-login first: $e',
+        type: ModernToastType.error,
+      );
     }
   }
 
   Future<void> _sendPasswordReset() async {
     final email = FirebaseAuth.instance.currentUser?.email;
     if (email == null || email.isEmpty) {
-      ScaffoldMessenger.of(
+      ModernBottomToast.show(
         context,
-      ).showSnackBar(const SnackBar(content: Text('No account email found')));
+        message: 'No account email found',
+        type: ModernToastType.info,
+      );
       return;
     }
 
@@ -168,14 +602,18 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
     try {
       await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Password reset email sent to $email')),
+      ModernBottomToast.show(
+        context,
+        message: 'Password reset email sent to $email',
+        type: ModernToastType.success,
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
+      ModernBottomToast.show(
         context,
-      ).showSnackBar(SnackBar(content: Text('Failed to send reset email: $e')));
+        message: 'Failed to send reset email: $e',
+        type: ModernToastType.error,
+      );
     }
   }
 
@@ -247,7 +685,7 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
               (option) => ListTile(
                 title: Text(labelBuilder(option)),
                 trailing: option == currentValue
-                    ? const Icon(Icons.check, color: Color(0xFF0F766E))
+                    ? Icon(Icons.check, color: Theme.of(context).colorScheme.primary)
                     : null,
                 onTap: () => Navigator.pop(context, option),
               ),
@@ -267,10 +705,10 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
     await resetBudgetAlertCache();
 
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Notification history reset for this month'),
-      ),
+    ModernBottomToast.show(
+      context,
+      message: 'Notification history reset for this month',
+      type: ModernToastType.info,
     );
   }
 
@@ -291,14 +729,18 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
           .exportExpensesToCsv(filtered, monthLabel);
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('CSV export ready to share')),
+      ModernBottomToast.show(
+        context,
+        message: 'CSV export ready to share',
+        type: ModernToastType.success,
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
+      ModernBottomToast.show(
         context,
-      ).showSnackBar(SnackBar(content: Text('Export failed: $e')));
+        message: 'Export failed: $e',
+        type: ModernToastType.error,
+      );
     }
   }
 
@@ -318,15 +760,9 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
   @override
   Widget build(BuildContext context) {
     final profileAsync = ref.watch(userProfileProvider);
+    final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Settings'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: widget.onBack,
-        ),
-      ),
       body: _loadingSettings
           ? const Center(child: CircularProgressIndicator())
           : ListView(
@@ -335,18 +771,29 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
                   data: (userProfile) {
                     final String name = userProfile?.displayName ?? 'User';
                     final String email = userProfile?.email ?? 'No email';
+                    final String rawUsername = userProfile?.name ?? (email.contains('@') ? email.split('@').first : 'user');
+                    final String username = '@$rawUsername';
                     final String initials = name.isNotEmpty
                         ? name[0].toUpperCase()
                         : 'U';
 
-                    return _buildHeader(context, name, email, initials);
+                    return _buildHeader(
+                      context,
+                      name,
+                      username,
+                      email,
+                      initials,
+                      onEdit: () => _openEditProfileScreen(name, rawUsername, email),
+                    );
                   },
                   loading: () => _buildLoadingHeader(context),
                   error: (err, stack) => _buildHeader(
                     context,
                     'Error',
+                    '@user',
                     'Could not load data',
                     '!',
+                    onEdit: () => _openEditProfileScreen('User', 'user', ''),
                   ),
                 ),
                 if (_loadingSettings)
@@ -359,20 +806,38 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
                     padding: const EdgeInsets.all(20),
                     child: Column(
                       children: [
-                        _buildSectionTitle('ACCOUNT'),
+                        _buildSectionTitle('APPEARANCE'),
                         _buildSettingsCard([
-                          _buildListTile(
-                            Icons.person_outline,
-                            'Edit Profile',
-                            const Color(0xFF0F766E),
-                            onTap: _showEditProfileDialog,
+                          _buildSwitchTile(
+                            Icons.brightness_auto_outlined,
+                            'Match system theme',
+                            colorScheme.primary,
+                            value: ref.watch(themeProvider) == ThemeMode.system,
+                            onChanged: (value) async {
+                              if (value) {
+                                ref.read(themeProvider.notifier).useSystemTheme();
+                              } else {
+                                final isDark = Theme.of(context).brightness == Brightness.dark;
+                                ref.read(themeProvider.notifier).setDarkMode(isDark);
+                              }
+                            },
+                            subtitle:
+                                'Light/dark and accent colors from Android Material You (wallpaper)',
                           ),
                           const Divider(height: 1),
-                          _buildListTile(
-                            Icons.lock_outline,
-                            'Reset Password',
-                            const Color(0xFF0EA5A0),
-                            onTap: _sendPasswordReset,
+                          _buildSwitchTile(
+                            Icons.dark_mode_outlined,
+                            'Dark Mode',
+                            colorScheme.primary,
+                            value: Theme.of(context).brightness == Brightness.dark,
+                            onChanged: ref.watch(themeProvider) == ThemeMode.system
+                                ? null
+                                : (value) async {
+                                    ref.read(themeProvider.notifier).setDarkMode(value);
+                                  },
+                            subtitle: ref.watch(themeProvider) == ThemeMode.system
+                                ? 'Disabled while following system theme'
+                                : null,
                           ),
                         ]),
                         const SizedBox(height: 22),
@@ -381,7 +846,7 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
                           _buildListTile(
                             Icons.monetization_on_outlined,
                             'Monthly Budget',
-                            const Color(0xFF0284C7),
+                            colorScheme.primary,
                             onTap: () {
                               Navigator.push(
                                 context,
@@ -395,7 +860,7 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
                           _buildListTile(
                             Icons.currency_exchange,
                             'Currency',
-                            const Color(0xFF7C3AED),
+                            colorScheme.primary,
                             trailingText: _currency,
                             onTap: _openCurrencyPicker,
                           ),
@@ -403,7 +868,7 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
                           _buildSwitchTile(
                             Icons.calendar_view_week,
                             'Week starts on Monday',
-                            const Color(0xFFB45309),
+                            colorScheme.primary,
                             value: _weekStartsMonday,
                             onChanged: (value) async {
                               setState(() => _weekStartsMonday = value);
@@ -417,7 +882,7 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
                           _buildListTile(
                             Icons.swap_horiz,
                             'Default Surplus Action',
-                            const Color(0xFF0F766E),
+                            colorScheme.primary,
                             trailingText: _surplusActionLabel(_surplusAction),
                             onTap: _openSurplusActionPicker,
                           ),
@@ -428,7 +893,7 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
                           _buildSwitchTile(
                             Icons.notifications_active_outlined,
                             'Budget Alerts',
-                            const Color(0xFF0F766E),
+                            colorScheme.primary,
                             value: _notificationsEnabled,
                             onChanged: (value) async {
                               setState(() => _notificationsEnabled = value);
@@ -442,7 +907,7 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
                           _buildSwitchTile(
                             Icons.category_outlined,
                             'Category Alerts',
-                            const Color(0xFF0EA5A0),
+                            colorScheme.primary,
                             value: _categoryAlertsEnabled,
                             onChanged: _notificationsEnabled
                                 ? (value) async {
@@ -460,7 +925,7 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
                           _buildListTile(
                             Icons.tune,
                             'Alert Threshold',
-                            const Color(0xFF0284C7),
+                            colorScheme.primary,
                             trailingText:
                                 '${(_alertThreshold * 100).toStringAsFixed(0)}%',
                             onTap: _openThresholdPicker,
@@ -469,7 +934,7 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
                           _buildListTile(
                             Icons.refresh,
                             'Reset Alert History',
-                            const Color(0xFFB91C1C),
+                            colorScheme.error,
                             onTap: _clearAlertDedupHistory,
                           ),
                         ]),
@@ -479,33 +944,8 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
                           _buildListTile(
                             Icons.download_rounded,
                             'Export Current Month CSV',
-                            const Color(0xFF0EA5A0),
+                            colorScheme.primary,
                             onTap: _exportCurrentMonth,
-                          ),
-                          const Divider(height: 1),
-                          _buildSwitchTile(
-                            Icons.lock_clock_outlined,
-                            'App Lock',
-                            const Color(0xFF475569),
-                            value: _appLockEnabled,
-                            onChanged: (value) async {
-                              final messenger = ScaffoldMessenger.of(context);
-                              setState(() => _appLockEnabled = value);
-                              await _persistBool(
-                                kSettingsAppLockEnabled,
-                                value,
-                              );
-                              if (!mounted) return;
-                              messenger.showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                    value
-                                        ? 'App lock preference saved'
-                                        : 'App lock disabled',
-                                  ),
-                                ),
-                              );
-                            },
                           ),
                         ]),
                         const SizedBox(height: 40),
@@ -519,20 +959,22 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
   }
 
   Widget _buildLogoutButton(WidgetRef ref) {
+    final colorScheme = Theme.of(context).colorScheme;
     return SizedBox(
       width: double.infinity,
-      child: ElevatedButton.icon(
+      child: FilledButton.icon(
         onPressed: () => ref.read(authServiceProvider).signOut(),
-        icon: const Icon(Icons.logout, color: Colors.white),
+        icon: const Icon(Icons.logout),
         label: const Text(
           'Logout',
-          style: TextStyle(color: Colors.white, fontSize: 16),
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
         ),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFFDC2626),
-          padding: const EdgeInsets.symmetric(vertical: 15),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(15),
+        style: FilledButton.styleFrom(
+          backgroundColor: colorScheme.error,
+          foregroundColor: colorScheme.onError,
+          side: BorderSide(
+            color: colorScheme.error.withOpacity(0.35),
+            width: 1.5,
           ),
         ),
       ),
@@ -540,14 +982,23 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
   }
 
   Widget _buildLoadingHeader(BuildContext context) {
-    return _buildHeader(context, 'Loading...', 'Fetching profile...', '');
+    return _buildHeader(
+      context,
+      'Loading...',
+      '@user',
+      'Fetching profile...',
+      '',
+      onEdit: () {},
+    );
   }
 
   Widget _buildHeader(
     BuildContext context,
     String name,
+    String username,
     String email,
     String initials,
+    {required VoidCallback onEdit}
   ) {
     return Container(
       width: double.infinity,
@@ -557,36 +1008,39 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
         left: 20,
         right: 20,
       ),
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Color(0xFF134E4A), Color(0xFF0F766E), Color(0xFF0EA5A0)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.vertical(bottom: Radius.circular(34)),
+      decoration: BoxDecoration(
+        gradient: context.brandHeaderGradient,
+        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(34)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          IconButton(
-            icon: const Icon(
-              Icons.arrow_back_ios_new,
-              color: Colors.white,
-              size: 20,
-            ),
-            onPressed: widget.onBack,
-          ),
-          const Padding(
-            padding: EdgeInsets.only(left: 10, bottom: 20),
-            child: Text(
-              'Settings',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 26,
-                fontWeight: FontWeight.bold,
+          Row(
+            children: [
+              IconButton(
+                icon: const Icon(
+                  Icons.arrow_back_ios_new,
+                  color: Colors.white,
+                  size: 20,
+                ),
+                onPressed: widget.onBack,
               ),
-            ),
+              const Expanded(
+                child: Padding(
+                  padding: EdgeInsets.only(left: 10),
+                  child: Text(
+                    'Settings',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 26,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
+          const SizedBox(height: 20),
           Container(
             padding: const EdgeInsets.all(15),
             decoration: BoxDecoration(
@@ -595,6 +1049,7 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
               borderRadius: BorderRadius.circular(25),
             ),
             child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 CircleAvatar(
                   radius: 30,
@@ -613,22 +1068,59 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        name,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      Text(
-                        email,
-                        style: const TextStyle(
-                          color: Colors.white70,
-                          fontSize: 13,
-                        ),
-                        overflow: TextOverflow.ellipsis,
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  name,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  username,
+                                  style: const TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  email,
+                                  style: const TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: 12.5,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          TextButton.icon(
+                            onPressed: onEdit,
+                            style: TextButton.styleFrom(
+                              foregroundColor: Colors.white,
+                              backgroundColor: Colors.white.withValues(alpha: 0.12),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 10,
+                              ),
+                            ),
+                            icon: const Icon(Icons.edit_rounded, size: 18),
+                            label: const Text('Edit'),
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -648,8 +1140,8 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
         padding: const EdgeInsets.only(left: 5, bottom: 10),
         child: Text(
           title,
-          style: const TextStyle(
-            color: Color(0xFF64748B),
+          style: TextStyle(
+            color: Theme.of(context).brightness == Brightness.dark ? Colors.white54 : const Color(0xFF64748B),
             fontWeight: FontWeight.bold,
             fontSize: 12,
           ),
@@ -659,14 +1151,15 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
   }
 
   Widget _buildSettingsCard(List<Widget> children) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: colorScheme.surfaceContainer,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: colorScheme.outlineVariant),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.02),
+            color: Colors.black.withValues(alpha: 0.015),
             blurRadius: 10,
             offset: const Offset(0, 5),
           ),
@@ -682,6 +1175,7 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
     Color color, {
     required bool value,
     required Future<void> Function(bool value)? onChanged,
+    String? subtitle,
   }) {
     return ListTile(
       leading: Container(
@@ -696,10 +1190,20 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
         title,
         style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
       ),
+      subtitle: subtitle != null
+          ? Text(
+              subtitle,
+              style: TextStyle(
+                fontSize: 12,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            )
+          : null,
       trailing: Switch(
         value: value,
         onChanged: onChanged == null ? null : (v) => onChanged(v),
-        activeColor: const Color(0xFF0F766E),
+        activeThumbColor: Theme.of(context).colorScheme.onPrimary,
+        activeTrackColor: Theme.of(context).colorScheme.primary,
       ),
       onTap: onChanged == null ? null : () => onChanged(!value),
     );
@@ -731,9 +1235,9 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
           if (trailingText != null)
             Text(
               trailingText,
-              style: const TextStyle(
+              style: TextStyle(
                 fontWeight: FontWeight.bold,
-                color: Color(0xFF0F172A),
+                color: Theme.of(context).brightness == Brightness.dark ? Colors.white70 : const Color(0xFF0F172A),
               ),
             ),
           const SizedBox(width: 5),

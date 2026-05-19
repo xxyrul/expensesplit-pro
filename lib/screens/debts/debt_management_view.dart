@@ -7,6 +7,8 @@ import '../../services/debt_service.dart';
 import '../../utils/category_styles.dart';
 import '../../widgets/add_debt_sheet.dart';
 import '../../widgets/update_debt_sheet.dart';
+import '../../widgets/modern_bottom_toast.dart';
+import '../../theme/brand_theme.dart';
 
 class DebtManagementView extends ConsumerStatefulWidget {
   const DebtManagementView({super.key});
@@ -62,8 +64,10 @@ class _DebtManagementViewState extends ConsumerState<DebtManagementView> {
     if (confirm == true && debt.id != null) {
       await ref.read(debtServiceProvider).deleteDebt(debt.id!);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Debt deleted successfully")),
+        ModernBottomToast.show(
+          context,
+          message: 'Debt deleted successfully',
+          type: ModernToastType.success,
         );
       }
     }
@@ -72,12 +76,13 @@ class _DebtManagementViewState extends ConsumerState<DebtManagementView> {
   @override
   Widget build(BuildContext context) {
     final debtsAsync = ref.watch(debtsStreamProvider);
+    final scheme = Theme.of(context).colorScheme;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF3F7F8),
+      backgroundColor: scheme.surface,
       body: debtsAsync.when(
         loading: () => const Center(
-          child: CircularProgressIndicator(color: Color(0xFF0F766E)),
+          child: CircularProgressIndicator(color: Color(0xFF115E59)),
         ),
         error: (err, stack) => Center(child: Text('Error: $err')),
         data: (debts) {
@@ -134,14 +139,14 @@ class _DebtManagementViewState extends ConsumerState<DebtManagementView> {
                                 Icon(
                                   Icons.account_balance_outlined,
                                   size: 60,
-                                  color: Colors.blueGrey.withOpacity(0.3),
+                                  color: scheme.onSurfaceVariant.withOpacity(0.35),
                                 ),
                                 const SizedBox(height: 20),
-                                const Text(
+                                Text(
                                   "No debts recorded.\nTap + to stay on top of your balances!",
                                   textAlign: TextAlign.center,
                                   style: TextStyle(
-                                    color: Colors.blueGrey,
+                                    color: scheme.onSurfaceVariant,
                                     fontSize: 16,
                                   ),
                                 ),
@@ -168,42 +173,59 @@ class _DebtManagementViewState extends ConsumerState<DebtManagementView> {
     return Container(
       height: 280,
       width: double.infinity,
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Color(0xFF134E4A), Color(0xFF0F766E), Color(0xFF0EA5A0)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.vertical(bottom: Radius.circular(34)),
+      decoration: BoxDecoration(
+        gradient: context.brandHeaderGradient,
+        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(34)),
       ),
     );
   }
 
   Widget _buildAppBar() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          IconButton(
-            icon: const Icon(Icons.arrow_back, color: Colors.white),
-            onPressed: () => Navigator.pop(context),
-          ),
-          const Text(
-            "Debt Management",
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
+          SizedBox(
+            width: 48,
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: IconButton(
+                icon: const Icon(Icons.arrow_back, color: Colors.white),
+                onPressed: () => Navigator.pop(context),
+              ),
             ),
           ),
-          IconButton(
-            icon: const Icon(
-              Icons.add_circle_outline,
-              color: Colors.white,
-              size: 28,
+          const Expanded(
+            child: Text(
+              "Debt Management",
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
             ),
-            onPressed: _showAddDebtSheet,
+          ),
+          SizedBox(
+            width: 48,
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: IconButton(
+                  icon: const Icon(
+                    Icons.add_rounded,
+                    color: Colors.white,
+                    size: 22,
+                  ),
+                  onPressed: _showAddDebtSheet,
+                ),
+              ),
+            ),
           ),
         ],
       ),
@@ -211,13 +233,14 @@ class _DebtManagementViewState extends ConsumerState<DebtManagementView> {
   }
 
   Widget _buildSummaryCard(double remaining, double paid, double monthly) {
+    final scheme = Theme.of(context).colorScheme;
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20),
       padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: scheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: scheme.outlineVariant),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.04),
@@ -236,7 +259,7 @@ class _DebtManagementViewState extends ConsumerState<DebtManagementView> {
                 remaining,
                 const Color(0xFFf43f5e),
               ),
-              _summaryItem("Total Paid", paid, const Color(0xFF0F766E)),
+              _summaryItem("Total Paid", paid, const Color(0xFF115E59)),
             ],
           ),
           const Divider(height: 40),
@@ -257,6 +280,7 @@ class _DebtManagementViewState extends ConsumerState<DebtManagementView> {
     Color color, {
     bool isLarge = false,
   }) {
+    final scheme = Theme.of(context).colorScheme;
     return Column(
       crossAxisAlignment: isLarge
           ? CrossAxisAlignment.center
@@ -264,8 +288,8 @@ class _DebtManagementViewState extends ConsumerState<DebtManagementView> {
       children: [
         Text(
           label,
-          style: const TextStyle(
-            color: Colors.grey,
+          style: TextStyle(
+            color: scheme.onSurfaceVariant,
             fontSize: 13,
             fontWeight: FontWeight.w600,
           ),
@@ -284,6 +308,7 @@ class _DebtManagementViewState extends ConsumerState<DebtManagementView> {
   }
 
   Widget _buildDebtCard(DebtModel debt) {
+    final scheme = Theme.of(context).colorScheme;
     final type = getDebtType(debt.type);
     final service = ref.read(debtServiceProvider);
     final monthsToPayoff = service.calculatePayoffTime(
@@ -296,9 +321,9 @@ class _DebtManagementViewState extends ConsumerState<DebtManagementView> {
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: scheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: scheme.outlineVariant),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.03),
@@ -327,8 +352,8 @@ class _DebtManagementViewState extends ConsumerState<DebtManagementView> {
                   children: [
                     Text(
                       debt.title,
-                      style: const TextStyle(
-                        color: Color(0xFF0F172A),
+                      style: TextStyle(
+                        color: scheme.onSurface,
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                       ),
@@ -337,8 +362,8 @@ class _DebtManagementViewState extends ConsumerState<DebtManagementView> {
                     ),
                     Text(
                       "Due on day ${debt.dueDate} • ${debt.interestRate}% APR",
-                      style: const TextStyle(
-                        color: Color(0xFF64748B),
+                      style: TextStyle(
+                        color: scheme.onSurfaceVariant,
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
                       ),
@@ -363,7 +388,7 @@ class _DebtManagementViewState extends ConsumerState<DebtManagementView> {
                       const Text(
                         "Paid",
                         style: TextStyle(
-                          color: Color(0xFF64748B),
+                          color: Colors.grey,
                           fontSize: 10,
                         ),
                       ),
@@ -375,7 +400,7 @@ class _DebtManagementViewState extends ConsumerState<DebtManagementView> {
                       onPressed: () => _showUpdateDebtSheet(debt),
                       icon: const Icon(
                         Icons.add_circle,
-                        color: Color(0xFF0F766E),
+                        color: Color(0xFF115E59),
                         size: 30,
                       ),
                       padding: EdgeInsets.zero,
@@ -431,13 +456,14 @@ class _DebtManagementViewState extends ConsumerState<DebtManagementView> {
   }
 
   Widget _debtCardDetail(String label, String value) {
+    final scheme = Theme.of(context).colorScheme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           label,
-          style: const TextStyle(
-            color: Colors.grey,
+          style: TextStyle(
+            color: scheme.onSurfaceVariant,
             fontSize: 11,
             fontWeight: FontWeight.w500,
           ),
@@ -445,8 +471,8 @@ class _DebtManagementViewState extends ConsumerState<DebtManagementView> {
         const SizedBox(height: 2),
         Text(
           value,
-          style: const TextStyle(
-            color: Color(0xFF1E293B),
+          style: TextStyle(
+            color: scheme.onSurface,
             fontSize: 14,
             fontWeight: FontWeight.bold,
           ),

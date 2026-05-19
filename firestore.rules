@@ -1,0 +1,35 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+  
+    function isAdmin() {
+      return exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
+    // 1. Standard rules for user folders
+    match /users/{userId}/{document=**} {
+      allow read: if (request.auth != null && request.auth.uid == userId) || isAdmin();
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // 2. NEW: Explicit rules required for Collection Group Queries
+    match /{path=**}/expenses/{expenseId} {
+      allow read: if isAdmin();
+    }
+    match /{path=**}/ocr_logs/{logId} {
+      allow read: if isAdmin();
+    }
+    
+    // 3. Global Dictionary
+    match /ocr_learning/{docId} {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
+    }
+        // Allow anyone to read broadcasts, but ONLY Admins can push them
+    match /system_config/{document=**} {
+      allow read: if true;
+      allow write: if exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
+  }
+}

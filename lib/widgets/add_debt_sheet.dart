@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 
 import '../../models/debt_model.dart';
 import '../../services/debt_service.dart';
+import 'modern_bottom_toast.dart';
 import '../../utils/category_styles.dart';
 
 class AddDebtSheet extends ConsumerStatefulWidget {
@@ -32,8 +33,10 @@ class _AddDebtSheetState extends ConsumerState<AddDebtSheet> {
     final interest = double.tryParse(_interestController.text.trim());
 
     if (title.isEmpty || original == null || current == null || payment == null || interest == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please fill all fields with valid numbers')),
+      ModernBottomToast.show(
+        context,
+        message: 'Please fill all fields with valid numbers',
+        type: ModernToastType.error,
       );
       return;
     }
@@ -55,7 +58,11 @@ class _AddDebtSheetState extends ConsumerState<AddDebtSheet> {
       if (mounted) Navigator.pop(context);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+        ModernBottomToast.show(
+          context,
+          message: 'Error: $e',
+          type: ModernToastType.error,
+        );
       }
     } finally {
       if (mounted) setState(() => _isSaving = false);
@@ -64,6 +71,9 @@ class _AddDebtSheetState extends ConsumerState<AddDebtSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Container(
       padding: EdgeInsets.only(
         left: 20,
@@ -71,9 +81,9 @@ class _AddDebtSheetState extends ConsumerState<AddDebtSheet> {
         top: 20,
         bottom: MediaQuery.of(context).viewInsets.bottom + 20,
       ),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
+      decoration: BoxDecoration(
+        color: isDark ? colorScheme.surfaceContainerHigh : Colors.white,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
       ),
       child: SingleChildScrollView(
         child: Column(
@@ -85,12 +95,19 @@ class _AddDebtSheetState extends ConsumerState<AddDebtSheet> {
                 width: 50,
                 height: 5,
                 margin: const EdgeInsets.only(bottom: 20),
-                decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(10)),
+                decoration: BoxDecoration(
+                  color: isDark ? colorScheme.outlineVariant : Colors.grey[300],
+                  borderRadius: BorderRadius.circular(10),
+                ),
               ),
             ),
-            const Text(
+            Text(
               "Add New Debt",
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: colorScheme.onSurface,
+              ),
             ),
             const SizedBox(height: 20),
             
@@ -99,7 +116,14 @@ class _AddDebtSheetState extends ConsumerState<AddDebtSheet> {
             const SizedBox(height: 15),
             
             // TYPE SELECTOR
-            const Text("Debt Type", style: TextStyle(color: Colors.grey, fontWeight: FontWeight.w600, fontSize: 13)),
+            Text(
+              "Debt Type",
+              style: TextStyle(
+                color: colorScheme.onSurfaceVariant,
+                fontWeight: FontWeight.w600,
+                fontSize: 13,
+              ),
+            ),
             const SizedBox(height: 10),
             SizedBox(
               height: 50,
@@ -114,7 +138,7 @@ class _AddDebtSheetState extends ConsumerState<AddDebtSheet> {
                       margin: const EdgeInsets.only(right: 12),
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       decoration: BoxDecoration(
-                        color: isSelected ? style.color : const Color(0xFFF8F9FE),
+                        color: isSelected ? style.color : colorScheme.surfaceContainerHighest,
                         borderRadius: BorderRadius.circular(15),
                       ),
                       child: Row(
@@ -123,7 +147,10 @@ class _AddDebtSheetState extends ConsumerState<AddDebtSheet> {
                           const SizedBox(width: 8),
                           Text(
                             type,
-                            style: TextStyle(color: isSelected ? Colors.white : Colors.blueGrey, fontWeight: FontWeight.bold),
+                            style: TextStyle(
+                              color: isSelected ? Colors.white : colorScheme.onSurfaceVariant,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ],
                       ),
@@ -154,14 +181,18 @@ class _AddDebtSheetState extends ConsumerState<AddDebtSheet> {
             // DUE DATE
             DropdownButtonFormField<int>(
               value: _dueDate,
-              decoration: InputDecoration(
+              decoration: const InputDecoration(
                 labelText: "Payment Due Day",
-                filled: true,
-                fillColor: const Color(0xFFF8F9FE),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none),
               ),
+              dropdownColor: isDark ? colorScheme.surfaceContainerHigh : Colors.white,
               items: List.generate(31, (index) => index + 1).map((day) {
-                return DropdownMenuItem(value: day, child: Text("Day $day"));
+                return DropdownMenuItem(
+                  value: day,
+                  child: Text(
+                    "Day $day",
+                    style: TextStyle(color: colorScheme.onSurface),
+                  ),
+                );
               }).toList(),
               onChanged: (val) => setState(() => _dueDate = val ?? 1),
             ),
@@ -171,15 +202,21 @@ class _AddDebtSheetState extends ConsumerState<AddDebtSheet> {
             SizedBox(
               width: double.infinity,
               height: 55,
-              child: ElevatedButton(
+              child: FilledButton(
                 onPressed: _isSaving ? null : _saveDebt,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF0F766E),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-                ),
                 child: _isSaving 
-                  ? const CircularProgressIndicator(color: Colors.white)
-                  : const Text("Track Debt", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
+                  ? const SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      ),
+                    )
+                  : const Text(
+                      "Track Debt",
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
               ),
             ),
           ],
@@ -191,12 +228,10 @@ class _AddDebtSheetState extends ConsumerState<AddDebtSheet> {
   Widget _buildField(TextEditingController controller, String label, {bool isNumber = false}) {
     return TextField(
       controller: controller,
+      style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
       keyboardType: isNumber ? const TextInputType.numberWithOptions(decimal: true) : TextInputType.text,
       decoration: InputDecoration(
         labelText: label,
-        filled: true,
-        fillColor: const Color(0xFFF8F9FE),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none),
       ),
     );
   }

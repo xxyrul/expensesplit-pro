@@ -1,13 +1,10 @@
 import 'package:flutter/material.dart';
 
-class AppTheme {
-  static final ThemeData lightTheme = ThemeData(
-    primarySwatch: Colors.blue,
-    brightness: Brightness.light,
-  );
+import 'expressive_theme.dart';
 
-  static final ThemeData darkTheme = ThemeData(
-    primarySwatch: Colors.blue,
-    brightness: Brightness.dark,
-  );
+/// Legacy entry point — prefer [ExpressiveTheme.light] / [ExpressiveTheme.dark].
+class AppTheme {
+  static ThemeData get lightTheme => ExpressiveTheme.light();
+
+  static ThemeData get darkTheme => ExpressiveTheme.dark();
 }

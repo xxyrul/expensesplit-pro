@@ -1,20 +1,29 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../models/expense_model.dart';
 import '../../services/expense_service.dart';
 import '../../services/budget_service.dart';
+import '../../theme/brand_theme.dart';
 import '../../utils/receipt_processing_ui.dart';
 import '../../utils/category_styles.dart';
 import '../home/add_expense_screen.dart';
 import '../home/set_budget_screen.dart';
 import '../goals/financial_goals_view.dart';
 import '../debts/debt_management_view.dart';
+import '../../widgets/notifications_sheet.dart';
 
 class DashboardView extends ConsumerWidget {
   // NEW: Add the onSettingsPressed callback
   final VoidCallback? onSettingsPressed;
   final VoidCallback? onViewAllPressed;
+  final void Function(ExpenseModel expense)? onExpenseTap;
 
-  const DashboardView({super.key, this.onSettingsPressed, this.onViewAllPressed});
+  const DashboardView({
+    super.key,
+    this.onSettingsPressed,
+    this.onViewAllPressed,
+    this.onExpenseTap,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -22,7 +31,7 @@ class DashboardView extends ConsumerWidget {
     final budgetsAsync = ref.watch(budgetsStreamProvider);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF3F7F8),
+      backgroundColor: Theme.of(context).colorScheme.surface,
       body: budgetsAsync.when(
         data: (budgetLimits) {
           final double totalLimit = budgetLimits['Total'] ?? 0.0;
@@ -37,18 +46,16 @@ class DashboardView extends ConsumerWidget {
                 (sum, e) => sum + e.amount,
               );
 
+              final recentExpenses = [...currentMonthExpenses]
+                ..sort((a, b) => b.date.compareTo(a.date));
+
               return Column(
                 children: [
-                  // 1. GRADIENT HEADER WITH BUDGET CONTROLS
                   _buildHeader(context, ref, totalLimit, totalSpent),
-
-                  // 2. QUICK ACTIONS (Add Expense Linked)
                   _buildQuickActions(context, ref),
-
-                  // 3. RECENT EXPENSES
                   Expanded(
                     child: SingleChildScrollView(
-                      child: _buildRecentExpenses(currentMonthExpenses),
+                      child: _buildRecentExpenses(context, recentExpenses),
                     ),
                   ),
                 ],
@@ -80,13 +87,9 @@ class DashboardView extends ConsumerWidget {
         right: 24,
         bottom: 30,
       ),
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Color(0xFF134E4A), Color(0xFF0F766E), Color(0xFF0EA5A0)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.vertical(bottom: Radius.circular(34)),
+      decoration: BoxDecoration(
+        gradient: context.brandHeaderGradient,
+        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(34)),
       ),
       child: Column(
         children: [
@@ -110,16 +113,32 @@ class DashboardView extends ConsumerWidget {
                   ),
                 ],
               ),
-              Container(
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.16),
-                  border: Border.all(color: Colors.white.withOpacity(0.26)),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: IconButton(
-                  icon: const Icon(Icons.settings, color: Colors.white),
-                  onPressed: onSettingsPressed, // UPDATED: Calls the callback
-                ),
+              Row(
+                children: [
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.16),
+                      border: Border.all(color: Colors.white.withOpacity(0.26)),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: IconButton(
+                      icon: const Icon(Icons.notifications_outlined, color: Colors.white),
+                      onPressed: () => NotificationsSheet.show(context),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.16),
+                      border: Border.all(color: Colors.white.withOpacity(0.26)),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: IconButton(
+                      icon: const Icon(Icons.settings, color: Colors.white),
+                      onPressed: onSettingsPressed, // UPDATED: Calls the callback
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -217,13 +236,16 @@ class DashboardView extends ConsumerWidget {
   }
 
   Widget _buildQuickActions(BuildContext context, WidgetRef ref) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Container(
       margin: const EdgeInsets.fromLTRB(18, 22, 18, 18),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: colorScheme.surfaceContainer,
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: const Color(0xFFDDE7EC)),
+        border: Border.all(
+          color: colorScheme.outlineVariant,
+        ),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.035),
@@ -239,56 +261,62 @@ class DashboardView extends ConsumerWidget {
             "Quick Actions",
             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 16),
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              _actionItem(
-                icon: Icons.add,
-                label: "Add Expense",
-                color: const Color(0xFF0F766E),
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const AddExpenseScreen(),
-                    ),
-                  );
-                },
+              Expanded(
+                child: _actionItem(
+                  context,
+                  icon: Icons.add_rounded,
+                  label: "Add",
+                  color: colorScheme.primary,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const AddExpenseScreen()),
+                    );
+                  },
+                ),
               ),
-              _actionItem(
-                icon: Icons.camera_alt,
-                label: "Scan Receipt",
-                color: const Color(0xFF0EA5A0),
-                onTap: () {
-                  ReceiptProcessingUI.startLiveScanFlow(context);
-                },
+              const SizedBox(width: 12),
+              Expanded(
+                child: _actionItem(
+                  context,
+                  icon: Icons.document_scanner_outlined,
+                  label: "Scan",
+                  color: colorScheme.primary,
+                  onTap: () => ReceiptProcessingUI.startLiveScanFlow(context),
+                ),
               ),
-              _actionItem(
-                icon: Icons.emoji_events,
-                label: "Goals",
-                color: const Color(0xFF0284C7),
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const FinancialGoalsView(),
-                    ),
-                  );
-                },
+              const SizedBox(width: 12),
+              Expanded(
+                child: _actionItem(
+                  context,
+                  icon: Icons.emoji_events_outlined,
+                  label: "Goals",
+                  color: colorScheme.secondary,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const FinancialGoalsView()),
+                    );
+                  },
+                ),
               ),
-              _actionItem(
-                icon: Icons.account_balance_wallet,
-                label: "Debts",
-                color: const Color(0xFFB45309),
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const DebtManagementView(),
-                    ),
-                  );
-                },
+              const SizedBox(width: 12),
+              Expanded(
+                child: _actionItem(
+                  context,
+                  icon: Icons.account_balance_wallet_outlined,
+                  label: "Debts",
+                  color: colorScheme.secondary,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const DebtManagementView()),
+                    );
+                  },
+                ),
               ),
             ],
           ),
@@ -297,36 +325,60 @@ class DashboardView extends ConsumerWidget {
     );
   }
 
-  Widget _actionItem({
+  Widget _actionItem(
+    BuildContext context, {
     required IconData icon,
     required String label,
     required Color color,
     required VoidCallback onTap,
   }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Column(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(icon, color: color, size: 24),
+    final colorScheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Material(
+      color: isDark ? colorScheme.surfaceContainerHigh : colorScheme.surface,
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+        side: BorderSide(color: colorScheme.outlineVariant.withValues(alpha: 0.6)),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: isDark ? 0.28 : 0.12),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Icon(icon, color: color, size: 22),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                label,
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: colorScheme.onSurface,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 8),
-          Text(
-            label,
-            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500),
-          ),
-        ],
+        ),
       ),
     );
   }
 
-  Widget _buildRecentExpenses(List expenses) {
+  Widget _buildRecentExpenses(BuildContext context, List<ExpenseModel> expenses) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Column(
@@ -340,64 +392,93 @@ class DashboardView extends ConsumerWidget {
               ),
               TextButton(
                 onPressed: onViewAllPressed,
-                child: const Text(
+                child: Text(
                   "View All",
-                  style: TextStyle(color: Color(0xFF0F766E)),
+                  style: TextStyle(color: Theme.of(context).colorScheme.primary),
                 ),
               ),
             ],
           ),
-          ...expenses.take(5).map((e) => _expenseTile(e)).toList(),
+          if (expenses.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 24),
+              child: Text(
+                'No expenses this month yet.',
+                style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+              ),
+            )
+          else
+            ...expenses.take(5).map((e) => _expenseTile(context, e)),
         ],
       ),
     );
   }
 
-  Widget _expenseTile(dynamic expense) {
-    final style = getCategoryStyle(expense.category as String);
+  Widget _expenseTile(BuildContext context, ExpenseModel expense) {
+    final style = getCategoryStyle(expense.category);
+    final colorScheme = Theme.of(context).colorScheme;
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.02),
-            blurRadius: 8,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          CircleAvatar(
-            backgroundColor: style.color.withOpacity(0.1),
-            child: Icon(style.icon, color: style.color, size: 20),
-          ),
-          const SizedBox(width: 15),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Material(
+        color: colorScheme.surfaceContainer,
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: BorderSide(color: colorScheme.outlineVariant),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: () => onExpenseTap?.call(expense),
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Row(
               children: [
-                Text(
-                  expense.vendor,
-                  style: const TextStyle(fontWeight: FontWeight.bold),
+                Container(
+                  width: 46,
+                  height: 46,
+                  decoration: BoxDecoration(
+                    color: style.color.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Icon(style.icon, color: style.color, size: 22),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        expense.vendor,
+                        style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        expense.category,
+                        style: TextStyle(
+                          color: colorScheme.onSurfaceVariant,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
                 Text(
-                  expense.category,
-                  style: const TextStyle(color: Colors.grey, fontSize: 12),
+                  '-RM ${expense.amount.toStringAsFixed(2)}',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                    color: colorScheme.error,
+                  ),
                 ),
+                const SizedBox(width: 4),
+                Icon(Icons.chevron_right, color: colorScheme.onSurfaceVariant, size: 20),
               ],
             ),
           ),
-          Text(
-            "-RM ${expense.amount.toStringAsFixed(2)}",
-            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-          ),
-        ],
+        ),
       ),
     );
   }

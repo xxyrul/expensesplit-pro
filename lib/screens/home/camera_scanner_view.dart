@@ -3,10 +3,12 @@ import 'dart:io';
 import 'dart:math';
 
 import 'package:camera/camera.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 import '../../services/receipt_scanner_service.dart';
 import 'add_expense_screen.dart';
@@ -59,8 +61,8 @@ class _CameraScannerViewState extends State<CameraScannerView>
   int _stableFrameCount = 0;
 
   /// Frames that must be stable before auto-capture fires.
-  /// At ~1 frame per 400 ms → 4 frames ≈ 1.6 s.
-  static const int _stableFrameThreshold = 4;
+  /// At ~1 frame per 800 ms → 2 frames ≈ 1.6 s.
+  static const int _stableFrameThreshold = 2;
 
   /// Minimum number of text blocks to even start the stable counter.
   static const int _minBlocksToConsider = 2;
@@ -70,8 +72,9 @@ class _CameraScannerViewState extends State<CameraScannerView>
   late Animation<Color?> _cornerColorAnim;
   bool _textDetectedLastFrame = false;
 
-  // ── Capture result ────────────────────────────────────────────────────────────
-  XFile? _capturedFile;
+  // ── Permission ────────────────────────────────────────────────────────────────
+  bool _hasCameraPermission = false;
+  bool _permissionChecked = false;
 
   // ── Countdown display ────────────────────────────────────────────────────────
   double _captureProgress = 0.0; // 0.0 → 1.0 as stable frames accumulate
@@ -91,17 +94,19 @@ class _CameraScannerViewState extends State<CameraScannerView>
     );
     _cornerColorAnim = ColorTween(
       begin: Colors.white,
-      end: const Color(0xFF0F766E),
+      end: const Color(0xFF115E59),
     ).animate(CurvedAnimation(parent: _cornerAnimCtrl, curve: Curves.easeOut));
 
-    _initCamera();
+    _requestCameraPermission();
   }
 
   @override
   void dispose() {
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     _cornerAnimCtrl.dispose();
-    _controller?.stopImageStream();
+    try {
+      _controller?.stopImageStream();
+    } catch (_) {}
     _controller?.dispose();
     _textRecognizer.close();
     super.dispose();
@@ -110,6 +115,18 @@ class _CameraScannerViewState extends State<CameraScannerView>
   // ─────────────────────────────────────────────────────────────────────────────
   // Camera init
   // ─────────────────────────────────────────────────────────────────────────────
+
+  Future<void> _requestCameraPermission() async {
+    final status = await Permission.camera.request();
+    if (!mounted) return;
+    setState(() {
+      _hasCameraPermission = status.isGranted;
+      _permissionChecked = true;
+    });
+    if (status.isGranted) {
+      _initCamera();
+    }
+  }
 
   Future<void> _initCamera() async {
     try {
@@ -125,7 +142,9 @@ class _CameraScannerViewState extends State<CameraScannerView>
         backCamera,
         ResolutionPreset.high,
         enableAudio: false,
-        imageFormatGroup: Platform.isIOS ? ImageFormatGroup.bgra8888 : ImageFormatGroup.yuv420,
+        imageFormatGroup: !kIsWeb && Platform.isIOS
+            ? ImageFormatGroup.bgra8888
+            : ImageFormatGroup.yuv420,
       );
 
       await _controller!.initialize();
@@ -144,14 +163,14 @@ class _CameraScannerViewState extends State<CameraScannerView>
   // Live frame processing
   // ─────────────────────────────────────────────────────────────────────────────
 
-  /// Throttle: one frame every 400 ms.
+  /// Throttle: one frame every 800 ms.
   DateTime _lastProcessedAt = DateTime(0);
 
   void _onImageAvailable(CameraImage image) {
     if (_isProcessingFrame || _isCapturing) return;
 
     final now = DateTime.now();
-    if (now.difference(_lastProcessedAt).inMilliseconds < 400) return;
+    if (now.difference(_lastProcessedAt).inMilliseconds < 800) return;
     _lastProcessedAt = now;
 
     _isProcessingFrame = true;
@@ -251,7 +270,6 @@ class _CameraScannerViewState extends State<CameraScannerView>
     try {
       await _controller!.stopImageStream();
       final XFile file = await _controller!.takePicture();
-      _capturedFile = file;
 
       if (!mounted) return;
       await _navigateToConfirm(file);
@@ -267,10 +285,9 @@ class _CameraScannerViewState extends State<CameraScannerView>
 
   Future<void> _navigateToConfirm(XFile imageFile) async {
     // Parse synchronously so we can pass pre-filled data.
-    final scanner = ReceiptScannerService();
     final inputImage = InputImage.fromFilePath(imageFile.path);
     final recognized = await _textRecognizer.processImage(inputImage);
-    final parsed = scanner.parseReceiptText(
+    final parsed = ReceiptScannerService.parseReceiptText(
       ReceiptScannerService.formatRecognizedText(recognized),
     );
 
@@ -286,6 +303,7 @@ class _CameraScannerViewState extends State<CameraScannerView>
           initialVendor: parsed['vendor'],
           initialDate: parsed['date'],
           rawText: parsed['rawText'],
+          showScanSuccessBanner: true,
         ),
         transitionsBuilder: (_, animation, __, child) {
           return FadeTransition(opacity: animation, child: child);
@@ -334,12 +352,25 @@ class _CameraScannerViewState extends State<CameraScannerView>
   // ─────────────────────────────────────────────────────────────────────────────
 
   Future<void> _pickFromGallery() async {
+    // Stop stream before opening gallery to avoid 'already streaming' error
+    try {
+      await _controller?.stopImageStream();
+    } catch (_) {}
+
     final picker = ImagePicker();
     final XFile? file = await picker.pickImage(
       source: ImageSource.gallery,
       imageQuality: 85,
     );
-    if (file == null || !mounted) return;
+    if (file == null || !mounted) {
+      // Restart stream if user cancelled
+      if (mounted &&
+          _controller != null &&
+          _controller!.value.isInitialized) {
+        await _controller!.startImageStream(_onImageAvailable);
+      }
+      return;
+    }
 
     await _navigateToConfirm(file);
   }
@@ -350,6 +381,66 @@ class _CameraScannerViewState extends State<CameraScannerView>
 
   @override
   Widget build(BuildContext context) {
+    // Show permission denied UI if camera access was not granted
+    if (_permissionChecked && !_hasCameraPermission) {
+      return Scaffold(
+        backgroundColor: Colors.black,
+        body: SafeArea(
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(32.0),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.camera_alt_rounded,
+                      size: 80, color: Color(0xFF115E59)),
+                  const SizedBox(height: 24),
+                  const Text(
+                    'Camera Access Required',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'To scan receipts, ExpenseSplit Pro needs access to your camera. Please enable it in your device settings.',
+                    style: TextStyle(color: Colors.white70, fontSize: 15),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 32),
+                  ElevatedButton.icon(
+                    onPressed: () async {
+                      await openAppSettings();
+                    },
+                    icon: const Icon(Icons.settings_rounded),
+                    label: const Text('Open Settings'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF115E59),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 28, vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Go Back',
+                        style: TextStyle(color: Colors.white54)),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: Colors.black,
       body: Stack(
@@ -360,7 +451,7 @@ class _CameraScannerViewState extends State<CameraScannerView>
             CameraPreview(_controller!)
           else
             const Center(
-              child: CircularProgressIndicator(color: Color(0xFF0F766E)),
+              child: CircularProgressIndicator(color: Color(0xFF115E59)),
             ),
 
           // ── Scanning overlay ─────────────────────────────────────────────────
@@ -404,27 +495,38 @@ class _CameraScannerViewState extends State<CameraScannerView>
   // ─────────────────────────────────────────────────────────────────────────────
 
   Widget _buildTopBar() {
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            _CircleButton(
-              icon: Icons.close_rounded,
-              onTap: () => Navigator.maybePop(context),
-            ),
-            const Text(
-              'Scan Receipt',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 17,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0.3,
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Colors.black.withOpacity(0.4), Colors.transparent],
+        ),
+      ),
+      child: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 10, 20, 20),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _CircleButton(
+                icon: Icons.close_rounded,
+                size: 40,
+                iconSize: 22,
+                onTap: () => Navigator.maybePop(context),
               ),
-            ),
-            const SizedBox(width: 40), // balance the close button
-          ],
+              const Text(
+                'Scan Receipt',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.5,
+                ),
+              ),
+              const SizedBox(width: 40),
+            ],
+          ),
         ),
       ),
     );
@@ -489,9 +591,9 @@ class _CameraScannerViewState extends State<CameraScannerView>
         : 'Point camera at a receipt';
 
     final Color pillColor = _isCapturing
-        ? const Color(0xFF0F766E)
+        ? const Color(0xFF115E59)
         : textSeen
-        ? const Color(0xFF0F766E).withOpacity(0.85)
+        ? const Color(0xFF115E59).withOpacity(0.85)
         : Colors.black54;
 
     return Center(
@@ -612,7 +714,7 @@ class _ScannerOverlayPainter extends CustomPainter {
     // ── Progress sweep at top edge of frame ────────────────────────────────────
     if (progress > 0) {
       final progressPaint = Paint()
-        ..color = const Color(0xFF0F766E).withOpacity(0.85)
+        ..color = const Color(0xFF115E59).withOpacity(0.85)
         ..style = PaintingStyle.stroke
         ..strokeWidth = 3
         ..strokeCap = StrokeCap.round;
@@ -660,9 +762,10 @@ class _CircleButton extends StatelessWidget {
         height: size,
         decoration: BoxDecoration(
           color: highlighted
-              ? const Color(0xFF0F766E).withOpacity(0.9)
-              : Colors.white.withOpacity(0.18),
+              ? const Color(0xFF115E59).withOpacity(0.9)
+              : Colors.black.withOpacity(0.3),
           shape: BoxShape.circle,
+          border: Border.all(color: Colors.white.withOpacity(0.2), width: 1),
         ),
         child: Icon(icon, color: Colors.white, size: iconSize),
       ),
@@ -697,7 +800,7 @@ class _ShutterButton extends StatelessWidget {
               strokeWidth: 3,
               backgroundColor: Colors.white24,
               valueColor: const AlwaysStoppedAnimation<Color>(
-                Color(0xFF0F766E),
+                Color(0xFF115E59),
               ),
             ),
           ),
@@ -708,11 +811,11 @@ class _ShutterButton extends StatelessWidget {
             height: 68,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: isCapturing ? const Color(0xFF0F766E) : Colors.white,
+              color: isCapturing ? const Color(0xFF115E59) : Colors.white,
               boxShadow: [
                 BoxShadow(
                   color: const Color(
-                    0xFF0F766E,
+                    0xFF115E59,
                   ).withOpacity(isCapturing ? 0.6 : 0.0),
                   blurRadius: 16,
                   spreadRadius: 2,
@@ -732,7 +835,7 @@ class _ShutterButton extends StatelessWidget {
                   )
                 : const Icon(
                     Icons.camera_alt_rounded,
-                    color: Color(0xFF134E4A),
+                    color: Color(0xFF042F2E),
                     size: 30,
                   ),
           ),
