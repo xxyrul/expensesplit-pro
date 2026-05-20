@@ -171,7 +171,53 @@ class _EditProfileScreenState extends State<EditProfileScreen>
   }
 
   Future<void> _startPhoneLinkingFlow() async {
-    final phoneController = TextEditingController();
+    String getDeviceCountryDialCode() {
+      final countryCode = WidgetsBinding.instance.platformDispatcher.locale.countryCode?.toUpperCase();
+      switch (countryCode) {
+        case 'MY': return '+60';
+        case 'SG': return '+65';
+        case 'ID': return '+62';
+        case 'IN': return '+91';
+        case 'US':
+        case 'CA': return '+1';
+        case 'GB': return '+44';
+        case 'AU': return '+61';
+        case 'NZ': return '+64';
+        case 'TH': return '+66';
+        case 'PH': return '+63';
+        case 'VN': return '+84';
+        case 'CN': return '+86';
+        case 'HK': return '+852';
+        case 'TW': return '+886';
+        case 'JP': return '+81';
+        case 'KR': return '+82';
+        case 'DE': return '+49';
+        case 'FR': return '+33';
+        case 'IT': return '+39';
+        case 'ES': return '+34';
+        default: return '+60'; // Default to +60 as fallback since the user is in Malaysia (MY)
+      }
+    }
+
+    final defaultDialCode = getDeviceCountryDialCode();
+
+    String normalizePhoneNumber(String rawInput) {
+      String text = rawInput.trim().replaceAll(RegExp(r'[\s\-\(\)]'), '');
+      if (text.isEmpty) return defaultDialCode;
+      if (text.startsWith('+')) {
+        return text;
+      }
+      final dialCodeNoPlus = defaultDialCode.replaceFirst('+', '');
+      if (text.startsWith(dialCodeNoPlus)) {
+        return '+$text';
+      }
+      if (text.startsWith('0')) {
+        return '$defaultDialCode${text.substring(1)}';
+      }
+      return '$defaultDialCode$text';
+    }
+
+    final phoneController = TextEditingController(text: defaultDialCode);
     final smsCodeController = TextEditingController();
     final colorScheme = Theme.of(context).colorScheme;
 
@@ -179,168 +225,197 @@ class _EditProfileScreenState extends State<EditProfileScreen>
     bool codeSent = false;
     String? currentVerificationId;
     bool isDialogLoading = false;
+    VoidCallback? listener;
 
-    await showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (dialogCtx) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            return AlertDialog(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-              title: Text(
-                codeSent ? "Verify SMS Code" : "Link Phone Number",
-                style: const TextStyle(fontWeight: FontWeight.bold),
-              ),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    codeSent
-                        ? "Enter the 6-digit verification code sent to your phone."
-                        : "Enter your phone number with country code (e.g. +60123456789) to link it to your account.",
-                    style: const TextStyle(fontSize: 14),
-                  ),
-                  const SizedBox(height: 16),
-                  if (!codeSent)
-                    TextField(
-                      controller: phoneController,
-                      keyboardType: TextInputType.phone,
-                      autofocus: true,
-                      decoration: InputDecoration(
-                        labelText: "Phone Number",
-                        hintText: "+1234567890",
-                        prefixIcon: Icon(Icons.phone_outlined, color: colorScheme.primary),
-                      ),
-                    )
-                  else
-                    TextField(
-                      controller: smsCodeController,
-                      keyboardType: TextInputType.number,
-                      autofocus: true,
-                      maxLength: 6,
-                      decoration: InputDecoration(
-                        labelText: "SMS Code",
-                        prefixIcon: Icon(Icons.lock_clock_outlined, color: colorScheme.primary),
-                      ),
-                    ),
-                  if (flowError != null)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 12),
-                      child: Text(
-                        flowError!,
-                        style: const TextStyle(color: Colors.redAccent, fontSize: 12),
-                      ),
-                    ),
-                ],
-              ),
-              actions: [
-                TextButton(
-                  onPressed: isDialogLoading
-                      ? null
-                      : () => Navigator.pop(dialogCtx),
-                  child: const Text("Cancel"),
+    try {
+      await showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (dialogCtx) {
+          return StatefulBuilder(
+            builder: (context, setDialogState) {
+              if (listener == null) {
+                listener = () {
+                  if (dialogCtx.mounted) {
+                    setDialogState(() {});
+                  }
+                };
+                phoneController.addListener(listener!);
+              }
+
+              final normalizedPhone = normalizePhoneNumber(phoneController.text);
+
+              return AlertDialog(
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                title: Text(
+                  codeSent ? "Verify SMS Code" : "Link Phone Number",
+                  style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
-                ElevatedButton(
-                  onPressed: isDialogLoading
-                      ? null
-                      : () async {
-                          if (!codeSent) {
-                            final rawPhone = phoneController.text.trim();
-                            if (rawPhone.isEmpty) {
-                              setDialogState(() => flowError = "Please enter phone number");
-                              return;
-                            }
-                            setDialogState(() {
-                              isDialogLoading = true;
-                              flowError = null;
-                            });
-                            
-                            try {
-                              await FirebaseAuth.instance.verifyPhoneNumber(
-                                phoneNumber: rawPhone,
-                                verificationCompleted: (PhoneAuthCredential credential) async {
-                                  try {
-                                    await widget.onLinkPhoneNumber(credential.verificationId!, credential.smsCode!);
-                                    if (mounted) {
-                                      setState(() {
-                                        _localPhoneNumber = rawPhone;
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      codeSent
+                          ? "Enter the 6-digit verification code sent to your phone."
+                          : "Enter your phone number. The app will auto-format and append your local country code.",
+                      style: const TextStyle(fontSize: 14),
+                    ),
+                    const SizedBox(height: 16),
+                    if (!codeSent) ...[
+                      TextField(
+                        controller: phoneController,
+                        keyboardType: TextInputType.phone,
+                        autofocus: true,
+                        decoration: InputDecoration(
+                          labelText: "Phone Number",
+                          hintText: "e.g. 01114190091",
+                          prefixIcon: Icon(Icons.phone_outlined, color: colorScheme.primary),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        "Formatted: $normalizedPhone",
+                        style: TextStyle(
+                          color: colorScheme.onSurfaceVariant.withOpacity(0.7),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                    ] else
+                      TextField(
+                        controller: smsCodeController,
+                        keyboardType: TextInputType.number,
+                        autofocus: true,
+                        maxLength: 6,
+                        decoration: InputDecoration(
+                          labelText: "SMS Code",
+                          prefixIcon: Icon(Icons.lock_clock_outlined, color: colorScheme.primary),
+                        ),
+                      ),
+                    if (flowError != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 12),
+                        child: Text(
+                          flowError!,
+                          style: const TextStyle(color: Colors.redAccent, fontSize: 12),
+                        ),
+                      ),
+                  ],
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: isDialogLoading
+                        ? null
+                        : () => Navigator.pop(dialogCtx),
+                    child: const Text("Cancel"),
+                  ),
+                  ElevatedButton(
+                    onPressed: isDialogLoading
+                        ? null
+                        : () async {
+                            if (!codeSent) {
+                              if (phoneController.text.trim().isEmpty) {
+                                setDialogState(() => flowError = "Please enter phone number");
+                                return;
+                              }
+                              setDialogState(() {
+                                isDialogLoading = true;
+                                flowError = null;
+                              });
+                              
+                              try {
+                                await FirebaseAuth.instance.verifyPhoneNumber(
+                                  phoneNumber: normalizedPhone,
+                                  verificationCompleted: (PhoneAuthCredential credential) async {
+                                    try {
+                                      await widget.onLinkPhoneNumber(credential.verificationId!, credential.smsCode!);
+                                      if (mounted) {
+                                        setState(() {
+                                          _localPhoneNumber = normalizedPhone;
+                                        });
+                                      }
+                                      Navigator.pop(dialogCtx);
+                                    } catch (e) {
+                                      setDialogState(() {
+                                        isDialogLoading = false;
+                                        flowError = e.toString();
                                       });
                                     }
-                                    Navigator.pop(dialogCtx);
-                                  } catch (e) {
+                                  },
+                                  verificationFailed: (FirebaseAuthException e) {
                                     setDialogState(() {
                                       isDialogLoading = false;
-                                      flowError = e.toString();
+                                      flowError = e.message ?? e.code;
                                     });
-                                  }
-                                },
-                                verificationFailed: (FirebaseAuthException e) {
-                                  setDialogState(() {
-                                    isDialogLoading = false;
-                                    flowError = e.message ?? e.code;
-                                  });
-                                },
-                                codeSent: (String verificationId, int? resendToken) {
-                                  setDialogState(() {
+                                  },
+                                  codeSent: (String verificationId, int? resendToken) {
+                                    setDialogState(() {
+                                      currentVerificationId = verificationId;
+                                      codeSent = true;
+                                      isDialogLoading = false;
+                                      flowError = null;
+                                    });
+                                  },
+                                  codeAutoRetrievalTimeout: (String verificationId) {
                                     currentVerificationId = verificationId;
-                                    codeSent = true;
-                                    isDialogLoading = false;
-                                    flowError = null;
-                                  });
-                                },
-                                codeAutoRetrievalTimeout: (String verificationId) {
-                                  currentVerificationId = verificationId;
-                                },
-                              );
-                            } catch (e) {
-                              setDialogState(() {
-                                isDialogLoading = false;
-                                flowError = e.toString();
-                              });
-                            }
-                          } else {
-                            final code = smsCodeController.text.trim();
-                            if (code.length != 6) {
-                              setDialogState(() => flowError = "SMS code must be 6 digits");
-                              return;
-                            }
-                            setDialogState(() {
-                              isDialogLoading = true;
-                              flowError = null;
-                            });
-
-                            try {
-                              await widget.onLinkPhoneNumber(currentVerificationId!, code);
-                              if (mounted) {
-                                setState(() {
-                                  _localPhoneNumber = phoneController.text.trim();
+                                  },
+                                );
+                              } catch (e) {
+                                setDialogState(() {
+                                  isDialogLoading = false;
+                                  flowError = e.toString();
                                 });
                               }
-                              Navigator.pop(dialogCtx);
-                            } catch (e) {
+                            } else {
+                              final code = smsCodeController.text.trim();
+                              if (code.length != 6) {
+                                setDialogState(() => flowError = "SMS code must be 6 digits");
+                                return;
+                              }
                               setDialogState(() {
-                                isDialogLoading = false;
-                                flowError = e.toString();
+                                isDialogLoading = true;
+                                flowError = null;
                               });
+
+                              try {
+                                await widget.onLinkPhoneNumber(currentVerificationId!, code);
+                                if (mounted) {
+                                  setState(() {
+                                    _localPhoneNumber = normalizedPhone;
+                                  });
+                                }
+                                Navigator.pop(dialogCtx);
+                              } catch (e) {
+                                setDialogState(() {
+                                  isDialogLoading = false;
+                                  flowError = e.toString();
+                                });
+                              }
                             }
-                          }
-                        },
-                  child: isDialogLoading
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                        )
-                      : Text(codeSent ? "Verify" : "Send Code"),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
+                          },
+                    child: isDialogLoading
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                          )
+                        : Text(codeSent ? "Verify" : "Send Code"),
+                  ),
+                ],
+              );
+            },
+          );
+        },
+      );
+    } finally {
+      if (listener != null) {
+        phoneController.removeListener(listener!);
+      }
+      phoneController.dispose();
+      smsCodeController.dispose();
+    }
   }
 
   @override
