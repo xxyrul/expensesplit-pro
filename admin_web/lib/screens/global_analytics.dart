@@ -234,491 +234,339 @@ class _GlobalAnalyticsScreenState
                     ),
                   const SizedBox(height: 32),
 
-                  // ── Charts row ──────────────────────────────────────
-                  if (isNarrow)
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        _buildChartCard(
-                          colorScheme: colorScheme,
-                          title:
-                              'Platform Activity Trend (Last 7 Days)',
-                          height: 360,
-                          child: StreamBuilder<QuerySnapshot>(
-                            stream: _firestore
-                                .collectionGroup('expenses')
-                                .snapshots(),
-                            builder: (context, snap) {
-                              if (!snap.hasData) {
-                                return const Center(
-                                  child: CircularProgressIndicator(),
-                                );
-                              }
-                              return _buildLineChart(
-                                  snap.data!.docs);
-                            },
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-                        _buildChartCard(
-                          colorScheme: colorScheme,
-                          title: 'Most Popular Categories',
-                          height: 360,
-                          child: StreamBuilder<QuerySnapshot>(
-                            stream: _firestore
-                                .collectionGroup('expenses')
-                                .snapshots(),
-                            builder: (context, snap) {
-                              if (!snap.hasData) {
-                                return const Center(
-                                  child: CircularProgressIndicator(),
-                                );
-                              }
-                              return _buildPieChart(snap.data!.docs);
-                            },
-                          ),
-                        ),
-                      ],
-                    )
-                  else
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          flex: 7,
-                          child: _buildChartCard(
-                            colorScheme: colorScheme,
-                            title:
-                                'Platform Activity Trend (Last 7 Days)',
-                            height: 380,
-                            child: StreamBuilder<QuerySnapshot>(
-                              stream: _firestore
-                                  .collectionGroup('expenses')
-                                  .snapshots(),
-                              builder: (context, snap) {
-                                if (!snap.hasData) {
-                                  return const Center(
-                                    child: CircularProgressIndicator(),
-                                  );
-                                }
-                                return _buildLineChart(
-                                    snap.data!.docs);
-                              },
+                  // ── Charts row (single shared stream) ───────────────
+                  StreamBuilder<QuerySnapshot>(
+                    stream: _firestore.collectionGroup('expenses').snapshots(),
+                    builder: (context, snap) {
+                      final docs = snap.data?.docs ?? [];
+                      final loading = !snap.hasData;
+                      if (isNarrow) {
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            _buildChartCard(
+                              colorScheme: colorScheme,
+                              title: 'Platform Activity Trend (Last 7 Days)',
+                              height: 300,
+                              child: loading
+                                  ? const Center(child: CircularProgressIndicator())
+                                  : RepaintBoundary(child: _buildLineChart(docs)),
+                            ),
+                            const SizedBox(height: 16),
+                            _buildChartCard(
+                              colorScheme: colorScheme,
+                              title: 'Most Popular Categories',
+                              height: 300,
+                              child: loading
+                                  ? const Center(child: CircularProgressIndicator())
+                                  : RepaintBoundary(child: _buildPieChart(docs)),
+                            ),
+                          ],
+                        );
+                      }
+                      return Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            flex: 7,
+                            child: _buildChartCard(
+                              colorScheme: colorScheme,
+                              title: 'Platform Activity Trend (Last 7 Days)',
+                              height: 380,
+                              child: loading
+                                  ? const Center(child: CircularProgressIndicator())
+                                  : RepaintBoundary(child: _buildLineChart(docs)),
                             ),
                           ),
-                        ),
-                        const SizedBox(width: 24),
-                        Expanded(
-                          flex: 5,
-                          child: _buildChartCard(
-                            colorScheme: colorScheme,
-                            title: 'Most Popular Categories',
-                            height: 380,
-                            child: StreamBuilder<QuerySnapshot>(
-                              stream: _firestore
-                                  .collectionGroup('expenses')
-                                  .snapshots(),
-                              builder: (context, snap) {
-                                if (!snap.hasData) {
-                                  return const Center(
-                                    child: CircularProgressIndicator(),
-                                  );
-                                }
-                                return _buildPieChart(snap.data!.docs);
-                              },
+                          const SizedBox(width: 24),
+                          Expanded(
+                            flex: 5,
+                            child: _buildChartCard(
+                              colorScheme: colorScheme,
+                              title: 'Most Popular Categories',
+                              height: 380,
+                              child: loading
+                                  ? const Center(child: CircularProgressIndicator())
+                                  : RepaintBoundary(child: _buildPieChart(docs)),
                             ),
                           ),
-                        ),
-                      ],
-                    ),
-                  const SizedBox(height: 32),
-
-                  // ── Recent governance actions + CSV export ──────────
-                  IntrinsicHeight(
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        // Recent Activity Feed
-                        Expanded(
-                          flex: 7,
-                          child: Container(
-                            padding: const EdgeInsets.all(24),
-                            decoration: BoxDecoration(
-                              color: colorScheme.surfaceContainer,
-                              borderRadius: BorderRadius.circular(24),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.2),
-                                  blurRadius: 24,
-                                  offset: const Offset(0, 8),
-                                ),
-                              ],
-                            ),
-                            child: Column(
-                              crossAxisAlignment:
-                                  CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    Icon(Icons.history,
-                                        color: colorScheme.primary),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      'Recent Governance Actions',
-                                      style: TextStyle(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.bold,
-                                        color: colorScheme.onSurface,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 16),
-                                StreamBuilder<QuerySnapshot>(
-                                  stream: _firestore
-                                      .collection('system_config')
-                                      .doc('audit_logs')
-                                      .collection('entries')
-                                      .orderBy('timestamp',
-                                          descending: true)
-                                      .limit(3)
-                                      .snapshots(),
-                                  builder: (context, snapshot) {
-                                    if (snapshot.connectionState ==
-                                        ConnectionState.waiting) {
-                                      return const Center(
-                                        child:
-                                            CircularProgressIndicator(),
-                                      );
-                                    }
-                                    final logs =
-                                        snapshot.data?.docs ?? [];
-                                    if (logs.isEmpty) {
-                                      return Padding(
-                                        padding:
-                                            const EdgeInsets.symmetric(
-                                                vertical: 20.0),
-                                        child: Text(
-                                          'No governance events '
-                                          'recorded yet.',
-                                          style: TextStyle(
-                                              color: colorScheme
-                                                  .onSurfaceVariant),
-                                        ),
-                                      );
-                                    }
-                                    return Column(
-                                      children: logs.map((doc) {
-                                        final data = doc.data()
-                                            as Map<String, dynamic>;
-                                        final action =
-                                            data['action'] ?? 'EVENT';
-                                        final detail =
-                                            data['detail'] ?? '';
-                                        final email =
-                                            data['adminEmail'] ??
-                                                'Admin';
-                                        String timeStr = 'Just now';
-                                        if (data['timestamp'] !=
-                                                null &&
-                                            data['timestamp']
-                                                is Timestamp) {
-                                          timeStr = DateFormat('HH:mm')
-                                              .format(
-                                                  (data['timestamp']
-                                                          as Timestamp)
-                                                      .toDate());
-                                        }
-                                        return Container(
-                                          width: double.infinity,
-                                          margin: const EdgeInsets.only(
-                                              bottom: 12),
-                                          padding:
-                                              const EdgeInsets.symmetric(
-                                                  vertical: 10,
-                                                  horizontal: 12),
-                                          decoration: BoxDecoration(
-                                            color: colorScheme
-                                                .surfaceContainerHighest
-                                                .withOpacity(0.4),
-                                            borderRadius:
-                                                BorderRadius.circular(
-                                                    8),
-                                          ),
-                                          child: Row(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              Container(
-                                                padding: const EdgeInsets
-                                                    .symmetric(
-                                                    horizontal: 8,
-                                                    vertical: 4),
-                                                decoration: BoxDecoration(
-                                                  color: colorScheme
-                                                      .primary
-                                                      .withOpacity(0.1),
-                                                  borderRadius:
-                                                      BorderRadius
-                                                          .circular(4),
-                                                ),
-                                                child: Text(
-                                                  action,
-                                                  style: TextStyle(
-                                                    fontSize: 10,
-                                                    color:
-                                                        colorScheme.primary,
-                                                    fontWeight:
-                                                        FontWeight.bold,
-                                                  ),
-                                                ),
-                                              ),
-                                              const SizedBox(width: 12),
-                                              Expanded(
-                                                child: Text(
-                                                  detail,
-                                                  style: const TextStyle(
-                                                      fontSize: 13),
-                                                  maxLines: 1,
-                                                  overflow:
-                                                      TextOverflow.ellipsis,
-                                                ),
-                                              ),
-                                              const SizedBox(width: 12),
-                                              Column(
-                                                mainAxisSize:
-                                                    MainAxisSize.min,
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.end,
-                                                children: [
-                                                  Text(
-                                                    email,
-                                                    style: const TextStyle(
-                                                        fontSize: 11,
-                                                        color: Colors.grey),
-                                                    maxLines: 1,
-                                                    overflow:
-                                                        TextOverflow.ellipsis,
-                                                    textAlign:
-                                                        TextAlign.right,
-                                                  ),
-                                                  const SizedBox(height: 2),
-                                                  Text(
-                                                    timeStr,
-                                                    style: const TextStyle(
-                                                        fontSize: 11,
-                                                        color: Colors.grey),
-                                                  ),
-                                                ],
-                                              ),
-                                            ],
-                                          ),
-                                        );
-                                      }).toList(),
-                                    );
-                                  },
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 24),
-
-                        // CSV Export card
-                        Expanded(
-                          flex: 5,
-                          child: Container(
-                            padding: const EdgeInsets.all(24),
-                            decoration: BoxDecoration(
-                              color: colorScheme.surfaceContainer,
-                              borderRadius: BorderRadius.circular(24),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.2),
-                                  blurRadius: 24,
-                                  offset: const Offset(0, 8),
-                                ),
-                              ],
-                            ),
-                            child: Column(
-                              crossAxisAlignment:
-                                  CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    const Icon(
-                                      Icons.download,
-                                      color: Color(0xFF3B82F6),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      'FYP Research Data',
-                                      style: TextStyle(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.bold,
-                                        color: colorScheme.onSurface,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  'Download a strict-privacy aggregated CSV '
-                                  'file of platform activity for data analysis.',
-                                  style: TextStyle(
-                                    color: colorScheme.onSurfaceVariant,
-                                    fontSize: 14,
-                                  ),
-                                ),
-                                const SizedBox(height: 16),
-                                SizedBox(
-                                  width: double.infinity,
-                                  height: 45,
-                                  child: ElevatedButton.icon(
-                                    onPressed: _isExporting
-                                        ? null
-                                        : _exportData,
-                                    icon: _isExporting
-                                        ? const SizedBox(
-                                            width: 16,
-                                            height: 16,
-                                            child:
-                                                CircularProgressIndicator(
-                                              strokeWidth: 2,
-                                            ),
-                                          )
-                                        : const Icon(Icons.table_chart),
-                                    label: const Text(
-                                        'Export Anonymized CSV'),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor:
-                                          const Color(0xFF3B82F6),
-                                      foregroundColor: Colors.white,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius:
-                                            BorderRadius.circular(12),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
+                        ],
+                      );
+                    },
                   ),
                   const SizedBox(height: 24),
 
+                  // ── Recent governance + CSV export (responsive) ──────
+                  if (isMobile) ..._buildBottomCardsMobile(colorScheme)
+                  else _buildBottomCardsDesktop(colorScheme),
+                  const SizedBox(height: 16),
+
                   // ── Live Broadcast card ──────────────────────────────
-                  Container(
-                    padding: const EdgeInsets.all(24),
-                    decoration: BoxDecoration(
-                      color: colorScheme.surfaceContainer,
-                      borderRadius: BorderRadius.circular(24),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.2),
-                          blurRadius: 24,
-                          offset: const Offset(0, 8),
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            const Icon(
-                              Icons.campaign,
-                              color: Color(0xFFF59E0B),
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              'Live System Broadcast',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: colorScheme.onSurface,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Push an instant real-time banner notification '
-                          'to all mobile app users globally.',
-                          style: TextStyle(
-                            color: colorScheme.onSurfaceVariant,
-                            fontSize: 14,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        Align(
-                          alignment: Alignment.centerLeft,
-                          child: ConstrainedBox(
-                            constraints:
-                                const BoxConstraints(maxWidth: 800),
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  child: TextField(
-                                    controller: _broadcastController,
-                                    decoration: InputDecoration(
-                                      hintText:
-                                          'e.g., Welcome to ExpenseSplit Pro v1.0!',
-                                      border: OutlineInputBorder(
-                                        borderRadius:
-                                            BorderRadius.circular(12),
-                                      ),
-                                      contentPadding:
-                                          const EdgeInsets.symmetric(
-                                              horizontal: 16),
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 16),
-                                SizedBox(
-                                  height: 48,
-                                  child: ElevatedButton.icon(
-                                    onPressed: _isBroadcasting
-                                        ? null
-                                        : _pushBroadcast,
-                                    icon: _isBroadcasting
-                                        ? const SizedBox(
-                                            width: 16,
-                                            height: 16,
-                                            child:
-                                                CircularProgressIndicator(
-                                              strokeWidth: 2,
-                                            ),
-                                          )
-                                        : const Icon(Icons.send),
-                                    label: const Text('Push Live'),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor:
-                                          const Color(0xFFF59E0B),
-                                      foregroundColor: Colors.white,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius:
-                                            BorderRadius.circular(12),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+                  _buildBroadcastCard(colorScheme, isMobile),
                 ],
               ),
             ),
           ),
         );
       },
+    );
+  }
+
+  // ── Responsive bottom cards ───────────────────────────────────────────────
+  List<Widget> _buildBottomCardsMobile(ColorScheme cs) {
+    return [
+      _buildGovernanceCard(cs),
+      const SizedBox(height: 16),
+      _buildCsvCard(cs),
+    ];
+  }
+
+  Widget _buildBottomCardsDesktop(ColorScheme cs) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(flex: 7, child: _buildGovernanceCard(cs)),
+        const SizedBox(width: 24),
+        Expanded(flex: 5, child: _buildCsvCard(cs)),
+      ],
+    );
+  }
+
+  Widget _buildGovernanceCard(ColorScheme cs) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: cs.surfaceContainer,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.15), blurRadius: 20, offset: const Offset(0, 6))],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.history, color: cs.primary, size: 20),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Recent Governance Actions',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: cs.onSurface),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection('system_config')
+                .doc('audit_logs')
+                .collection('entries')
+                .orderBy('timestamp', descending: true)
+                .limit(3)
+                .snapshots(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              final logs = snapshot.data?.docs ?? [];
+              if (logs.isEmpty) {
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  child: Text('No governance events recorded yet.',
+                      style: TextStyle(color: cs.onSurfaceVariant)),
+                );
+              }
+              return Column(
+                children: logs.map((doc) {
+                  final data = doc.data() as Map<String, dynamic>;
+                  final action = data['action'] ?? 'EVENT';
+                  final detail = data['detail'] ?? '';
+                  final email = data['adminEmail'] ?? 'Admin';
+                  String timeStr = 'Just now';
+                  if (data['timestamp'] != null && data['timestamp'] is Timestamp) {
+                    timeStr = DateFormat('HH:mm').format((data['timestamp'] as Timestamp).toDate());
+                  }
+                  return Container(
+                    width: double.infinity,
+                    margin: const EdgeInsets.only(bottom: 10),
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: cs.surfaceContainerHighest.withOpacity(0.4),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: cs.primary.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(action,
+                                  style: TextStyle(fontSize: 10, color: cs.primary, fontWeight: FontWeight.bold)),
+                            ),
+                            const Spacer(),
+                            Text(timeStr, style: const TextStyle(fontSize: 10, color: Colors.grey)),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        Text(detail, style: const TextStyle(fontSize: 12), maxLines: 2, overflow: TextOverflow.ellipsis),
+                        const SizedBox(height: 2),
+                        Text(email, style: const TextStyle(fontSize: 11, color: Colors.grey), overflow: TextOverflow.ellipsis),
+                      ],
+                    ),
+                  );
+                }).toList(),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCsvCard(ColorScheme cs) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: cs.surfaceContainer,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.15), blurRadius: 20, offset: const Offset(0, 6))],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.download, color: Color(0xFF3B82F6), size: 20),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'FYP Research Data Export',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: cs.onSurface),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Download a privacy-aggregated CSV of platform activity for data analysis.',
+            style: TextStyle(color: cs.onSurfaceVariant, fontSize: 13),
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            height: 44,
+            child: ElevatedButton.icon(
+              onPressed: _isExporting ? null : _exportData,
+              icon: _isExporting
+                  ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Icon(Icons.table_chart, size: 18),
+              label: const Text('Export Anonymized CSV', overflow: TextOverflow.ellipsis),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF3B82F6),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBroadcastCard(ColorScheme cs, bool isMobile) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: cs.surfaceContainer,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.15), blurRadius: 20, offset: const Offset(0, 6))],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.campaign, color: Color(0xFFF59E0B), size: 20),
+              const SizedBox(width: 8),
+              const Text('Live System Broadcast', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Push an instant real-time banner to all mobile app users globally.',
+            style: TextStyle(color: cs.onSurfaceVariant, fontSize: 13),
+          ),
+          const SizedBox(height: 14),
+          if (isMobile) ...[  
+            TextField(
+              controller: _broadcastController,
+              decoration: InputDecoration(
+                hintText: 'e.g., Welcome to ExpenseSplit Pro v1.0!',
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              ),
+            ),
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              height: 44,
+              child: ElevatedButton.icon(
+                onPressed: _isBroadcasting ? null : _pushBroadcast,
+                icon: _isBroadcasting
+                    ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Icon(Icons.send, size: 18),
+                label: const Text('Push Live'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFF59E0B),
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+            ),
+          ] else ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 800),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _broadcastController,
+                    decoration: InputDecoration(
+                      hintText: 'e.g., Welcome to ExpenseSplit Pro v1.0!',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 14),
+                SizedBox(
+                  height: 48,
+                  child: ElevatedButton.icon(
+                    onPressed: _isBroadcasting ? null : _pushBroadcast,
+                    icon: _isBroadcasting
+                        ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                        : const Icon(Icons.send),
+                    label: const Text('Push Live'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFF59E0B),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 

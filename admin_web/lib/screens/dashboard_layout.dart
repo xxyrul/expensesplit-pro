@@ -102,17 +102,16 @@ class _DashboardLayoutState extends ConsumerState<DashboardLayout> {
   // ── State variables ────────────────────────────────────────────────────────
   int _selectedIndex = 0;
   bool _isExpanded = true;
+  // Mobile-specific bottom nav index (tracks 0..4). This allows showing
+  // governance screens (>=5) while leaving the bottom nav highlight on the
+  // last mobile tab or previous tab.
+  int _mobileNavIndex = 0;
 
-  // ── Layout constants ───────────────────────────────────────────────────────
-  static const double _mobileBreakpoint = 600;
-  static const double _compactDesktopBreakpoint = 1120;
-  static const double _expandedWidth = 260;
-  static const double _collapsedWidth = 70;
-  static const Duration _animDuration = Duration(milliseconds: 220);
+  // ── Screen cache (build lazily to reduce initial workload) ─────────────
+  static final List<Widget?> _screensCache = List<Widget?>.filled(8, null);
 
-  // ── Screen router ──────────────────────────────────────────────────────────
-  Widget get _activeScreen {
-    switch (_selectedIndex) {
+  Widget _buildScreenByIndex(int index) {
+    switch (index) {
       case 0:
         return const GlobalAnalyticsScreen();
       case 1:
@@ -132,6 +131,30 @@ class _DashboardLayoutState extends ConsumerState<DashboardLayout> {
       default:
         return const SizedBox.shrink();
     }
+  }
+
+  /// Label for the currently active governance screen (index >= 5).
+  String? get _activeGovernanceLabel {
+    switch (_selectedIndex) {
+      case 5: return 'User Management';
+      case 6: return 'Audit Log';
+      case 7: return 'Privacy Settings';
+      default: return null;
+    }
+  }
+
+  // ── Layout constants ───────────────────────────────────────────────────────
+  static const double _mobileBreakpoint = 600;
+  static const double _compactDesktopBreakpoint = 1120;
+  static const double _expandedWidth = 260;
+  static const double _collapsedWidth = 70;
+  static const Duration _animDuration = Duration(milliseconds: 220);
+
+  // ── Screen router ──────────────────────────────────────────────────────────
+  Widget get _activeScreen {
+    // Build the selected screen lazily and cache it to avoid
+    // constructing all screens on startup which hurts mobile web.
+    return _screensCache[_selectedIndex] ??= _buildScreenByIndex(_selectedIndex);
   }
 
   // ── Logout confirmation ────────────────────────────────────────────────────
@@ -228,18 +251,11 @@ class _DashboardLayoutState extends ConsumerState<DashboardLayout> {
           // ── Vertical divider ──────────────────────────────────────────
           VerticalDivider(thickness: 1, width: 1, color: cs.outlineVariant),
 
-          // ── Main content ──────────────────────────────────────────────
+          // ── Main content (IndexedStack caches all screens) ──────────
           Expanded(
-            child: AnimatedSwitcher(
-              duration: _animDuration,
-              switchInCurve: Curves.easeOut,
-              switchOutCurve: Curves.easeIn,
-              transitionBuilder: (child, animation) =>
-                  FadeTransition(opacity: animation, child: child),
-              child: KeyedSubtree(
-                key: ValueKey<int>(_selectedIndex),
-                child: _activeScreen,
-              ),
+            child: IndexedStack(
+              index: _selectedIndex,
+              children: List.generate(8, (i) => _buildScreenByIndex(i)),
             ),
           ),
         ],
@@ -266,23 +282,26 @@ class _DashboardLayoutState extends ConsumerState<DashboardLayout> {
           ),
         ],
       ),
-      // ── Screen content ───────────────────────────────────────────────
-      body: AnimatedSwitcher(
-        duration: _animDuration,
-        child: KeyedSubtree(
-          key: ValueKey<int>(_selectedIndex),
-          child: _activeScreen,
-        ),
+      // ── Screen content: show the cached screen directly (no fade) so the
+      // active screen is reused and not rebuilt on every navigation.
+      body: KeyedSubtree(
+        key: PageStorageKey<int>(_selectedIndex),
+        child: _activeScreen,
       ),
       // ── Bottom navigation bar (first 5 items) ────────────────────────
       bottomNavigationBar: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
-        currentIndex: _selectedIndex.clamp(0, 4),
+        // Keep a separate mobile index so governance pages (>=5) don't confuse
+        // the BottomNavigationBar selection state.
+        currentIndex: _mobileNavIndex,
         selectedItemColor: cs.primary,
         unselectedItemColor: cs.onSurfaceVariant,
         selectedFontSize: 11.5,
         unselectedFontSize: 11.5,
-        onTap: (i) => setState(() => _selectedIndex = i),
+        onTap: (i) => setState(() {
+          _mobileNavIndex = i;
+          _selectedIndex = i;
+        }),
         items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.dashboard_outlined),
@@ -324,22 +343,52 @@ class _DashboardLayoutState extends ConsumerState<DashboardLayout> {
         return Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+              child: Row(
+                children: [
+                  Icon(Icons.admin_panel_settings_outlined, color: cs.primary, size: 18),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Governance',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13,
+                      color: cs.onSurfaceVariant,
+                      letterSpacing: 0.8,
+                    ),
+                  ),
+                ],
+              ),
+            ),
             ListTile(
-              leading: const Icon(Icons.people_outline),
-              title: const Text('User Management'),
+              leading: Icon(Icons.people_outline,
+                  color: _selectedIndex == 5 ? cs.primary : null),
+              title: Text('User Management',
+                  style: TextStyle(color: _selectedIndex == 5 ? cs.primary : null,
+                      fontWeight: _selectedIndex == 5 ? FontWeight.w700 : null)),
+              trailing: _selectedIndex == 5 ? Icon(Icons.check_circle, color: cs.primary, size: 18) : null,
               onTap: () => Navigator.of(ctx).pop(5),
             ),
             ListTile(
-              leading: const Icon(Icons.history_edu_outlined),
-              title: const Text('Audit Log'),
+              leading: Icon(Icons.history_edu_outlined,
+                  color: _selectedIndex == 6 ? cs.primary : null),
+              title: Text('Audit Log',
+                  style: TextStyle(color: _selectedIndex == 6 ? cs.primary : null,
+                      fontWeight: _selectedIndex == 6 ? FontWeight.w700 : null)),
+              trailing: _selectedIndex == 6 ? Icon(Icons.check_circle, color: cs.primary, size: 18) : null,
               onTap: () => Navigator.of(ctx).pop(6),
             ),
             ListTile(
-              leading: const Icon(Icons.security_outlined),
-              title: const Text('Privacy Settings'),
+              leading: Icon(Icons.security_outlined,
+                  color: _selectedIndex == 7 ? cs.primary : null),
+              title: Text('Privacy Settings',
+                  style: TextStyle(color: _selectedIndex == 7 ? cs.primary : null,
+                      fontWeight: _selectedIndex == 7 ? FontWeight.w700 : null)),
+              trailing: _selectedIndex == 7 ? Icon(Icons.check_circle, color: cs.primary, size: 18) : null,
               onTap: () => Navigator.of(ctx).pop(7),
             ),
-            const SizedBox(height: 6),
+            const Divider(height: 1),
             ListTile(
               leading: Icon(Icons.logout_rounded, color: cs.error),
               title: Text('Logout', style: TextStyle(color: cs.error)),

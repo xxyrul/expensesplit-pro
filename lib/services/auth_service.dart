@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:flutter/services.dart';
 import '../models/user_model.dart';
 
 class AuthService {
@@ -231,8 +232,16 @@ class AuthService {
             .set(newUser.toFirestore(), SetOptions(merge: true));
       }
       return user;
+    } on PlatformException catch (e) {
+      // Common misconfiguration on Android (missing SHA keys / OAuth client)
+      if (e.code == 'sign_in_failed' || e.code == '10') {
+        throw 'Google Sign-In failed. Check Firebase OAuth client configuration and Android SHA fingerprints (SHA-1/256).';
+      }
+      throw e.message ?? e.code ?? e.toString();
     } catch (e) {
-      throw e.toString();
+      // Fallback: surface a readable error
+      final msg = e is FirebaseAuthException ? (e.message ?? e.code) : e.toString();
+      throw msg;
     }
   }
 

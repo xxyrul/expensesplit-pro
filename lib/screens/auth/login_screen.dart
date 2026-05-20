@@ -303,7 +303,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     ),
                   ),
 
-                  const SizedBox(height: 20),
+                    const SizedBox(height: 20),
+
+                    // Helpful troubleshooting link when Google Sign-In reports OAuth/SHA errors
+                    if (_errorMessage != null && (_errorMessage!.contains('Google Sign-In failed') || _errorMessage!.toLowerCase().contains('sha') || _errorMessage!.toLowerCase().contains('oauth') || _errorMessage!.contains('10')))
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: TextButton.icon(
+                          onPressed: _showGoogleTroubleshootDialog,
+                          icon: const Icon(Icons.help_outline),
+                          label: const Text('Troubleshoot Google Sign-In'),
+                        ),
+                      ),
 
                   // 6. REGISTER LINK
                   TextButton(
@@ -336,6 +347,43 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  Future<void> _showGoogleTroubleshootDialog() async {
+    await showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Google Sign-In Troubleshooting'),
+          content: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Common causes:'),
+                const SizedBox(height: 8),
+                const Text('• Missing SHA-1 / SHA-256 fingerprints in Firebase for Android.'),
+                const Text('• OAuth client not configured (Web vs Android client IDs).'),
+                const SizedBox(height: 12),
+                const Text('Recommended steps:'),
+                const SizedBox(height: 8),
+                const Text('1. Run the following to get your debug keystore fingerprints on Windows:'),
+                const SizedBox(height: 6),
+                SelectableText('keytool -list -v -keystore %USERPROFILE%\\.android\\debug.keystore -alias androiddebugkey -storepass android -keypass android'),
+                const SizedBox(height: 8),
+                const Text('2. Add SHA-1 and SHA-256 to Firebase Console → Project Settings → Your apps.'),
+                const SizedBox(height: 8),
+                const Text('3. Download the updated google-services.json and replace android/app/google-services.json.'),
+                const SizedBox(height: 8),
+                const Text('4. Rebuild the app and try signing in again.'),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close')),
+          ],
+        );
+      },
     );
   }
 

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 import '../services/audit_log_service.dart';
 
@@ -56,18 +57,48 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Header
-                Column(
+                      // Header (with revalidate button)
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'User Account Governance',
-                      style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'User Account Governance',
+                            style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Control access policies, toggle account statuses, and configure system administrator privileges.',
+                            style: TextStyle(color: colorScheme.onSurfaceVariant, fontSize: 16),
+                          ),
+                        ],
+                      ),
                     ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Control access policies, toggle account statuses, and configure system administrator privileges.',
-                      style: TextStyle(color: colorScheme.onSurfaceVariant, fontSize: 16),
+                    IconButton(
+                      icon: const Icon(Icons.refresh),
+                      tooltip: 'Revalidate admin session',
+                      onPressed: () async {
+                        final user = FirebaseAuth.instance.currentUser;
+                        if (user == null) {
+                          if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No signed-in user to revalidate.')));
+                          return;
+                        }
+                        try {
+                          final doc = await _firestore.collection('admins').doc(user.uid).get();
+                          if (doc.exists) {
+                            if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Current session is a verified admin.')));
+                          } else {
+                            if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Current account is NOT listed in admins. Signing out.')));
+                            await FirebaseAuth.instance.signOut();
+                          }
+                        } catch (e) {
+                          if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Revalidation failed: $e')));
+                        }
+                      },
                     ),
                   ],
                 ),
