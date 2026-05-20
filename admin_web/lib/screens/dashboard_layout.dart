@@ -96,7 +96,7 @@ class _DashboardLayoutState extends ConsumerState<DashboardLayout> {
             bottom: false,
             child: Padding(
               padding: EdgeInsets.symmetric(
-                horizontal: _isCollapsed && !isMobile ? 12 : 20,
+                horizontal: _isCollapsed && !isMobile ? 10 : 20,
                 vertical: 24,
               ),
               child: Row(
@@ -113,39 +113,65 @@ class _DashboardLayoutState extends ConsumerState<DashboardLayout> {
                       size: 24,
                     ),
                   ),
-                  Expanded(
-                    child: AnimatedOpacity(
-                      opacity: _isCollapsed && !isMobile ? 0.0 : 1.0,
-                      duration: const Duration(milliseconds: 200),
-                      curve: Curves.easeInOut,
-                      child: SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        physics: const NeverScrollableScrollPhysics(),
-                        child: Row(
-                          children: [
-                            const SizedBox(width: 16),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Text(
-                                  'ExpenseSplit Pro',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 16,
+                  if (!(_isCollapsed && !isMobile))
+                    Expanded(
+                      child: AnimatedOpacity(
+                        opacity: 1.0,
+                        duration: const Duration(milliseconds: 200),
+                        curve: Curves.easeInOut,
+                        child: SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          physics: const NeverScrollableScrollPhysics(),
+                          child: Row(
+                            children: [
+                              const SizedBox(width: 16),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Text(
+                                    'ExpenseSplit Pro',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
+                                    ),
                                   ),
-                                ),
-                                Text(
-                                  'Admin Portal',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: colorScheme.onSurfaceVariant,
+                                  Text(
+                                    'Admin Portal',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: colorScheme.onSurfaceVariant,
+                                    ),
                                   ),
-                                ),
-                              ],
-                            ),
-                          ],
+                                ],
+                              ),
+                            ],
+                          ),
                         ),
+                      ),
+                      ),
+                  const Spacer(),
+                  if (!isMobile)
+                    SizedBox(
+                      width: 32,
+                      height: 32,
+                      child: IconButton(
+                        padding: EdgeInsets.zero,
+                        visualDensity: VisualDensity.compact,
+                        constraints: const BoxConstraints.tightFor(
+                          width: 32,
+                          height: 32,
+                        ),
+                        onPressed: () {
+                          setState(() {
+                            _isCollapsed = !_isCollapsed;
+                          });
+                        },
+                        icon: Icon(
+                          _isCollapsed ? Icons.chevron_right : Icons.chevron_left,
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                        tooltip: _isCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar',
                       ),
                     ),
                   ),
@@ -224,92 +250,70 @@ class _DashboardLayoutState extends ConsumerState<DashboardLayout> {
 
           Padding(
             padding: const EdgeInsets.all(12.0),
-            child: Column(
-              children: [
-                if (!isMobile)
-                  IconButton(
-                    onPressed: () {
-                      setState(() {
-                        _isCollapsed = !_isCollapsed;
-                      });
-                    },
-                    icon: Icon(
-                      _isCollapsed ? Icons.chevron_right : Icons.chevron_left,
-                      color: colorScheme.onSurfaceVariant,
-                    ),
-                    tooltip: _isCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar',
+            child: InkWell(
+              onTap: () async {
+                final confirm = await showDialog<bool>(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    title: const Text('Sign out?'),
+                    content: const Text('Leave the admin dashboard?'),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(ctx, false),
+                        child: const Text('Cancel'),
+                      ),
+                      FilledButton(
+                        onPressed: () => Navigator.pop(ctx, true),
+                        child: const Text('Sign out'),
+                      ),
+                    ],
                   ),
-                if (!isMobile) const SizedBox(height: 8),
-                InkWell(
-                  onTap: () async {
-                    final confirm = await showDialog<bool>(
-                      context: context,
-                      builder: (ctx) => AlertDialog(
-                        title: const Text('Sign out?'),
-                        content: const Text('Leave the admin dashboard?'),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.pop(ctx, false),
-                            child: const Text('Cancel'),
+                );
+
+                if (confirm == true && context.mounted) {
+                  ref.read(authServiceProvider).signOut();
+                }
+              },
+              borderRadius: BorderRadius.circular(12),
+              child: Container(
+                padding: EdgeInsets.symmetric(
+                  vertical: 12,
+                  horizontal: _isCollapsed && !isMobile ? 0 : 16,
+                ),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: _isCollapsed && !isMobile
+                    ? Center(
+                        child: Icon(
+                          Icons.logout,
+                          color: colorScheme.error,
+                          size: 20,
+                        ),
+                      )
+                    : Row(
+                        children: [
+                          Icon(
+                            Icons.logout,
+                            color: colorScheme.error,
+                            size: 20,
                           ),
-                          FilledButton(
-                            onPressed: () => Navigator.pop(ctx, true),
-                            child: const Text('Sign out'),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Text
+                              (
+                              'Logout',
+                              style: TextStyle(
+                                color: colorScheme.error,
+                                fontWeight: FontWeight.w600,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
                         ],
                       ),
-                    );
-
-                    if (confirm == true && context.mounted) {
-                      ref.read(authServiceProvider).signOut();
-                    }
-                  },
-                  borderRadius: BorderRadius.circular(12),
-                  child: Container(
-                    padding: EdgeInsets.symmetric(
-                      vertical: 12,
-                      horizontal: _isCollapsed && !isMobile ? 0 : 16,
-                    ),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: _isCollapsed && !isMobile
-                        ? Center(
-                            child: Icon(
-                              Icons.logout,
-                              color: colorScheme.error,
-                              size: 20,
-                            ),
-                          )
-                        : Row(
-                            children: [
-                              Icon(
-                                Icons.logout,
-                                color: colorScheme.error,
-                                size: 20,
-                              ),
-                              const SizedBox(width: 16),
-                              Expanded(
-                                child: AnimatedOpacity(
-                                  opacity: _isCollapsed && !isMobile ? 0.0 : 1.0,
-                                  duration: const Duration(milliseconds: 200),
-                                  curve: Curves.easeInOut,
-                                  child: Text(
-                                    'Logout',
-                                    style: TextStyle(
-                                      color: colorScheme.error,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                  ),
-                ),
-              ],
+              ),
             ),
           ),
         ],
