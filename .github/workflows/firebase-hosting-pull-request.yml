@@ -20,10 +20,12 @@ jobs:
           channel: 'stable'
           
       # Step 2: Download your project dependencies
-      - run: flutter pub get
+      - working-directory: admin_web
+        run: flutter pub get
       
       # Step 3: Build the app
-      - run: flutter build web
+      - working-directory: admin_web
+        run: flutter build web
       
       # Step 4: Deploy a Preview URL to Firebase
       - uses: FirebaseExtended/action-hosting-deploy@v0

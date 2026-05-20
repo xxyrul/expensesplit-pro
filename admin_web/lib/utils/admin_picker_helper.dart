@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 class AdminPickerHelper {
+  static const double _mobileBreakpoint = 768;
+
   /// Opens a responsive Date Range Picker.
   /// - Desktop: Compact centered card layout (480x600) with dark glassmorphism styling
   /// - Mobile: Standard mobile-friendly full-screen layout
@@ -25,9 +27,15 @@ class AdminPickerHelper {
       builder: (context, child) {
         final theme = Theme.of(context);
         final screenWidth = MediaQuery.of(context).size.width;
-        final isDesktop = screenWidth >= 700;
+        final screenHeight = MediaQuery.of(context).size.height;
+        final isDesktop = screenWidth >= _mobileBreakpoint;
 
         if (!isDesktop) {
+          final constrainedSize = Size(
+            screenWidth * 0.94,
+            screenHeight * 0.9,
+          );
+
           return Theme(
             data: theme.copyWith(
               colorScheme: theme.colorScheme.copyWith(
@@ -37,7 +45,18 @@ class AdminPickerHelper {
                 onSurface: theme.colorScheme.onSurface,
               ),
             ),
-            child: child!,
+            child: MediaQuery(
+              data: MediaQuery.of(context).copyWith(size: constrainedSize),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxWidth: constrainedSize.width,
+                    maxHeight: constrainedSize.height,
+                  ),
+                  child: child!,
+                ),
+              ),
+            ),
           );
         }
 
@@ -102,9 +121,15 @@ class AdminPickerHelper {
       builder: (context, child) {
         final theme = Theme.of(context);
         final screenWidth = MediaQuery.of(context).size.width;
-        final isDesktop = screenWidth >= 700;
+        final screenHeight = MediaQuery.of(context).size.height;
+        final isDesktop = screenWidth >= _mobileBreakpoint;
 
         if (!isDesktop) {
+          final constrainedSize = Size(
+            screenWidth * 0.94,
+            screenHeight * 0.9,
+          );
+
           return Theme(
             data: theme.copyWith(
               colorScheme: theme.colorScheme.copyWith(
@@ -114,7 +139,18 @@ class AdminPickerHelper {
                 onSurface: theme.colorScheme.onSurface,
               ),
             ),
-            child: child!,
+            child: MediaQuery(
+              data: MediaQuery.of(context).copyWith(size: constrainedSize),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxWidth: constrainedSize.width,
+                    maxHeight: constrainedSize.height,
+                  ),
+                  child: child!,
+                ),
+              ),
+            ),
           );
         }
 
