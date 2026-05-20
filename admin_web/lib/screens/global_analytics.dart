@@ -113,9 +113,10 @@ class _GlobalAnalyticsScreenState extends ConsumerState<GlobalAnalyticsScreen> {
       builder: (context, constraints) {
         final bool isNarrow = constraints.maxWidth < 1100;
         final double contentMaxWidth = constraints.maxWidth > 1600 ? 1600 : double.infinity;
+        final bool isMobile = constraints.maxWidth < 600;
         final EdgeInsets contentPadding = EdgeInsets.symmetric(
-          horizontal: constraints.maxWidth > 1440 ? 40 : 32,
-          vertical: 32,
+          horizontal: isMobile ? 16 : (constraints.maxWidth > 1440 ? 40 : 32),
+          vertical: isMobile ? 16 : 32,
         );
 
         return Center(

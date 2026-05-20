@@ -176,6 +176,8 @@ class _PrivacySettingsScreenState extends ConsumerState<PrivacySettingsScreen> {
         ),
       ),
     );
+      },
+    );
   }
 
   Widget _buildSettingsCard(ColorScheme colorScheme) {

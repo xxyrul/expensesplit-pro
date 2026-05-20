@@ -53,16 +53,21 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
     final colorScheme = theme.colorScheme;
 
     return Scaffold(
-      body: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 1440),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+      body: SafeArea(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final isMobile = constraints.maxWidth < 600;
+
+            return Padding(
+              padding: EdgeInsets.all(isMobile ? 16.0 : 24.0),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 1440),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Expanded(
                       child: Column(
@@ -249,6 +254,8 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
         ),
       ),
     );
+      },
+    );
   }
 
   Widget _buildFilterBar(ColorScheme colorScheme) {
@@ -259,7 +266,10 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: colorScheme.outlineVariant),
       ),
-      child: Row(
+      child: Wrap(
+        crossAxisAlignment: WrapCrossAlignment.center,
+        spacing: 16,
+        runSpacing: 12,
         children: [
           Icon(Icons.filter_list, color: colorScheme.primary),
           const SizedBox(width: 12),

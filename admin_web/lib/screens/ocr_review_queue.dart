@@ -92,16 +92,18 @@ class _OcrReviewQueueScreenState extends ConsumerState<OcrReviewQueueScreen> {
         final isMasked = maskingSnap.data ?? false;
 
         return Scaffold(
-          body: Padding(
-            padding: const EdgeInsets.all(32.0),
+          body: SafeArea(
             child: LayoutBuilder(
               builder: (context, constraints) {
                 final isNarrow = constraints.maxWidth < 900;
+                final isMobile = constraints.maxWidth < 600;
 
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (isNarrow)
+                return Padding(
+                  padding: EdgeInsets.all(isMobile ? 16.0 : 32.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (isNarrow)
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [

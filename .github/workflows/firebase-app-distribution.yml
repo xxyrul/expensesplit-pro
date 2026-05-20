@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - main
+    paths-ignore:
+      - 'admin_web/**'
 
 jobs:
   distribute_android:

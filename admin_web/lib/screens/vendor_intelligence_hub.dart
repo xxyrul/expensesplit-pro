@@ -164,85 +164,92 @@ class _VendorIntelligenceHubState extends ConsumerState<VendorIntelligenceHub> {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
 
-    return Padding(
-      padding: const EdgeInsets.all(32),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Vendor Intelligence Hub',
-            style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isMobile = constraints.maxWidth < 600;
+        final isNarrow = constraints.maxWidth < 900;
+
+        return Padding(
+          padding: EdgeInsets.all(isMobile ? 16.0 : 32.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Vendor Intelligence Hub',
+                style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Curate the global vendor dictionary from real OCR corrections — improves categorization for every user.',
+                style: TextStyle(color: colorScheme.onSurfaceVariant, fontSize: 16),
+              ),
+              const SizedBox(height: 24),
+              _buildKpiRow(colorScheme, isMobile),
+              const SizedBox(height: 24),
+              Expanded(
+                child: isNarrow
+                    ? Column(
+                        children: [
+                          Expanded(child: _buildOcrPanel(colorScheme)),
+                          const SizedBox(height: 16),
+                          Expanded(child: _buildDictionaryPanel(colorScheme)),
+                        ],
+                      )
+                    : Row(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Expanded(child: _buildOcrPanel(colorScheme)),
+                          const SizedBox(width: 24),
+                          Expanded(child: _buildDictionaryPanel(colorScheme)),
+                        ],
+                      ),
+              ),
+            ],
           ),
-          const SizedBox(height: 8),
-          Text(
-            'Curate the global vendor dictionary from real OCR corrections — improves categorization for every user.',
-            style: TextStyle(color: colorScheme.onSurfaceVariant, fontSize: 16),
-          ),
-          const SizedBox(height: 24),
-          _buildKpiRow(colorScheme),
-          const SizedBox(height: 24),
-          Expanded(
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final stacked = constraints.maxWidth < 900;
-                if (stacked) {
-                  return Column(
-                    children: [
-                      Expanded(child: _buildOcrPanel(colorScheme)),
-                      const SizedBox(height: 16),
-                      Expanded(child: _buildDictionaryPanel(colorScheme)),
-                    ],
-                  );
-                }
-                return Row(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Expanded(child: _buildOcrPanel(colorScheme)),
-                    const SizedBox(width: 24),
-                    Expanded(child: _buildDictionaryPanel(colorScheme)),
-                  ],
-                );
-              },
-            ),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 
-  Widget _buildKpiRow(ColorScheme colorScheme) {
-    return Row(
-      children: [
-        Expanded(child: _KpiCard(
-          label: 'Dictionary entries',
-          stream: _firestore.collection('ocr_learning').snapshots(),
-          value: (snap) => '${snap.docs.length}',
-          colorScheme: colorScheme,
-        )),
-        const SizedBox(width: 16),
-        Expanded(child: _KpiCard(
-          label: 'OCR corrections logged',
-          stream: _firestore.collectionGroup('ocr_logs').snapshots(),
-          value: (snap) => '${snap.docs.length}',
-          colorScheme: colorScheme,
-        )),
-        const SizedBox(width: 16),
-        Expanded(child: _KpiCard(
-          label: 'Low-confidence (pending)',
-          stream: _firestore.collectionGroup('ocr_logs').snapshots(),
-          value: (snap) {
-            final n = snap.docs.where((d) {
-              final data = d.data();
-              return data['confidenceLabel'] == 'Low Confidence' &&
-                  (data['adminStatus'] ?? 'Pending') == 'Pending';
-            }).length;
-            return '$n';
-          },
-          colorScheme: colorScheme,
-          accent: colorScheme.tertiary,
-        )),
-      ],
-    );
+  Widget _buildKpiRow(ColorScheme colorScheme, bool isMobile) {
+    final kpis = [
+      Expanded(child: _KpiCard(
+        label: 'Dictionary entries',
+        stream: _firestore.collection('ocr_learning').snapshots(),
+        value: (snap) => '${snap.docs.length}',
+        colorScheme: colorScheme,
+      )),
+      SizedBox(width: isMobile ? 0 : 16, height: isMobile ? 16 : 0),
+      Expanded(child: _KpiCard(
+        label: 'OCR corrections logged',
+        stream: _firestore.collectionGroup('ocr_logs').snapshots(),
+        value: (snap) => '${snap.docs.length}',
+        colorScheme: colorScheme,
+      )),
+      SizedBox(width: isMobile ? 0 : 16, height: isMobile ? 16 : 0),
+      Expanded(child: _KpiCard(
+        label: 'Low-confidence (pending)',
+        stream: _firestore.collectionGroup('ocr_logs').snapshots(),
+        value: (snap) {
+          final n = snap.docs.where((d) {
+            final data = d.data();
+            return data['confidenceLabel'] == 'Low Confidence' &&
+                (data['adminStatus'] ?? 'Pending') == 'Pending';
+          }).length;
+          return '$n';
+        },
+        colorScheme: colorScheme,
+        accent: colorScheme.tertiary,
+      )),
+    ];
+
+    if (isMobile) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: kpis.map((w) => w is Expanded ? w.child : w).toList(),
+      );
+    }
+    return Row(children: kpis);
   }
 
   Widget _buildOcrPanel(ColorScheme colorScheme) {

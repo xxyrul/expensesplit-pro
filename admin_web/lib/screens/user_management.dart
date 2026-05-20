@@ -46,12 +46,17 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
         final isMasked = maskingSnap.data ?? false;
 
         return Scaffold(
-          body: Padding(
-            padding: const EdgeInsets.all(32.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Header
+          body: SafeArea(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final isMobile = constraints.maxWidth < 600;
+
+                return Padding(
+                  padding: EdgeInsets.all(isMobile ? 16.0 : 32.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Header
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -222,6 +227,9 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                   ),
                 ),
               ],
+            ),
+          );
+              },
             ),
           ),
         );
