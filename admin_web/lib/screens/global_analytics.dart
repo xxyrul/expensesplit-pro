@@ -215,10 +215,11 @@ class _GlobalAnalyticsScreenState extends ConsumerState<GlobalAnalyticsScreen> {
               // CHARTS ROW / COLUMN
               if (isNarrow)
                 Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // Line Chart (Expenses over last 7 days)
                     Container(
-                      height: 350,
+                      width: double.infinity,
+                      height: 360,
                       padding: const EdgeInsets.all(24),
                       decoration: BoxDecoration(
                         color: Theme.of(context).colorScheme.surfaceContainer,
@@ -238,21 +239,23 @@ class _GlobalAnalyticsScreenState extends ConsumerState<GlobalAnalyticsScreen> {
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
                               Text(
-                                "Platform Activity Trend (Last 7 Days)",
+                                'Platform Activity Trend (Last 7 Days)',
                                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.onSurface),
                               ),
                               const Tooltip(
-                                message: "Privacy First: We track activity counts, not user money.",
+                                message: 'Privacy First: We track activity counts, not user money.',
                                 child: Icon(Icons.privacy_tip, color: Color(0xFF10B981), size: 20),
                               ),
                             ],
                           ),
-                          const SizedBox(height: 24),
+                          const SizedBox(height: 20),
                           Expanded(
                             child: StreamBuilder<QuerySnapshot>(
                               stream: _firestore.collectionGroup('expenses').snapshots(),
                               builder: (context, snapshot) {
-                                if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+                                if (!snapshot.hasData) {
+                                  return const Center(child: CircularProgressIndicator());
+                                }
                                 return _buildLineChart(snapshot.data!.docs);
                               },
                             ),
@@ -260,12 +263,10 @@ class _GlobalAnalyticsScreenState extends ConsumerState<GlobalAnalyticsScreen> {
                         ],
                       ),
                     ),
-                    
                     const SizedBox(height: 24),
-                    
-                    // Pie Chart (Categories)
                     Container(
-                      height: 350,
+                      width: double.infinity,
+                      height: 360,
                       padding: const EdgeInsets.all(24),
                       decoration: BoxDecoration(
                         color: Theme.of(context).colorScheme.surfaceContainer,
@@ -285,21 +286,23 @@ class _GlobalAnalyticsScreenState extends ConsumerState<GlobalAnalyticsScreen> {
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
                               Text(
-                                "Most Popular Categories",
+                                'Most Popular Categories',
                                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.onSurface),
                               ),
                               const Tooltip(
-                                message: "Based on receipt counts, not spending volume.",
+                                message: 'Based on receipt counts, not spending volume.',
                                 child: Icon(Icons.privacy_tip, color: Color(0xFF10B981), size: 20),
                               ),
                             ],
                           ),
-                          const SizedBox(height: 24),
+                          const SizedBox(height: 20),
                           Expanded(
                             child: StreamBuilder<QuerySnapshot>(
                               stream: _firestore.collectionGroup('expenses').snapshots(),
                               builder: (context, snapshot) {
-                                if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+                                if (!snapshot.hasData) {
+                                  return const Center(child: CircularProgressIndicator());
+                                }
                                 return _buildPieChart(snapshot.data!.docs);
                               },
                             ),
@@ -310,110 +313,110 @@ class _GlobalAnalyticsScreenState extends ConsumerState<GlobalAnalyticsScreen> {
                   ],
                 )
               else
-                SizedBox(
-                  height: 350,
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Line Chart (Expenses over last 7 days)
-                      Expanded(
-                        flex: 2,
-                        child: Container(
-                          padding: const EdgeInsets.all(24),
-                          decoration: BoxDecoration(
-                            color: Theme.of(context).colorScheme.surfaceContainer,
-                            borderRadius: BorderRadius.circular(24),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.2),
-                                blurRadius: 24,
-                                offset: const Offset(0, 8),
-                              ),
-                            ],
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    "Platform Activity Trend (Last 7 Days)",
-                                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.onSurface),
-                                  ),
-                                  const Tooltip(
-                                    message: "Privacy First: We track activity counts, not user money.",
-                                    child: Icon(Icons.privacy_tip, color: Color(0xFF10B981), size: 20),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 24),
-                              Expanded(
-                                child: StreamBuilder<QuerySnapshot>(
-                                  stream: _firestore.collectionGroup('expenses').snapshots(),
-                                  builder: (context, snapshot) {
-                                    if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-                                    return _buildLineChart(snapshot.data!.docs);
-                                  },
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      flex: 7,
+                      child: Container(
+                        width: double.infinity,
+                        height: 380,
+                        padding: const EdgeInsets.all(24),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.surfaceContainer,
+                          borderRadius: BorderRadius.circular(24),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.2),
+                              blurRadius: 24,
+                              offset: const Offset(0, 8),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  'Platform Activity Trend (Last 7 Days)',
+                                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.onSurface),
                                 ),
+                                const Tooltip(
+                                  message: 'Privacy First: We track activity counts, not user money.',
+                                  child: Icon(Icons.privacy_tip, color: Color(0xFF10B981), size: 20),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 20),
+                            Expanded(
+                              child: StreamBuilder<QuerySnapshot>(
+                                stream: _firestore.collectionGroup('expenses').snapshots(),
+                                builder: (context, snapshot) {
+                                  if (!snapshot.hasData) {
+                                    return const Center(child: CircularProgressIndicator());
+                                  }
+                                  return _buildLineChart(snapshot.data!.docs);
+                                },
                               ),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
                       ),
-                      
-                      const SizedBox(width: 24),
-                      
-                      // Pie Chart (Categories)
-                      Expanded(
-                        flex: 1,
-                        child: Container(
-                          padding: const EdgeInsets.all(24),
-                          decoration: BoxDecoration(
-                            color: Theme.of(context).colorScheme.surfaceContainer,
-                            borderRadius: BorderRadius.circular(24),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.2),
-                                blurRadius: 24,
-                                offset: const Offset(0, 8),
-                              ),
-                            ],
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    "Most Popular Categories",
-                                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.onSurface),
-                                  ),
-                                  const Tooltip(
-                                    message: "Based on receipt counts, not spending volume.",
-                                    child: Icon(Icons.privacy_tip, color: Color(0xFF10B981), size: 20),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 24),
-                              Expanded(
-                                child: StreamBuilder<QuerySnapshot>(
-                                  stream: _firestore.collectionGroup('expenses').snapshots(),
-                                  builder: (context, snapshot) {
-                                    if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-                                    return _buildPieChart(snapshot.data!.docs);
-                                  },
+                    ),
+                    const SizedBox(width: 24),
+                    Expanded(
+                      flex: 5,
+                      child: Container(
+                        width: double.infinity,
+                        height: 380,
+                        padding: const EdgeInsets.all(24),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.surfaceContainer,
+                          borderRadius: BorderRadius.circular(24),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.2),
+                              blurRadius: 24,
+                              offset: const Offset(0, 8),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  'Most Popular Categories',
+                                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.onSurface),
                                 ),
+                                const Tooltip(
+                                  message: 'Based on receipt counts, not spending volume.',
+                                  child: Icon(Icons.privacy_tip, color: Color(0xFF10B981), size: 20),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 20),
+                            Expanded(
+                              child: StreamBuilder<QuerySnapshot>(
+                                stream: _firestore.collectionGroup('expenses').snapshots(),
+                                builder: (context, snapshot) {
+                                  if (!snapshot.hasData) {
+                                    return const Center(child: CircularProgressIndicator());
+                                  }
+                                  return _buildPieChart(snapshot.data!.docs);
+                                },
                               ),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-          
           const SizedBox(height: 32),
 
           // RECENT ACTIVITY & CONTROLS ROW
@@ -424,6 +427,7 @@ class _GlobalAnalyticsScreenState extends ConsumerState<GlobalAnalyticsScreen> {
               Expanded(
                 flex: 4,
                 child: Container(
+                  width: double.infinity,
                   padding: const EdgeInsets.all(24),
                   decoration: BoxDecoration(
                     color: Theme.of(context).colorScheme.surfaceContainer,
@@ -483,13 +487,15 @@ class _GlobalAnalyticsScreenState extends ConsumerState<GlobalAnalyticsScreen> {
                               }
 
                               return Container(
+                                width: double.infinity,
                                 margin: const EdgeInsets.only(bottom: 12),
-                                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                                padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
                                 decoration: BoxDecoration(
                                   color: colorScheme.surfaceContainerHighest.withOpacity(0.4),
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                 child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Container(
                                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -508,10 +514,24 @@ class _GlobalAnalyticsScreenState extends ConsumerState<GlobalAnalyticsScreen> {
                                         overflow: TextOverflow.ellipsis,
                                       ),
                                     ),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      '$email @ $timeStr',
-                                      style: const TextStyle(fontSize: 11, color: Colors.grey),
+                                    const SizedBox(width: 12),
+                                    Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      crossAxisAlignment: CrossAxisAlignment.end,
+                                      children: [
+                                        Text(
+                                          email,
+                                          style: const TextStyle(fontSize: 11, color: Colors.grey),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          textAlign: TextAlign.right,
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          timeStr,
+                                          style: const TextStyle(fontSize: 11, color: Colors.grey),
+                                        ),
+                                      ],
                                     ),
                                   ],
                                 ),

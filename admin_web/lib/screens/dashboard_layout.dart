@@ -89,75 +89,97 @@ class _DashboardLayoutState extends ConsumerState<DashboardLayout> {
   }) {
     final sidebarWidth = _isCollapsed ? 76.0 : 300.0;
 
-    // compute header padding so the positioned toggle doesn't overlap header content
-    final headerLeftPad = _isCollapsed && !isMobile ? 10.0 : 20.0;
-    final headerRightPad = !isMobile && !_isCollapsed ? 64.0 : (_isCollapsed && !isMobile ? 10.0 : 20.0);
-
     return AnimatedContainer(
       duration: const Duration(milliseconds: 200),
       width: isMobile ? double.infinity : sidebarWidth,
       color: colorScheme.surfaceContainer,
       child: Stack(
         children: [
-          // Main sidebar content fills the area
           Positioned.fill(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 SafeArea(
                   bottom: false,
-                  child: Padding(
-                    padding: EdgeInsets.only(
-                      left: headerLeftPad,
-                      right: headerRightPad,
-                      top: 24,
-                      bottom: 24,
-                    ),
-                    child: Row(
+                  child: SizedBox(
+                    height: 88,
+                    child: Stack(
                       children: [
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: colorScheme.primary.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Icon(
-                            Icons.admin_panel_settings,
-                            color: colorScheme.primary,
-                            size: 24,
-                          ),
-                        ),
-                        if (!(_isCollapsed && !isMobile))
-                          Expanded(
-                            child: AnimatedOpacity(
-                              opacity: 1.0,
-                              duration: const Duration(milliseconds: 200),
-                              curve: Curves.easeInOut,
-                              child: Padding(
-                                padding: const EdgeInsets.only(left: 16),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    const Text(
-                                      'ExpenseSplit Pro',
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 16,
-                                      ),
+                        Positioned.fill(
+                          child: Padding(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: _isCollapsed && !isMobile ? 12 : 20,
+                              vertical: 18,
+                            ),
+                            child: Align(
+                              alignment: Alignment.centerLeft,
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(8),
+                                    decoration: BoxDecoration(
+                                      color: colorScheme.primary.withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(12),
                                     ),
-                                    Text(
-                                      'Admin Portal',
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: colorScheme.onSurfaceVariant,
-                                      ),
+                                    child: Icon(
+                                      Icons.admin_panel_settings,
+                                      color: colorScheme.primary,
+                                      size: 24,
+                                    ),
+                                  ),
+                                  if (!(_isCollapsed && !isMobile)) ...[
+                                    const SizedBox(width: 16),
+                                    Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        const Text(
+                                          'ExpenseSplit Pro',
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 16,
+                                          ),
+                                        ),
+                                        Text(
+                                          'Admin Portal',
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: colorScheme.onSurfaceVariant,
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ],
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                        if (!isMobile)
+                          Positioned(
+                            right: 8,
+                            top: 0,
+                            bottom: 0,
+                            child: Center(
+                              child: Material(
+                                color: colorScheme.surfaceContainerHighest.withOpacity(0.35),
+                                shape: const CircleBorder(),
+                                child: SizedBox(
+                                  width: 40,
+                                  height: 40,
+                                  child: IconButton(
+                                    padding: EdgeInsets.zero,
+                                    visualDensity: VisualDensity.compact,
+                                    constraints: const BoxConstraints.tightFor(width: 40, height: 40),
+                                    onPressed: () => setState(() => _isCollapsed = !_isCollapsed),
+                                    icon: Icon(_isCollapsed ? Icons.chevron_right : Icons.chevron_left, color: colorScheme.onSurfaceVariant),
+                                    tooltip: _isCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar',
+                                  ),
                                 ),
                               ),
                             ),
@@ -306,27 +328,6 @@ class _DashboardLayoutState extends ConsumerState<DashboardLayout> {
             ),
           ),
 
-          // Toggle button pinned to the right and vertically centered of the header
-          if (!isMobile)
-            Positioned(
-              right: 0,
-              top: 12,
-              child: Material(
-                color: Colors.transparent,
-                child: SizedBox(
-                  width: 40,
-                  height: 40,
-                  child: IconButton(
-                    padding: EdgeInsets.zero,
-                    visualDensity: VisualDensity.compact,
-                    constraints: const BoxConstraints.tightFor(width: 40, height: 40),
-                    onPressed: () => setState(() => _isCollapsed = !_isCollapsed),
-                    icon: Icon(_isCollapsed ? Icons.chevron_right : Icons.chevron_left, color: colorScheme.onSurfaceVariant),
-                    tooltip: _isCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar',
-                  ),
-                ),
-              ),
-            ),
         ],
       ),
     );
