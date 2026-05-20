@@ -125,7 +125,7 @@ class _DashboardLayoutState extends ConsumerState<DashboardLayout> {
     final sidebarWidth = effectiveCollapsed ? 76.0 : 300.0;
     final canToggle = !isMobile && !forceCollapsed;
 
-    return AnimatedContainer(
+    final sidebar = AnimatedContainer(
       duration: const Duration(milliseconds: 200),
       width: isMobile ? double.infinity : sidebarWidth,
       color: colorScheme.surfaceContainer,
@@ -135,16 +135,8 @@ class _DashboardLayoutState extends ConsumerState<DashboardLayout> {
           SafeArea(
             bottom: false,
             child: effectiveCollapsed
-                ? _CollapsedSidebarHeader(
-                    colorScheme: colorScheme,
-                    canToggle: canToggle,
-                    onToggle: () => setState(() => _isCollapsed = false),
-                  )
-                : _ExpandedSidebarHeader(
-                    colorScheme: colorScheme,
-                    canToggle: canToggle,
-                    onToggle: () => setState(() => _isCollapsed = true),
-                  ),
+                ? _CollapsedSidebarHeader(colorScheme: colorScheme)
+                : _ExpandedSidebarHeader(colorScheme: colorScheme),
           ),
 
           const Divider(height: 1, thickness: 1),
@@ -290,8 +282,31 @@ class _DashboardLayoutState extends ConsumerState<DashboardLayout> {
               ),
             ),
           ),
+          if (canToggle) const SizedBox(height: 56),
         ],
       ),
+    );
+
+    if (!canToggle) return sidebar;
+
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        sidebar,
+        Positioned(
+          bottom: 20,
+          left: effectiveCollapsed ? 0 : null,
+          right: effectiveCollapsed ? 0 : -16,
+          child: Center(
+            child: _SidebarHeaderToggleButton(
+              icon: effectiveCollapsed ? Icons.chevron_right : Icons.chevron_left,
+              tooltip: effectiveCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar',
+              onTap: () => setState(() => _isCollapsed = !_isCollapsed),
+              colorScheme: colorScheme,
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -463,25 +478,30 @@ class _SidebarHeaderToggleButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return Tooltip(
       message: tooltip,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(100),
-        child: Container(
-          width: 32,
-          height: 32,
-          decoration: BoxDecoration(
-            color: colorScheme.surfaceContainerHighest.withOpacity(0.4),
-            shape: BoxShape.circle,
-            border: Border.all(
-              color: colorScheme.outlineVariant.withOpacity(0.4),
-              width: 1,
+      child: Material(
+        type: MaterialType.circle,
+        color: colorScheme.surfaceContainerHighest,
+        elevation: 2,
+        shadowColor: Colors.black.withOpacity(0.4),
+        child: InkWell(
+          onTap: onTap,
+          customBorder: const CircleBorder(),
+          child: Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: colorScheme.outlineVariant.withOpacity(0.8),
+                width: 1,
+              ),
             ),
-          ),
-          child: Center(
-            child: Icon(
-              icon,
-              color: colorScheme.onSurfaceVariant,
-              size: 18,
+            child: Center(
+              child: Icon(
+                icon,
+                color: colorScheme.onSurfaceVariant,
+                size: 18,
+              ),
             ),
           ),
         ),
@@ -492,47 +512,29 @@ class _SidebarHeaderToggleButton extends StatelessWidget {
 
 class _CollapsedSidebarHeader extends StatelessWidget {
   final ColorScheme colorScheme;
-  final bool canToggle;
-  final VoidCallback onToggle;
 
   const _CollapsedSidebarHeader({
     required this.colorScheme,
-    required this.canToggle,
-    required this.onToggle,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 100,
+      height: 80,
       alignment: Alignment.center,
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: colorScheme.primary.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(
-              Icons.admin_panel_settings,
-              color: colorScheme.primary,
-              size: 24,
-            ),
-          ),
-          if (canToggle) ...[
-            const SizedBox(height: 12),
-            _SidebarHeaderToggleButton(
-              icon: Icons.chevron_right,
-              tooltip: 'Expand Sidebar',
-              onTap: onToggle,
-              colorScheme: colorScheme,
-            ),
-          ],
-        ],
+      child: Container(
+        width: 40,
+        height: 40,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: colorScheme.primary.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Icon(
+          Icons.admin_panel_settings,
+          color: colorScheme.primary,
+          size: 24,
+        ),
       ),
     );
   }
@@ -540,19 +542,15 @@ class _CollapsedSidebarHeader extends StatelessWidget {
 
 class _ExpandedSidebarHeader extends StatelessWidget {
   final ColorScheme colorScheme;
-  final bool canToggle;
-  final VoidCallback onToggle;
 
   const _ExpandedSidebarHeader({
     required this.colorScheme,
-    required this.canToggle,
-    required this.onToggle,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 100,
+      height: 80,
       padding: const EdgeInsets.symmetric(horizontal: 20.0),
       alignment: Alignment.center,
       child: Row(
@@ -601,15 +599,6 @@ class _ExpandedSidebarHeader extends StatelessWidget {
               ],
             ),
           ),
-          if (canToggle) ...[
-            const SizedBox(width: 8),
-            _SidebarHeaderToggleButton(
-              icon: Icons.chevron_left,
-              tooltip: 'Collapse Sidebar',
-              onTap: onToggle,
-              colorScheme: colorScheme,
-            ),
-          ],
         ],
       ),
     );
