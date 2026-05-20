@@ -70,18 +70,20 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       // ── Page header ─────────────────────────────────
-                      Row(
+                      Flex(
+                        direction: isMobile ? Axis.vertical : Axis.horizontal,
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Expanded(
-                            child: Column(
+                          if (isMobile)
+                            Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Text(
+                                Text(
                                   'System Security Audit Trail',
                                   style: TextStyle(
-                                    fontSize: 32,
+                                    fontSize: 18,
                                     fontWeight: FontWeight.bold,
+                                    height: 1.15,
                                   ),
                                 ),
                                 const SizedBox(height: 8),
@@ -91,13 +93,43 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
                                   'policy compliance verification.',
                                   style: TextStyle(
                                     color: colorScheme.onSurfaceVariant,
-                                    fontSize: 16,
+                                    fontSize: 13.5,
+                                    height: 1.35,
                                   ),
                                 ),
                               ],
+                            )
+                          else
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    'System Security Audit Trail',
+                                    style: TextStyle(
+                                      fontSize: 32,
+                                      fontWeight: FontWeight.bold,
+                                      height: 1.15,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    'Immutably logged actions for system '
+                                    'accountability, access controls, and '
+                                    'policy compliance verification.',
+                                    style: TextStyle(
+                                      color: colorScheme.onSurfaceVariant,
+                                      fontSize: 16,
+                                      height: 1.35,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
+                          SizedBox(
+                            width: isMobile ? 0 : 16,
+                            height: isMobile ? 12 : 0,
                           ),
-                          const SizedBox(width: 16),
                           Container(
                             padding: const EdgeInsets.symmetric(
                               horizontal: 12,
@@ -180,7 +212,11 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
                                   // Table header bar
                                   Padding(
                                     padding: const EdgeInsets.fromLTRB(
-                                        20, 18, 20, 14),
+                                      20,
+                                      18,
+                                      20,
+                                      14,
+                                    ),
                                     child: Row(
                                       mainAxisAlignment:
                                           MainAxisAlignment.spaceBetween,
@@ -197,8 +233,7 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
                                           'Showing newest first',
                                           style: TextStyle(
                                             fontSize: 12,
-                                            color:
-                                                colorScheme.onSurfaceVariant,
+                                            color: colorScheme.onSurfaceVariant,
                                           ),
                                         ),
                                       ],
@@ -219,14 +254,145 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
                                               ),
                                             ),
                                           )
+                                        : isMobile
+                                        ? ListView.separated(
+                                            padding: const EdgeInsets.all(14),
+                                            itemCount: filteredLogs.length,
+                                            separatorBuilder: (_, _) =>
+                                                const SizedBox(height: 10),
+                                            itemBuilder: (ctx, i) {
+                                              final data =
+                                                  filteredLogs[i].data()
+                                                      as Map<String, dynamic>;
+                                              final adminEmail =
+                                                  data['adminEmail'] ??
+                                                  'Unknown Admin';
+                                              final action =
+                                                  data['action'] ??
+                                                  'Unknown Action';
+                                              final targetType =
+                                                  data['targetType'] ??
+                                                  'System';
+                                              final targetId =
+                                                  data['targetId'] ?? '';
+                                              final detail =
+                                                  data['detail'] ?? '';
+                                              final actionColor =
+                                                  _getActionColor(action);
+
+                                              String timestampStr = 'N/A';
+                                              if (data['timestamp'] != null &&
+                                                  data['timestamp']
+                                                      is Timestamp) {
+                                                final date =
+                                                    (data['timestamp']
+                                                            as Timestamp)
+                                                        .toDate();
+                                                timestampStr = DateFormat(
+                                                  'yyyy-MM-dd HH:mm:ss',
+                                                ).format(date);
+                                              }
+
+                                              return Container(
+                                                padding: const EdgeInsets.all(
+                                                  12,
+                                                ),
+                                                decoration: BoxDecoration(
+                                                  color: colorScheme
+                                                      .surfaceContainerHighest
+                                                      .withOpacity(0.35),
+                                                  borderRadius:
+                                                      BorderRadius.circular(12),
+                                                  border: Border.all(
+                                                    color: colorScheme
+                                                        .outlineVariant,
+                                                  ),
+                                                ),
+                                                child: Column(
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
+                                                  children: [
+                                                    Text(
+                                                      timestampStr,
+                                                      style: TextStyle(
+                                                        fontFamily: 'monospace',
+                                                        fontSize: 12,
+                                                        color: colorScheme
+                                                            .onSurfaceVariant,
+                                                      ),
+                                                    ),
+                                                    const SizedBox(height: 8),
+                                                    Wrap(
+                                                      spacing: 8,
+                                                      runSpacing: 8,
+                                                      crossAxisAlignment:
+                                                          WrapCrossAlignment
+                                                              .center,
+                                                      children: [
+                                                        Chip(
+                                                          label: Text(
+                                                            action,
+                                                            style: TextStyle(
+                                                              color:
+                                                                  actionColor,
+                                                              fontSize: 10,
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .bold,
+                                                            ),
+                                                          ),
+                                                          backgroundColor:
+                                                              actionColor
+                                                                  .withOpacity(
+                                                                    0.12,
+                                                                  ),
+                                                          side: BorderSide(
+                                                            color: actionColor
+                                                                .withOpacity(
+                                                                  0.28,
+                                                                ),
+                                                          ),
+                                                        ),
+                                                        Text(
+                                                          adminEmail,
+                                                          style:
+                                                              const TextStyle(
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .w600,
+                                                              ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                    const SizedBox(height: 8),
+                                                    Text(
+                                                      '$targetType ($targetId)',
+                                                      style: TextStyle(
+                                                        fontSize: 12,
+                                                        color: colorScheme
+                                                            .onSurfaceVariant,
+                                                      ),
+                                                    ),
+                                                    const SizedBox(height: 8),
+                                                    Text(
+                                                      detail,
+                                                      style: const TextStyle(
+                                                        fontSize: 13,
+                                                        height: 1.35,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              );
+                                            },
+                                          )
                                         : LayoutBuilder(
                                             builder: (ctx, tableConstraints) {
                                               final tableWidth =
                                                   tableConstraints.maxWidth >
-                                                          1280
-                                                      ? tableConstraints
-                                                          .maxWidth
-                                                      : 1280.0;
+                                                      1280
+                                                  ? tableConstraints.maxWidth
+                                                  : 1280.0;
                                               final detailsColWidth =
                                                   tableWidth - 750.0;
 
@@ -240,169 +406,174 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
                                                       columnSpacing: 24,
                                                       horizontalMargin: 20,
                                                       headingRowColor:
-                                                          WidgetStateProperty
-                                                              .all(
-                                                        colorScheme
-                                                            .surfaceContainerHighest,
-                                                      ),
+                                                          WidgetStateProperty.all(
+                                                            colorScheme
+                                                                .surfaceContainerHighest,
+                                                          ),
                                                       columns: const [
                                                         DataColumn(
-                                                          label:
-                                                              Text('Timestamp'),
-                                                        ),
-                                                        DataColumn(
-                                                          label:
-                                                              Text('Operator'),
+                                                          label: Text(
+                                                            'Timestamp',
+                                                          ),
                                                         ),
                                                         DataColumn(
                                                           label: Text(
-                                                              'Event Action'),
+                                                            'Operator',
+                                                          ),
                                                         ),
                                                         DataColumn(
                                                           label: Text(
-                                                              'Target Info'),
+                                                            'Event Action',
+                                                          ),
                                                         ),
                                                         DataColumn(
                                                           label: Text(
-                                                              'Event Details'),
+                                                            'Target Info',
+                                                          ),
+                                                        ),
+                                                        DataColumn(
+                                                          label: Text(
+                                                            'Event Details',
+                                                          ),
                                                         ),
                                                       ],
-                                                      rows:
-                                                          filteredLogs.map(
-                                                        (doc) {
-                                                          final data = doc
-                                                              .data() as Map<
+                                                      rows: filteredLogs.map((
+                                                        doc,
+                                                      ) {
+                                                        final data =
+                                                            doc.data()
+                                                                as Map<
                                                                   String,
-                                                                  dynamic>;
-                                                          final adminEmail =
-                                                              data['adminEmail'] ??
-                                                                  'Unknown Admin';
-                                                          final action =
-                                                              data['action'] ??
-                                                                  'Unknown Action';
-                                                          final targetType =
-                                                              data['targetType'] ??
-                                                                  'System';
-                                                          final targetId =
-                                                              data['targetId'] ??
-                                                                  '';
-                                                          final detail =
-                                                              data['detail'] ??
-                                                                  '';
+                                                                  dynamic
+                                                                >;
+                                                        final adminEmail =
+                                                            data['adminEmail'] ??
+                                                            'Unknown Admin';
+                                                        final action =
+                                                            data['action'] ??
+                                                            'Unknown Action';
+                                                        final targetType =
+                                                            data['targetType'] ??
+                                                            'System';
+                                                        final targetId =
+                                                            data['targetId'] ??
+                                                            '';
+                                                        final detail =
+                                                            data['detail'] ??
+                                                            '';
 
-                                                          String timestampStr =
-                                                              'N/A';
-                                                          if (data['timestamp'] !=
-                                                                  null &&
-                                                              data['timestamp']
-                                                                  is Timestamp) {
-                                                            final date = (data[
-                                                                        'timestamp']
-                                                                    as Timestamp)
-                                                                .toDate();
-                                                            timestampStr =
-                                                                DateFormat(
-                                                                        'yyyy-MM-dd HH:mm:ss')
-                                                                    .format(
-                                                                        date);
-                                                          }
+                                                        String timestampStr =
+                                                            'N/A';
+                                                        if (data['timestamp'] !=
+                                                                null &&
+                                                            data['timestamp']
+                                                                is Timestamp) {
+                                                          final date =
+                                                              (data['timestamp']
+                                                                      as Timestamp)
+                                                                  .toDate();
+                                                          timestampStr = DateFormat(
+                                                            'yyyy-MM-dd HH:mm:ss',
+                                                          ).format(date);
+                                                        }
 
-                                                          final actionColor =
-                                                              _getActionColor(
-                                                                  action);
+                                                        final actionColor =
+                                                            _getActionColor(
+                                                              action,
+                                                            );
 
-                                                          return DataRow(
-                                                            cells: [
-                                                              DataCell(
-                                                                Text(
-                                                                  timestampStr,
-                                                                  style: const TextStyle(
-                                                                    fontFamily:
-                                                                        'monospace',
+                                                        return DataRow(
+                                                          cells: [
+                                                            DataCell(
+                                                              Text(
+                                                                timestampStr,
+                                                                style: const TextStyle(
+                                                                  fontFamily:
+                                                                      'monospace',
+                                                                  fontSize: 13,
+                                                                ),
+                                                              ),
+                                                            ),
+                                                            DataCell(
+                                                              SizedBox(
+                                                                width: 180,
+                                                                child: Text(
+                                                                  adminEmail,
+                                                                  maxLines: 1,
+                                                                  overflow:
+                                                                      TextOverflow
+                                                                          .ellipsis,
+                                                                ),
+                                                              ),
+                                                            ),
+                                                            DataCell(
+                                                              Chip(
+                                                                label: Text(
+                                                                  action,
+                                                                  style: TextStyle(
+                                                                    color:
+                                                                        actionColor,
                                                                     fontSize:
-                                                                        13,
+                                                                        10,
+                                                                    fontWeight:
+                                                                        FontWeight
+                                                                            .bold,
                                                                   ),
                                                                 ),
-                                                              ),
-                                                              DataCell(
-                                                                SizedBox(
-                                                                  width: 180,
-                                                                  child: Text(
-                                                                    adminEmail,
-                                                                    maxLines: 1,
-                                                                    overflow:
-                                                                        TextOverflow
-                                                                            .ellipsis,
-                                                                  ),
-                                                                ),
-                                                              ),
-                                                              DataCell(
-                                                                Chip(
-                                                                  label: Text(
-                                                                    action,
-                                                                    style:
-                                                                        TextStyle(
-                                                                      color:
-                                                                          actionColor,
-                                                                      fontSize:
-                                                                          10,
-                                                                      fontWeight:
-                                                                          FontWeight
-                                                                              .bold,
-                                                                    ),
-                                                                  ),
-                                                                  backgroundColor:
-                                                                      actionColor
-                                                                          .withOpacity(
-                                                                              0.1),
-                                                                  side: BorderSide(
-                                                                    color: actionColor
+                                                                backgroundColor:
+                                                                    actionColor
                                                                         .withOpacity(
-                                                                            0.2),
-                                                                  ),
+                                                                          0.1,
+                                                                        ),
+                                                                side: BorderSide(
+                                                                  color: actionColor
+                                                                      .withOpacity(
+                                                                        0.2,
+                                                                      ),
                                                                 ),
                                                               ),
-                                                              DataCell(
-                                                                SizedBox(
-                                                                  width: 220,
+                                                            ),
+                                                            DataCell(
+                                                              SizedBox(
+                                                                width: 220,
+                                                                child: Text(
+                                                                  '$targetType ($targetId)',
+                                                                  maxLines: 1,
+                                                                  overflow:
+                                                                      TextOverflow
+                                                                          .ellipsis,
+                                                                  style:
+                                                                      const TextStyle(
+                                                                        fontSize:
+                                                                            12,
+                                                                      ),
+                                                                ),
+                                                              ),
+                                                            ),
+                                                            DataCell(
+                                                              SizedBox(
+                                                                width:
+                                                                    detailsColWidth,
+                                                                child: Tooltip(
+                                                                  message:
+                                                                      detail,
                                                                   child: Text(
-                                                                    '$targetType ($targetId)',
+                                                                    detail,
                                                                     maxLines: 1,
                                                                     overflow:
                                                                         TextOverflow
                                                                             .ellipsis,
                                                                     style: const TextStyle(
-                                                                        fontSize:
-                                                                            12),
-                                                                  ),
-                                                                ),
-                                                              ),
-                                                              DataCell(
-                                                                SizedBox(
-                                                                  width:
-                                                                      detailsColWidth,
-                                                                  child:
-                                                                      Tooltip(
-                                                                    message:
-                                                                        detail,
-                                                                    child: Text(
-                                                                      detail,
-                                                                      maxLines:
-                                                                          1,
-                                                                      overflow:
-                                                                          TextOverflow
-                                                                              .ellipsis,
-                                                                      style: const TextStyle(
-                                                                          fontSize:
-                                                                              13),
+                                                                      fontSize:
+                                                                          13,
                                                                     ),
                                                                   ),
                                                                 ),
                                                               ),
-                                                            ],
-                                                          );
-                                                        },
-                                                      ).toList(),
+                                                            ),
+                                                          ],
+                                                        );
+                                                      }).toList(),
                                                     ),
                                                   ),
                                                 ),
@@ -447,15 +618,11 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
             style: TextStyle(fontWeight: FontWeight.bold),
           ),
           Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
             decoration: BoxDecoration(
               color: colorScheme.surfaceContainerHighest.withOpacity(0.5),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: colorScheme.outlineVariant,
-                width: 1.5,
-              ),
+              border: Border.all(color: colorScheme.outlineVariant, width: 1.5),
             ),
             child: DropdownButtonHideUnderline(
               child: DropdownButton<String>(
@@ -517,9 +684,8 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
                     child: Text('DELETE_VENDOR_MAPPING'),
                   ),
                 ],
-                onChanged: (val) => setState(
-                  () => _selectedActionFilter = val ?? 'All',
-                ),
+                onChanged: (val) =>
+                    setState(() => _selectedActionFilter = val ?? 'All'),
               ),
             ),
           ),

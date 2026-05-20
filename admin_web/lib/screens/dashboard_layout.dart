@@ -105,6 +105,7 @@ class _DashboardLayoutState extends ConsumerState<DashboardLayout> {
 
   // ── Layout constants ───────────────────────────────────────────────────────
   static const double _mobileBreakpoint = 600;
+  static const double _compactDesktopBreakpoint = 1120;
   static const double _expandedWidth = 260;
   static const double _collapsedWidth = 70;
   static const Duration _animDuration = Duration(milliseconds: 220);
@@ -160,16 +161,20 @@ class _DashboardLayoutState extends ConsumerState<DashboardLayout> {
   // ── Root build ─────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
-    final isMobile =
-        MediaQuery.of(context).size.width < _mobileBreakpoint;
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isMobile = screenWidth < _mobileBreakpoint;
+    final isCompactDesktop = screenWidth < _compactDesktopBreakpoint;
     final cs = Theme.of(context).colorScheme;
-    return isMobile ? _buildMobileLayout(cs) : _buildDesktopLayout(cs);
+    return isMobile
+        ? _buildMobileLayout(cs)
+        : _buildDesktopLayout(cs, isCompactDesktop: isCompactDesktop);
   }
 
   // ─────────────────────────────────────────────────────────────────────────
   // DESKTOP LAYOUT
   // ─────────────────────────────────────────────────────────────────────────
-  Widget _buildDesktopLayout(ColorScheme cs) {
+  Widget _buildDesktopLayout(ColorScheme cs, {required bool isCompactDesktop}) {
+    final showExpanded = isCompactDesktop ? false : _isExpanded;
     return Scaffold(
       body: Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -178,7 +183,7 @@ class _DashboardLayoutState extends ConsumerState<DashboardLayout> {
           AnimatedContainer(
             duration: _animDuration,
             curve: Curves.easeInOut,
-            width: _isExpanded ? _expandedWidth : _collapsedWidth,
+            width: showExpanded ? _expandedWidth : _collapsedWidth,
             color: cs.surfaceContainer,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -186,7 +191,11 @@ class _DashboardLayoutState extends ConsumerState<DashboardLayout> {
                 // ── Zone A: Header (fixed) ─────────────────────────────
                 SafeArea(
                   bottom: false,
-                  child: _buildHeader(cs, isMobile: false),
+                  child: _buildHeader(
+                    cs,
+                    isMobile: false,
+                    forceExpanded: showExpanded,
+                  ),
                 ),
                 Divider(height: 1, thickness: 1, color: cs.outlineVariant),
 
@@ -194,24 +203,30 @@ class _DashboardLayoutState extends ConsumerState<DashboardLayout> {
                 Expanded(
                   child: ListView(
                     padding: const EdgeInsets.symmetric(
-                        vertical: 8, horizontal: 0),
-                    children: _buildNavItems(cs, isMobile: false),
+                      vertical: 8,
+                      horizontal: 0,
+                    ),
+                    children: _buildNavItems(
+                      cs,
+                      isMobile: false,
+                      forceExpanded: showExpanded,
+                    ),
                   ),
                 ),
 
                 Divider(height: 1, thickness: 1, color: cs.outlineVariant),
                 // ── Zone C: Footer (fixed) ─────────────────────────────
-                _buildDesktopFooter(cs),
+                _buildDesktopFooter(
+                  cs,
+                  showExpanded: showExpanded,
+                  canToggle: !isCompactDesktop,
+                ),
               ],
             ),
           ),
 
           // ── Vertical divider ──────────────────────────────────────────
-          VerticalDivider(
-            thickness: 1,
-            width: 1,
-            color: cs.outlineVariant,
-          ),
+          VerticalDivider(thickness: 1, width: 1, color: cs.outlineVariant),
 
           // ── Main content ──────────────────────────────────────────────
           Expanded(
@@ -219,10 +234,8 @@ class _DashboardLayoutState extends ConsumerState<DashboardLayout> {
               duration: _animDuration,
               switchInCurve: Curves.easeOut,
               switchOutCurve: Curves.easeIn,
-              transitionBuilder: (child, animation) => FadeTransition(
-                opacity: animation,
-                child: child,
-              ),
+              transitionBuilder: (child, animation) =>
+                  FadeTransition(opacity: animation, child: child),
               child: KeyedSubtree(
                 key: ValueKey<int>(_selectedIndex),
                 child: _activeScreen,
@@ -245,37 +258,13 @@ class _DashboardLayoutState extends ConsumerState<DashboardLayout> {
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
         centerTitle: false,
-        leading: Builder(
-          builder: (ctx) => IconButton(
-            icon: const Icon(Icons.menu_rounded),
-            tooltip: 'Open menu',
-            onPressed: () => Scaffold.of(ctx).openDrawer(),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.more_vert_rounded),
+            tooltip: 'More pages',
+            onPressed: () => _showMobileMoreSheet(cs),
           ),
-        ),
-      ),
-      // ── Slide-out drawer (full nav) ──────────────────────────────────
-      drawer: Drawer(
-        width: 280,
-        child: SafeArea(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _buildHeader(cs, isMobile: true),
-              Divider(height: 1, thickness: 1, color: cs.outlineVariant),
-              Expanded(
-                child: ListView(
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  children: _buildNavItems(cs, isMobile: true),
-                ),
-              ),
-              Divider(height: 1, thickness: 1, color: cs.outlineVariant),
-              Padding(
-                padding: const EdgeInsets.all(10),
-                child: _logoutTile(cs, expanded: true),
-              ),
-            ],
-          ),
-        ),
+        ],
       ),
       // ── Screen content ───────────────────────────────────────────────
       body: AnimatedSwitcher(
@@ -291,23 +280,95 @@ class _DashboardLayoutState extends ConsumerState<DashboardLayout> {
         currentIndex: _selectedIndex.clamp(0, 4),
         selectedItemColor: cs.primary,
         unselectedItemColor: cs.onSurfaceVariant,
+        selectedFontSize: 11.5,
+        unselectedFontSize: 11.5,
         onTap: (i) => setState(() => _selectedIndex = i),
-        items: _kNavItems.take(5).map(
-          (item) => BottomNavigationBarItem(
-            icon: Icon(item.icon),
-            activeIcon: Icon(item.activeIcon),
-            label: item.label,
+        items: const [
+          BottomNavigationBarItem(
+            icon: Icon(Icons.dashboard_outlined),
+            activeIcon: Icon(Icons.dashboard),
+            label: 'Dashboard',
           ),
-        ).toList(),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.receipt_long_outlined),
+            activeIcon: Icon(Icons.receipt_long),
+            label: 'Expenses',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.remove_red_eye_outlined),
+            activeIcon: Icon(Icons.remove_red_eye),
+            label: 'OCR',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.hub_outlined),
+            activeIcon: Icon(Icons.hub),
+            label: 'Vendors',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.notifications_active_outlined),
+            activeIcon: Icon(Icons.notifications_active),
+            label: 'Alerts',
+          ),
+        ],
       ),
     );
+  }
+
+  Future<void> _showMobileMoreSheet(ColorScheme cs) async {
+    final picked = await showModalBottomSheet<int>(
+      context: context,
+      useSafeArea: true,
+      showDragHandle: true,
+      backgroundColor: cs.surfaceContainer,
+      builder: (ctx) {
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.people_outline),
+              title: const Text('User Management'),
+              onTap: () => Navigator.of(ctx).pop(5),
+            ),
+            ListTile(
+              leading: const Icon(Icons.history_edu_outlined),
+              title: const Text('Audit Log'),
+              onTap: () => Navigator.of(ctx).pop(6),
+            ),
+            ListTile(
+              leading: const Icon(Icons.security_outlined),
+              title: const Text('Privacy Settings'),
+              onTap: () => Navigator.of(ctx).pop(7),
+            ),
+            const SizedBox(height: 6),
+            ListTile(
+              leading: Icon(Icons.logout_rounded, color: cs.error),
+              title: Text('Logout', style: TextStyle(color: cs.error)),
+              onTap: () => Navigator.of(ctx).pop(-1),
+            ),
+            const SizedBox(height: 10),
+          ],
+        );
+      },
+    );
+
+    if (!mounted || picked == null) return;
+    if (picked == -1) {
+      _confirmLogout();
+      return;
+    }
+
+    setState(() => _selectedIndex = picked);
   }
 
   // ─────────────────────────────────────────────────────────────────────────
   // Zone A: Header
   // ─────────────────────────────────────────────────────────────────────────
-  Widget _buildHeader(ColorScheme cs, {required bool isMobile}) {
-    final showFull = isMobile || _isExpanded;
+  Widget _buildHeader(
+    ColorScheme cs, {
+    required bool isMobile,
+    bool? forceExpanded,
+  }) {
+    final showFull = isMobile || (forceExpanded ?? _isExpanded);
     return AnimatedContainer(
       duration: _animDuration,
       curve: Curves.easeInOut,
@@ -358,8 +419,12 @@ class _DashboardLayoutState extends ConsumerState<DashboardLayout> {
   // ─────────────────────────────────────────────────────────────────────────
   // Zone B: Nav item widgets
   // ─────────────────────────────────────────────────────────────────────────
-  List<Widget> _buildNavItems(ColorScheme cs, {required bool isMobile}) {
-    final showLabels = isMobile || _isExpanded;
+  List<Widget> _buildNavItems(
+    ColorScheme cs, {
+    required bool isMobile,
+    bool? forceExpanded,
+  }) {
+    final showLabels = isMobile || (forceExpanded ?? _isExpanded);
     final widgets = <Widget>[];
     String? lastSection;
 
@@ -374,7 +439,11 @@ class _DashboardLayoutState extends ConsumerState<DashboardLayout> {
           widgets.add(
             Padding(
               padding: const EdgeInsets.only(
-                  left: 20, top: 10, bottom: 4, right: 8),
+                left: 20,
+                top: 10,
+                bottom: 4,
+                right: 8,
+              ),
               child: Text(
                 item.section.toUpperCase(),
                 style: TextStyle(
@@ -390,11 +459,14 @@ class _DashboardLayoutState extends ConsumerState<DashboardLayout> {
           if (lastSection != null) {
             widgets.add(
               Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 4,
+                ),
                 child: Divider(
-                    height: 1,
-                    color: cs.outlineVariant.withOpacity(0.5)),
+                  height: 1,
+                  color: cs.outlineVariant.withOpacity(0.5),
+                ),
               ),
             );
           }
@@ -422,43 +494,48 @@ class _DashboardLayoutState extends ConsumerState<DashboardLayout> {
   // ─────────────────────────────────────────────────────────────────────────
   // Zone C: Desktop footer (logout + toggle)
   // ─────────────────────────────────────────────────────────────────────────
-  Widget _buildDesktopFooter(ColorScheme cs) {
+  Widget _buildDesktopFooter(
+    ColorScheme cs, {
+    required bool showExpanded,
+    required bool canToggle,
+  }) {
     return Padding(
       padding: const EdgeInsets.all(8),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           // Logout
-          _logoutTile(cs, expanded: _isExpanded),
+          _logoutTile(cs, expanded: showExpanded),
           const SizedBox(height: 4),
           // Collapse / expand toggle
-          Tooltip(
-            message: _isExpanded ? 'Collapse sidebar' : 'Expand sidebar',
-            child: InkWell(
-              onTap: () => setState(() => _isExpanded = !_isExpanded),
-              borderRadius: BorderRadius.circular(10),
-              child: Container(
-                height: 36,
-                decoration: BoxDecoration(
-                  color: cs.onSurface.withOpacity(0.05),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Center(
-                  child: AnimatedRotation(
-                    duration: _animDuration,
-                    // chevron_left (points left) when expanded;
-                    // rotated 180° (points right) when collapsed.
-                    turns: _isExpanded ? 0.0 : 0.5,
-                    child: Icon(
-                      Icons.chevron_left_rounded,
-                      color: cs.onSurfaceVariant,
-                      size: 22,
+          if (canToggle)
+            Tooltip(
+              message: _isExpanded ? 'Collapse sidebar' : 'Expand sidebar',
+              child: InkWell(
+                onTap: () => setState(() => _isExpanded = !_isExpanded),
+                borderRadius: BorderRadius.circular(10),
+                child: Container(
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: cs.onSurface.withOpacity(0.05),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Center(
+                    child: AnimatedRotation(
+                      duration: _animDuration,
+                      // chevron_left (points left) when expanded;
+                      // rotated 180° (points right) when collapsed.
+                      turns: _isExpanded ? 0.0 : 0.5,
+                      child: Icon(
+                        Icons.chevron_left_rounded,
+                        color: cs.onSurfaceVariant,
+                        size: 22,
+                      ),
                     ),
                   ),
                 ),
               ),
             ),
-          ),
         ],
       ),
     );
@@ -490,8 +567,7 @@ class _DashboardLayoutState extends ConsumerState<DashboardLayout> {
                   ],
                 )
               : Center(
-                  child: Icon(Icons.logout_rounded,
-                      color: cs.error, size: 20),
+                  child: Icon(Icons.logout_rounded, color: cs.error, size: 20),
                 ),
         ),
       ),
