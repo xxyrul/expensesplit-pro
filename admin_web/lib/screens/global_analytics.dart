@@ -51,7 +51,7 @@ class _GlobalAnalyticsScreenState
         ]);
       }
 
-      final csvString = const ListToCsvConverter().convert(csvData);
+      final csvString = ListToCsvConverter().convert(csvData);
       final bytes = Uri.encodeComponent(csvString);
 
       html.AnchorElement(href: 'data:text/csv;charset=utf-8,$bytes')

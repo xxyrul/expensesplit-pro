@@ -347,7 +347,7 @@ class _OcrReviewQueueScreenState extends ConsumerState<OcrReviewQueueScreen> {
                                 ),
                               ],
                             ),
-                          ),
+                          );
                         },
                       ),
                     ),
