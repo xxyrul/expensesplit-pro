@@ -1,6 +1,13 @@
 name: Firebase App Distribution
 
 on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - 'admin_web/**'
+      - 'README.md'
+      - '.github/workflows/firebase-hosting-*.yml'
   workflow_dispatch:
 
 jobs:
