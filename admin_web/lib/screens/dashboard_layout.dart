@@ -114,14 +114,146 @@ class _DashboardLayoutState extends ConsumerState<DashboardLayout> {
     );
   }
 
+  Widget _buildHeaderToggleButton({
+    required IconData icon,
+    required String tooltip,
+    required VoidCallback onTap,
+    required ColorScheme colorScheme,
+  }) {
+    return Tooltip(
+      message: tooltip,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(100),
+        child: Container(
+          width: 32,
+          height: 32,
+          decoration: BoxDecoration(
+            color: colorScheme.surfaceContainerHighest.withOpacity(0.4),
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: colorScheme.outlineVariant.withOpacity(0.4),
+              width: 1,
+            ),
+          ),
+          child: Center(
+            child: Icon(
+              icon,
+              color: colorScheme.onSurfaceVariant,
+              size: 18,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCollapsedHeader(BuildContext context, ColorScheme colorScheme, {required bool canToggle}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 24.0),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Center(
+            child: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: colorScheme.primary.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(
+                Icons.admin_panel_settings,
+                color: colorScheme.primary,
+                size: 24,
+              ),
+            ),
+          ),
+          if (canToggle) ...[
+            const SizedBox(height: 16),
+            Center(
+              child: _buildHeaderToggleButton(
+                icon: Icons.chevron_right,
+                tooltip: 'Expand Sidebar',
+                onTap: () => setState(() => _isCollapsed = false),
+                colorScheme: colorScheme,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildExpandedHeader(BuildContext context, ColorScheme colorScheme, bool isMobile, {required bool canToggle}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 24.0),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: colorScheme.primary.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(
+              Icons.admin_panel_settings,
+              color: colorScheme.primary,
+              size: 24,
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'ExpenseSplit Pro',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                    letterSpacing: 0.15,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Admin Portal',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: colorScheme.onSurfaceVariant.withOpacity(0.8),
+                    fontWeight: FontWeight.w500,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          if (canToggle) ...[
+            const SizedBox(width: 8),
+            _buildHeaderToggleButton(
+              icon: Icons.chevron_left,
+              tooltip: 'Collapse Sidebar',
+              onTap: () => setState(() => _isCollapsed = true),
+              colorScheme: colorScheme,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
   Widget _buildSidebar({
     required BuildContext context,
     required ColorScheme colorScheme,
     required bool isMobile,
     bool forceCollapsed = false,
   }) {
-    final effectiveCollapsed = forceCollapsed || _isCollapsed;
+    final effectiveCollapsed = !isMobile && (forceCollapsed || _isCollapsed);
     final sidebarWidth = effectiveCollapsed ? 76.0 : 300.0;
+    final canToggle = !isMobile && !forceCollapsed;
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 200),
@@ -132,70 +264,9 @@ class _DashboardLayoutState extends ConsumerState<DashboardLayout> {
         children: [
           SafeArea(
             bottom: false,
-            child: Padding(
-              padding: EdgeInsets.symmetric(
-                horizontal: effectiveCollapsed && !isMobile ? 18 : 20,
-                vertical: 24,
-              ),
-              child: effectiveCollapsed && !isMobile
-                  ? Center(
-                      child: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: colorScheme.primary.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Icon(
-                          Icons.admin_panel_settings,
-                          color: colorScheme.primary,
-                          size: 24,
-                        ),
-                      ),
-                    )
-                  : Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: colorScheme.primary.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Icon(
-                            Icons.admin_panel_settings,
-                            color: colorScheme.primary,
-                            size: 24,
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                'ExpenseSplit Pro',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
-                                ),
-                              ),
-                              Text(
-                                'Admin Portal',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: colorScheme.onSurfaceVariant,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-            ),
+            child: effectiveCollapsed
+                ? _buildCollapsedHeader(context, colorScheme, canToggle: canToggle)
+                : _buildExpandedHeader(context, colorScheme, isMobile, canToggle: canToggle),
           ),
 
           const Divider(height: 1, thickness: 1),
@@ -273,11 +344,6 @@ class _DashboardLayoutState extends ConsumerState<DashboardLayout> {
           ),
 
           const Divider(height: 1, thickness: 1),
-
-          if (!isMobile && !forceCollapsed) ...[
-            _buildToggleItem(collapsed: effectiveCollapsed, colorScheme: colorScheme),
-            const Divider(height: 1, thickness: 1),
-          ],
 
           Padding(
             padding: const EdgeInsets.all(12.0),
@@ -386,57 +452,6 @@ class _DashboardLayoutState extends ConsumerState<DashboardLayout> {
     );
   }
 
-  Widget _buildToggleItem({
-    required bool collapsed,
-    required ColorScheme colorScheme,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
-      child: InkWell(
-        onTap: () => setState(() => _isCollapsed = !_isCollapsed),
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          padding: EdgeInsets.symmetric(
-            vertical: 12,
-            horizontal: collapsed ? 0 : 16,
-          ),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: collapsed
-              ? Center(
-                  child: Icon(
-                    Icons.chevron_right,
-                    color: colorScheme.onSurfaceVariant,
-                    size: 20,
-                  ),
-                )
-              : Row(
-                  children: [
-                    Icon(
-                      Icons.chevron_left,
-                      color: colorScheme.onSurfaceVariant,
-                      size: 20,
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Text(
-                        'Collapse Sidebar',
-                        style: TextStyle(
-                          color: colorScheme.onSurfaceVariant,
-                          fontWeight: FontWeight.w500,
-                          fontSize: 14,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-        ),
-      ),
-    );
-  }
 
   Widget _buildSectionHeader(String title, {required bool collapsed}) {
     return AnimatedCrossFade(

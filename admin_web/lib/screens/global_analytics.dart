@@ -688,11 +688,9 @@ class _GlobalAnalyticsScreenState extends ConsumerState<GlobalAnalyticsScreen> {
           ),
         ],
       ),
-                ],
-              ),
-            ),
-          ),
-        );
+    ),
+  ),
+);
       },
     );
   }
