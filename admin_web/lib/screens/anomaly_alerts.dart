@@ -153,6 +153,7 @@ class _AnomalyAlertsScreenState extends ConsumerState<AnomalyAlertsScreen> {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final detector = ref.watch(_anomalyServiceProvider);
+    final isMobile = MediaQuery.of(context).size.width < 700;
 
     if (_isLoading) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
@@ -188,43 +189,59 @@ class _AnomalyAlertsScreenState extends ConsumerState<AnomalyAlertsScreen> {
 
         return Scaffold(
           body: Padding(
-            padding: const EdgeInsets.all(32),
+            padding: EdgeInsets.all(isMobile ? 12 : 32),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
+                Flex(
+                  direction: isMobile ? Axis.vertical : Axis.horizontal,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Expanded(
+                      flex: isMobile ? 0 : 1,
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
+                          Text(
                             'Anomalies & Integrity Monitor',
-                            style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
+                            style: TextStyle(
+                              fontSize: isMobile ? 24 : 32,
+                              fontWeight: FontWeight.bold,
+                              height: 1.1,
+                            ),
                           ),
                           const SizedBox(height: 8),
                           Text(
                             'Rule-based scanner with explainable reasons for each flag — suitable for governance review and thesis demonstration.',
-                            style: TextStyle(color: colorScheme.onSurfaceVariant, fontSize: 16),
+                            style: TextStyle(
+                              color: colorScheme.onSurfaceVariant,
+                              fontSize: isMobile ? 14 : 16,
+                              height: 1.35,
+                            ),
                           ),
                         ],
                       ),
                     ),
-                    OutlinedButton.icon(
-                      onPressed: _showRulesReference,
-                      icon: const Icon(Icons.menu_book_outlined),
-                      label: const Text('Rule reference'),
-                    ),
-                    const SizedBox(width: 12),
-                    ElevatedButton.icon(
-                      onPressed: _loadReferenceData,
-                      icon: const Icon(Icons.refresh),
-                      label: const Text('Refresh data'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: colorScheme.primaryContainer,
-                        foregroundColor: colorScheme.onPrimaryContainer,
-                      ),
+                    SizedBox(width: isMobile ? 0 : 12, height: isMobile ? 12 : 0),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        OutlinedButton.icon(
+                          onPressed: _showRulesReference,
+                          icon: const Icon(Icons.menu_book_outlined),
+                          label: const Text('Rule reference'),
+                        ),
+                        ElevatedButton.icon(
+                          onPressed: _loadReferenceData,
+                          icon: const Icon(Icons.refresh),
+                          label: const Text('Refresh data'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: colorScheme.primaryContainer,
+                            foregroundColor: colorScheme.onPrimaryContainer,
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -314,15 +331,14 @@ class _AnomalyAlertsScreenState extends ConsumerState<AnomalyAlertsScreen> {
                           return Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Row(
+                              Wrap(
+                                spacing: 12,
+                                runSpacing: 12,
                                 children: [
-                                  _buildKpiCard(colorScheme, 'Filtered alerts', '${alerts.length}', colorScheme.onSurface),
-                                  const SizedBox(width: 16),
-                                  _buildKpiCard(colorScheme, 'High', '$highCount', severityColors.high),
-                                  const SizedBox(width: 16),
-                                  _buildKpiCard(colorScheme, 'Medium', '$medCount', severityColors.medium),
-                                  const SizedBox(width: 16),
-                                  _buildKpiCard(colorScheme, 'Low', '$lowCount', severityColors.low),
+                                  _buildKpiCard(colorScheme, 'Filtered alerts', '${alerts.length}', colorScheme.onSurface, isMobile: isMobile),
+                                  _buildKpiCard(colorScheme, 'High', '$highCount', severityColors.high, isMobile: isMobile),
+                                  _buildKpiCard(colorScheme, 'Medium', '$medCount', severityColors.medium, isMobile: isMobile),
+                                  _buildKpiCard(colorScheme, 'Low', '$lowCount', severityColors.low, isMobile: isMobile),
                                 ],
                               ),
                               const SizedBox(height: 24),
@@ -383,10 +399,17 @@ class _AnomalyAlertsScreenState extends ConsumerState<AnomalyAlertsScreen> {
     );
   }
 
-  Widget _buildKpiCard(ColorScheme colorScheme, String label, String value, Color activeColor) {
-    return Expanded(
+  Widget _buildKpiCard(
+    ColorScheme colorScheme,
+    String label,
+    String value,
+    Color activeColor, {
+    required bool isMobile,
+  }) {
+    return SizedBox(
+      width: isMobile ? double.infinity : 220,
       child: Container(
-        padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.all(isMobile ? 16 : 24),
         decoration: BoxDecoration(
           color: colorScheme.surfaceContainer,
           borderRadius: BorderRadius.circular(16),
@@ -396,11 +419,11 @@ class _AnomalyAlertsScreenState extends ConsumerState<AnomalyAlertsScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(label, style: const TextStyle(fontSize: 13, color: Colors.grey)),
-            const SizedBox(height: 12),
+            const SizedBox(height: 10),
             Text(
               value,
               style: TextStyle(
-                fontSize: 32,
+                fontSize: isMobile ? 26 : 32,
                 fontWeight: FontWeight.bold,
                 color: activeColor,
               ),
@@ -554,6 +577,7 @@ class _AnomalyAlertCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = MediaQuery.of(context).size.width < 700;
     return Card(
       elevation: 0,
       margin: const EdgeInsets.only(bottom: 16),
@@ -564,7 +588,8 @@ class _AnomalyAlertCard extends StatelessWidget {
       ),
       child: Padding(
         padding: const EdgeInsets.all(20),
-        child: Row(
+        child: Flex(
+          direction: isMobile ? Axis.vertical : Axis.horizontal,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Container(
@@ -575,8 +600,9 @@ class _AnomalyAlertCard extends StatelessWidget {
               ),
               child: Icon(Icons.rule_folder_outlined, color: _severityColor),
             ),
-            const SizedBox(width: 20),
+            SizedBox(width: isMobile ? 0 : 20, height: isMobile ? 12 : 0),
             Expanded(
+              flex: isMobile ? 0 : 1,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -621,7 +647,7 @@ class _AnomalyAlertCard extends StatelessWidget {
                             child: Row(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Text('• ', style: TextStyle(fontWeight: FontWeight.bold)),
+                                const Text('- ', style: TextStyle(fontWeight: FontWeight.bold)),
                                 Expanded(child: Text(r, style: const TextStyle(fontSize: 13))),
                               ],
                             ),
@@ -660,11 +686,12 @@ class _AnomalyAlertCard extends StatelessWidget {
                                   ...alert.evidence.entries.map(
                                     (e) => Padding(
                                       padding: const EdgeInsets.symmetric(vertical: 3.0),
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
+                                      child: Wrap(
+                                        spacing: 8,
+                                        runSpacing: 4,
                                         children: [
                                           SizedBox(
-                                            width: 140,
+                                            width: isMobile ? 110 : 140,
                                             child: Text(
                                               e.key,
                                               style: TextStyle(
@@ -674,7 +701,6 @@ class _AnomalyAlertCard extends StatelessWidget {
                                               ),
                                             ),
                                           ),
-                                          const SizedBox(width: 8),
                                           Text(
                                             '${e.value}',
                                             style: TextStyle(
@@ -696,12 +722,14 @@ class _AnomalyAlertCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  Row(
+                  Wrap(
+                    spacing: 16,
+                    runSpacing: 6,
+                    crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
                       Icon(Icons.person, size: 14, color: colorScheme.onSurfaceVariant),
                       const SizedBox(width: 6),
                       Text('User: ${alert.userLabel}', style: TextStyle(color: colorScheme.onSurfaceVariant, fontSize: 12)),
-                      const SizedBox(width: 24),
                       Icon(Icons.calendar_today, size: 14, color: colorScheme.onSurfaceVariant),
                       const SizedBox(width: 6),
                       Text('Date: ${alert.displayDate}', style: TextStyle(color: colorScheme.onSurfaceVariant, fontSize: 12)),
@@ -710,7 +738,9 @@ class _AnomalyAlertCard extends StatelessWidget {
                 ],
               ),
             ),
+            SizedBox(width: isMobile ? 0 : 14, height: isMobile ? 12 : 0),
             Column(
+              crossAxisAlignment: isMobile ? CrossAxisAlignment.stretch : CrossAxisAlignment.center,
               children: [
                 if (onInspect != null)
                   FilledButton(onPressed: onInspect, child: const Text('Inspect record')),
