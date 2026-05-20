@@ -12,6 +12,60 @@
           "package_name": "com.example.expensesplit_pro"
         }
       },
+      "oauth_client": [
+        {
+          "client_id": "539814694384-bnrhnh5jf8pam73ml50hb7q02gpug61g.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.expensesplit_pro",
+            "certificate_hash": "f03273eb08348af7f205ee98e8d4e5650ae53176"
+          }
+        },
+        {
+          "client_id": "539814694384-qk0h5n3ovco79qhukieb5c019l8p3l3n.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBnlKEMvIWstNXrfAq1VufS_kaixPXYprA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "539814694384-qk0h5n3ovco79qhukieb5c019l8p3l3n.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "539814694384-iuntoep1rklt3l21gr6pt1vde33n87ge.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.expensesplitPro"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
+{
+  "project_info": {
+    "project_number": "539814694384",
+    "project_id": "expensesplit-pro-9e1c8",
+    "storage_bucket": "expensesplit-pro-9e1c8.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:539814694384:android:6bec9235c978b5f4fbe135",
+        "android_client_info": {
+          "package_name": "com.example.expensesplit_pro"
+        }
+      },
       "oauth_client": [],
       "api_key": [
         {
