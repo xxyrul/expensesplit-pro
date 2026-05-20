@@ -252,10 +252,11 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
             ),
           ),
         ),
-      ),
-    );
-      },
-    );
+      );
+    },
+  ),
+),
+);
   }
 
   Widget _buildFilterBar(ColorScheme colorScheme) {

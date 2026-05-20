@@ -410,14 +410,15 @@ class _ExpenseManagementScreenState extends ConsumerState<ExpenseManagementScree
                         ),
                       );
                     },
-                      ),
-                    ),
-                  ],
-                );
-              },
+                  ),
+                ),
+              ],
             ),
-          ),
-        );
+          );
+        },
+      ),
+    ),
+  );
       },
     );
   }

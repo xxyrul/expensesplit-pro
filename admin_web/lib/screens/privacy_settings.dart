@@ -170,9 +170,9 @@ class _PrivacySettingsScreenState extends ConsumerState<PrivacySettingsScreen> {
                           ],
                         ),
                 ],
-              );
-            },
-          ),
+              ),
+            );
+          },
         ),
       ),
     );

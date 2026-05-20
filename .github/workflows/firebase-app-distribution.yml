@@ -1,11 +1,7 @@
 name: Firebase App Distribution
 
 on:
-  push:
-    branches:
-      - main
-    paths-ignore:
-      - 'admin_web/**'
+  workflow_dispatch:
 
 jobs:
   distribute_android:

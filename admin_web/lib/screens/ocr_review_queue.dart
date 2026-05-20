@@ -347,19 +347,20 @@ class _OcrReviewQueueScreenState extends ConsumerState<OcrReviewQueueScreen> {
                                 ),
                               ],
                             ),
-                          );
+                          ),
                         },
                       ),
                     ),
                   ],
-                );
-              },
-            ),
+                ),
+              );
+            },
           ),
-        );
-      },
-    );
-  }
+        ),
+      );
+    },
+  );
+}
 
   Widget _buildFilterBar(ColorScheme colorScheme) {
     return LayoutBuilder(
