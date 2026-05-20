@@ -114,12 +114,21 @@ class _DashboardLayoutState extends ConsumerState<DashboardLayout> {
     );
   }
 
-  Widget _buildHeaderToggleButton({
-    required IconData icon,
-    required String tooltip,
-    required VoidCallback onTap,
-    required ColorScheme colorScheme,
-  }) {
+class _SidebarHeaderToggleButton extends StatelessWidget {
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback onTap;
+  final ColorScheme colorScheme;
+
+  const _SidebarHeaderToggleButton({
+    required this.icon,
+    required this.tooltip,
+    required this.onTap,
+    required this.colorScheme,
+  });
+
+  @override
+  Widget build(BuildContext context) {
     return Tooltip(
       message: tooltip,
       child: InkWell(
@@ -147,50 +156,79 @@ class _DashboardLayoutState extends ConsumerState<DashboardLayout> {
       ),
     );
   }
+}
 
-  Widget _buildCollapsedHeader(BuildContext context, ColorScheme colorScheme, {required bool canToggle}) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 24.0),
+class _CollapsedSidebarHeader extends StatelessWidget {
+  final ColorScheme colorScheme;
+  final bool canToggle;
+  final VoidCallback onToggle;
+
+  const _CollapsedSidebarHeader({
+    required this.colorScheme,
+    required this.canToggle,
+    required this.onToggle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 100,
+      alignment: Alignment.center,
       child: Column(
-        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Center(
-            child: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: colorScheme.primary.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(
-                Icons.admin_panel_settings,
-                color: colorScheme.primary,
-                size: 24,
-              ),
+          Container(
+            width: 40,
+            height: 40,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: colorScheme.primary.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(
+              Icons.admin_panel_settings,
+              color: colorScheme.primary,
+              size: 24,
             ),
           ),
           if (canToggle) ...[
-            const SizedBox(height: 16),
-            Center(
-              child: _buildHeaderToggleButton(
-                icon: Icons.chevron_right,
-                tooltip: 'Expand Sidebar',
-                onTap: () => setState(() => _isCollapsed = false),
-                colorScheme: colorScheme,
-              ),
+            const SizedBox(height: 12),
+            _SidebarHeaderToggleButton(
+              icon: Icons.chevron_right,
+              tooltip: 'Expand Sidebar',
+              onTap: onToggle,
+              colorScheme: colorScheme,
             ),
           ],
         ],
       ),
     );
   }
+}
 
-  Widget _buildExpandedHeader(BuildContext context, ColorScheme colorScheme, bool isMobile, {required bool canToggle}) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 24.0),
+class _ExpandedSidebarHeader extends StatelessWidget {
+  final ColorScheme colorScheme;
+  final bool canToggle;
+  final VoidCallback onToggle;
+
+  const _ExpandedSidebarHeader({
+    required this.colorScheme,
+    required this.canToggle,
+    required this.onToggle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 100,
+      padding: const EdgeInsets.symmetric(horizontal: 20.0),
+      alignment: Alignment.center,
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(8),
+            width: 40,
+            height: 40,
+            alignment: Alignment.center,
             decoration: BoxDecoration(
               color: colorScheme.primary.withOpacity(0.1),
               borderRadius: BorderRadius.circular(12),
@@ -233,10 +271,10 @@ class _DashboardLayoutState extends ConsumerState<DashboardLayout> {
           ),
           if (canToggle) ...[
             const SizedBox(width: 8),
-            _buildHeaderToggleButton(
+            _SidebarHeaderToggleButton(
               icon: Icons.chevron_left,
               tooltip: 'Collapse Sidebar',
-              onTap: () => setState(() => _isCollapsed = true),
+              onTap: onToggle,
               colorScheme: colorScheme,
             ),
           ],
@@ -244,6 +282,7 @@ class _DashboardLayoutState extends ConsumerState<DashboardLayout> {
       ),
     );
   }
+}
 
   Widget _buildSidebar({
     required BuildContext context,
@@ -265,8 +304,16 @@ class _DashboardLayoutState extends ConsumerState<DashboardLayout> {
           SafeArea(
             bottom: false,
             child: effectiveCollapsed
-                ? _buildCollapsedHeader(context, colorScheme, canToggle: canToggle)
-                : _buildExpandedHeader(context, colorScheme, isMobile, canToggle: canToggle),
+                ? _CollapsedSidebarHeader(
+                    colorScheme: colorScheme,
+                    canToggle: canToggle,
+                    onToggle: () => setState(() => _isCollapsed = false),
+                  )
+                : _ExpandedSidebarHeader(
+                    colorScheme: colorScheme,
+                    canToggle: canToggle,
+                    onToggle: () => setState(() => _isCollapsed = true),
+                  ),
           ),
 
           const Divider(height: 1, thickness: 1),
