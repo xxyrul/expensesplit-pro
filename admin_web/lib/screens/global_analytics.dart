@@ -112,11 +112,19 @@ class _GlobalAnalyticsScreenState extends ConsumerState<GlobalAnalyticsScreen> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final bool isNarrow = constraints.maxWidth < 1100;
+        final double contentMaxWidth = constraints.maxWidth > 1600 ? 1600 : double.infinity;
+        final EdgeInsets contentPadding = EdgeInsets.symmetric(
+          horizontal: constraints.maxWidth > 1440 ? 40 : 32,
+          vertical: 32,
+        );
 
-        return Padding(
-          padding: const EdgeInsets.all(32.0),
-          child: ListView(
-            children: [
+        return Center(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: contentMaxWidth),
+            child: Padding(
+              padding: contentPadding,
+              child: ListView(
+                children: [
               Text(
                 'Platform Command Center',
                 style: TextStyle(
@@ -169,45 +177,48 @@ class _GlobalAnalyticsScreenState extends ConsumerState<GlobalAnalyticsScreen> {
                   ],
                 )
               else
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildSimpleStatCard(
-                        title: 'Total Users',
-                        icon: Icons.people,
-                        stream: _firestore.collection('users').snapshots(),
-                        formatter: (snap) => snap.docs.length.toString(),
+                IntrinsicHeight(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Expanded(
+                        child: _buildSimpleStatCard(
+                          title: 'Total Users',
+                          icon: Icons.people,
+                          stream: _firestore.collection('users').snapshots(),
+                          formatter: (snap) => snap.docs.length.toString(),
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 24),
-                    Expanded(
-                      child: _buildSimpleStatCard(
-                        title: 'Expenses Tracked',
-                        icon: Icons.receipt_long,
-                        stream: _firestore.collectionGroup('expenses').snapshots(),
-                        formatter: (snap) => snap.docs.length.toString(),
+                      const SizedBox(width: 24),
+                      Expanded(
+                        child: _buildSimpleStatCard(
+                          title: 'Expenses Tracked',
+                          icon: Icons.receipt_long,
+                          stream: _firestore.collectionGroup('expenses').snapshots(),
+                          formatter: (snap) => snap.docs.length.toString(),
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 24),
-                    Expanded(
-                      child: _buildSimpleStatCard(
-                        title: 'OCR Scanner Accuracy',
-                        icon: Icons.psychology,
-                        stream: _firestore.collectionGroup('ocr_logs').snapshots(),
-                        formatter: (snap) {
-                          if (snap.docs.isEmpty) return 'N/A';
-                          final matches = snap.docs.where((doc) {
-                            final data = doc.data() as Map<String, dynamic>;
-                            final sys = (data['systemSuggestedAmount'] as num?)?.toDouble() ?? 0.0;
-                            final user = (data['userCorrectedAmount'] as num?)?.toDouble() ?? 0.0;
-                            return sys == user;
-                          }).length;
-                          final percentage = (matches / snap.docs.length) * 100;
-                          return '${percentage.toStringAsFixed(1)}%';
-                        },
+                      const SizedBox(width: 24),
+                      Expanded(
+                        child: _buildSimpleStatCard(
+                          title: 'OCR Scanner Accuracy',
+                          icon: Icons.psychology,
+                          stream: _firestore.collectionGroup('ocr_logs').snapshots(),
+                          formatter: (snap) {
+                            if (snap.docs.isEmpty) return 'N/A';
+                            final matches = snap.docs.where((doc) {
+                              final data = doc.data() as Map<String, dynamic>;
+                              final sys = (data['systemSuggestedAmount'] as num?)?.toDouble() ?? 0.0;
+                              final user = (data['userCorrectedAmount'] as num?)?.toDouble() ?? 0.0;
+                              return sys == user;
+                            }).length;
+                            final percentage = (matches / snap.docs.length) * 100;
+                            return '${percentage.toStringAsFixed(1)}%';
+                          },
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               
               const SizedBox(height: 32),
@@ -420,185 +431,187 @@ class _GlobalAnalyticsScreenState extends ConsumerState<GlobalAnalyticsScreen> {
           const SizedBox(height: 32),
 
           // RECENT ACTIVITY & CONTROLS ROW
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Recent Activity Feed
-              Expanded(
-                flex: 4,
-                child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.surfaceContainer,
-                    borderRadius: BorderRadius.circular(24),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.2),
-                        blurRadius: 24,
-                        offset: const Offset(0, 8),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(Icons.history, color: colorScheme.primary),
-                          const SizedBox(width: 8),
-                          Text(
-                            "Recent Governance Actions",
-                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.onSurface),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      StreamBuilder<QuerySnapshot>(
-                        stream: _firestore
-                            .collection('system_config')
-                            .doc('audit_logs')
-                            .collection('entries')
-                            .orderBy('timestamp', descending: true)
-                            .limit(3)
-                            .snapshots(),
-                        builder: (context, snapshot) {
-                          if (snapshot.connectionState == ConnectionState.waiting) {
-                            return const Center(child: CircularProgressIndicator());
-                          }
-                          final logs = snapshot.data?.docs ?? [];
-                          if (logs.isEmpty) {
-                            return const Padding(
-                              padding: EdgeInsets.symmetric(vertical: 20.0),
-                              child: Text('No governance events recorded yet.', style: TextStyle(color: Colors.grey)),
-                            );
-                          }
+          IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Recent Activity Feed
+                Expanded(
+                  flex: 7,
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.surfaceContainer,
+                      borderRadius: BorderRadius.circular(24),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.2),
+                          blurRadius: 24,
+                          offset: const Offset(0, 8),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(Icons.history, color: colorScheme.primary),
+                            const SizedBox(width: 8),
+                            Text(
+                              "Recent Governance Actions",
+                              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.onSurface),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        StreamBuilder<QuerySnapshot>(
+                          stream: _firestore
+                              .collection('system_config')
+                              .doc('audit_logs')
+                              .collection('entries')
+                              .orderBy('timestamp', descending: true)
+                              .limit(3)
+                              .snapshots(),
+                          builder: (context, snapshot) {
+                            if (snapshot.connectionState == ConnectionState.waiting) {
+                              return const Center(child: CircularProgressIndicator());
+                            }
+                            final logs = snapshot.data?.docs ?? [];
+                            if (logs.isEmpty) {
+                              return const Padding(
+                                padding: EdgeInsets.symmetric(vertical: 20.0),
+                                child: Text('No governance events recorded yet.', style: TextStyle(color: Colors.grey)),
+                              );
+                            }
 
-                          return Column(
-                            children: logs.map((doc) {
-                              final data = doc.data() as Map<String, dynamic>;
-                              final action = data['action'] ?? 'EVENT';
-                              final detail = data['detail'] ?? '';
-                              final email = data['adminEmail'] ?? 'Admin';
-                              
-                              String timeStr = 'Just now';
-                              if (data['timestamp'] != null && data['timestamp'] is Timestamp) {
-                                timeStr = DateFormat('HH:mm').format((data['timestamp'] as Timestamp).toDate());
-                              }
+                            return Column(
+                              children: logs.map((doc) {
+                                final data = doc.data() as Map<String, dynamic>;
+                                final action = data['action'] ?? 'EVENT';
+                                final detail = data['detail'] ?? '';
+                                final email = data['adminEmail'] ?? 'Admin';
+                                
+                                String timeStr = 'Just now';
+                                if (data['timestamp'] != null && data['timestamp'] is Timestamp) {
+                                  timeStr = DateFormat('HH:mm').format((data['timestamp'] as Timestamp).toDate());
+                                }
 
-                              return Container(
-                                width: double.infinity,
-                                margin: const EdgeInsets.only(bottom: 12),
-                                padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
-                                decoration: BoxDecoration(
-                                  color: colorScheme.surfaceContainerHighest.withOpacity(0.4),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                      decoration: BoxDecoration(
-                                        color: colorScheme.primary.withOpacity(0.1),
-                                        borderRadius: BorderRadius.circular(4),
+                                return Container(
+                                  width: double.infinity,
+                                  margin: const EdgeInsets.only(bottom: 12),
+                                  padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+                                  decoration: BoxDecoration(
+                                    color: colorScheme.surfaceContainerHighest.withOpacity(0.4),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Row(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                        decoration: BoxDecoration(
+                                          color: colorScheme.primary.withOpacity(0.1),
+                                          borderRadius: BorderRadius.circular(4),
+                                        ),
+                                        child: Text(action, style: TextStyle(fontSize: 10, color: colorScheme.primary, fontWeight: FontWeight.bold)),
                                       ),
-                                      child: Text(action, style: TextStyle(fontSize: 10, color: colorScheme.primary, fontWeight: FontWeight.bold)),
-                                    ),
-                                    const SizedBox(width: 12),
-                                    Expanded(
-                                      child: Text(
-                                        detail,
-                                        style: const TextStyle(fontSize: 13),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 12),
-                                    Column(
-                                      mainAxisSize: MainAxisSize.min,
-                                      crossAxisAlignment: CrossAxisAlignment.end,
-                                      children: [
-                                        Text(
-                                          email,
-                                          style: const TextStyle(fontSize: 11, color: Colors.grey),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Text(
+                                          detail,
+                                          style: const TextStyle(fontSize: 13),
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
-                                          textAlign: TextAlign.right,
                                         ),
-                                        const SizedBox(height: 2),
-                                        Text(
-                                          timeStr,
-                                          style: const TextStyle(fontSize: 11, color: Colors.grey),
-                                        ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                              );
-                            }).toList(),
-                          );
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(width: 24),
-              // CSV Export Feature
-              Expanded(
-                flex: 3,
-                child: Container(
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.surfaceContainer,
-                    borderRadius: BorderRadius.circular(24),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.2),
-                        blurRadius: 24,
-                        offset: const Offset(0, 8),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          const Icon(Icons.download, color: Color(0xFF3B82F6)),
-                          const SizedBox(width: 8),
-                          Text(
-                            "FYP Research Data",
-                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.onSurface),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        "Download a strict-privacy aggregated CSV file of platform activity for data analysis.",
-                        style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 14),
-                      ),
-                      const SizedBox(height: 16),
-                      SizedBox(
-                        width: double.infinity,
-                        height: 45,
-                        child: ElevatedButton.icon(
-                          onPressed: _isExporting ? null : _exportData,
-                          icon: _isExporting ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.table_chart),
-                          label: const Text("Export Anonymized CSV"),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF3B82F6),
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        crossAxisAlignment: CrossAxisAlignment.end,
+                                        children: [
+                                          Text(
+                                            email,
+                                            style: const TextStyle(fontSize: 11, color: Colors.grey),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            textAlign: TextAlign.right,
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            timeStr,
+                                            style: const TextStyle(fontSize: 11, color: Colors.grey),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              }).toList(),
+                            );
+                          },
                         ),
-                      )
-                    ],
+                      ],
+                    ),
                   ),
                 ),
-              ),
-            ],
+                const SizedBox(width: 24),
+                // CSV Export Feature
+                Expanded(
+                  flex: 5,
+                  child: Container(
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.surfaceContainer,
+                      borderRadius: BorderRadius.circular(24),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.2),
+                          blurRadius: 24,
+                          offset: const Offset(0, 8),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(Icons.download, color: Color(0xFF3B82F6)),
+                            const SizedBox(width: 8),
+                            Text(
+                              "FYP Research Data",
+                              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.onSurface),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          "Download a strict-privacy aggregated CSV file of platform activity for data analysis.",
+                          style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 14),
+                        ),
+                        const SizedBox(height: 16),
+                        SizedBox(
+                          width: double.infinity,
+                          height: 45,
+                          child: ElevatedButton.icon(
+                            onPressed: _isExporting ? null : _exportData,
+                            icon: _isExporting ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.table_chart),
+                            label: const Text("Export Anonymized CSV"),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF3B82F6),
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            ),
+                          ),
+                        )
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
           
           const SizedBox(height: 24),
@@ -636,40 +649,50 @@ class _GlobalAnalyticsScreenState extends ConsumerState<GlobalAnalyticsScreen> {
                   style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 14),
                 ),
                 const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _broadcastController,
-                        decoration: InputDecoration(
-                          hintText: "e.g., Welcome to ExpenseSplit Pro v1.0!",
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 800),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: _broadcastController,
+                            decoration: InputDecoration(
+                              hintText: "e.g., Welcome to ExpenseSplit Pro v1.0!",
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                            ),
+                          ),
                         ),
-                      ),
+                        const SizedBox(width: 16),
+                        SizedBox(
+                          height: 48,
+                          child: ElevatedButton.icon(
+                            onPressed: _isBroadcasting ? null : _pushBroadcast,
+                            icon: _isBroadcasting ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.send),
+                            label: const Text("Push Live"),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFFF59E0B),
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            ),
+                          ),
+                        )
+                      ],
                     ),
-                    const SizedBox(width: 16),
-                    SizedBox(
-                      height: 48,
-                      child: ElevatedButton.icon(
-                        onPressed: _isBroadcasting ? null : _pushBroadcast,
-                        icon: _isBroadcasting ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.send),
-                        label: const Text("Push Live"),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFF59E0B),
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        ),
-                      ),
-                    )
-                  ],
+                  ),
                 ),
               ],
             ),
           ),
         ],
       ),
-    );
+                ],
+              ),
+            ),
+          ),
+        );
       },
     );
   }
