@@ -114,175 +114,6 @@ class _DashboardLayoutState extends ConsumerState<DashboardLayout> {
     );
   }
 
-class _SidebarHeaderToggleButton extends StatelessWidget {
-  final IconData icon;
-  final String tooltip;
-  final VoidCallback onTap;
-  final ColorScheme colorScheme;
-
-  const _SidebarHeaderToggleButton({
-    required this.icon,
-    required this.tooltip,
-    required this.onTap,
-    required this.colorScheme,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Tooltip(
-      message: tooltip,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(100),
-        child: Container(
-          width: 32,
-          height: 32,
-          decoration: BoxDecoration(
-            color: colorScheme.surfaceContainerHighest.withOpacity(0.4),
-            shape: BoxShape.circle,
-            border: Border.all(
-              color: colorScheme.outlineVariant.withOpacity(0.4),
-              width: 1,
-            ),
-          ),
-          child: Center(
-            child: Icon(
-              icon,
-              color: colorScheme.onSurfaceVariant,
-              size: 18,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _CollapsedSidebarHeader extends StatelessWidget {
-  final ColorScheme colorScheme;
-  final bool canToggle;
-  final VoidCallback onToggle;
-
-  const _CollapsedSidebarHeader({
-    required this.colorScheme,
-    required this.canToggle,
-    required this.onToggle,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 100,
-      alignment: Alignment.center,
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: colorScheme.primary.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(
-              Icons.admin_panel_settings,
-              color: colorScheme.primary,
-              size: 24,
-            ),
-          ),
-          if (canToggle) ...[
-            const SizedBox(height: 12),
-            _SidebarHeaderToggleButton(
-              icon: Icons.chevron_right,
-              tooltip: 'Expand Sidebar',
-              onTap: onToggle,
-              colorScheme: colorScheme,
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _ExpandedSidebarHeader extends StatelessWidget {
-  final ColorScheme colorScheme;
-  final bool canToggle;
-  final VoidCallback onToggle;
-
-  const _ExpandedSidebarHeader({
-    required this.colorScheme,
-    required this.canToggle,
-    required this.onToggle,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 100,
-      padding: const EdgeInsets.symmetric(horizontal: 20.0),
-      alignment: Alignment.center,
-      child: Row(
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: colorScheme.primary.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(
-              Icons.admin_panel_settings,
-              color: colorScheme.primary,
-              size: 24,
-            ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'ExpenseSplit Pro',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                    letterSpacing: 0.15,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  'Admin Portal',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: colorScheme.onSurfaceVariant.withOpacity(0.8),
-                    fontWeight: FontWeight.w500,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          ),
-          if (canToggle) ...[
-            const SizedBox(width: 8),
-            _SidebarHeaderToggleButton(
-              icon: Icons.chevron_left,
-              tooltip: 'Collapse Sidebar',
-              onTap: onToggle,
-              colorScheme: colorScheme,
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}
 
   Widget _buildSidebar({
     required BuildContext context,
@@ -612,5 +443,175 @@ class _ExpandedSidebarHeader extends StatelessWidget {
       default:
         return const SizedBox.shrink();
     }
+  }
+}
+
+class _SidebarHeaderToggleButton extends StatelessWidget {
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback onTap;
+  final ColorScheme colorScheme;
+
+  const _SidebarHeaderToggleButton({
+    required this.icon,
+    required this.tooltip,
+    required this.onTap,
+    required this.colorScheme,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(100),
+        child: Container(
+          width: 32,
+          height: 32,
+          decoration: BoxDecoration(
+            color: colorScheme.surfaceContainerHighest.withOpacity(0.4),
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: colorScheme.outlineVariant.withOpacity(0.4),
+              width: 1,
+            ),
+          ),
+          child: Center(
+            child: Icon(
+              icon,
+              color: colorScheme.onSurfaceVariant,
+              size: 18,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CollapsedSidebarHeader extends StatelessWidget {
+  final ColorScheme colorScheme;
+  final bool canToggle;
+  final VoidCallback onToggle;
+
+  const _CollapsedSidebarHeader({
+    required this.colorScheme,
+    required this.canToggle,
+    required this.onToggle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 100,
+      alignment: Alignment.center,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: colorScheme.primary.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(
+              Icons.admin_panel_settings,
+              color: colorScheme.primary,
+              size: 24,
+            ),
+          ),
+          if (canToggle) ...[
+            const SizedBox(height: 12),
+            _SidebarHeaderToggleButton(
+              icon: Icons.chevron_right,
+              tooltip: 'Expand Sidebar',
+              onTap: onToggle,
+              colorScheme: colorScheme,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _ExpandedSidebarHeader extends StatelessWidget {
+  final ColorScheme colorScheme;
+  final bool canToggle;
+  final VoidCallback onToggle;
+
+  const _ExpandedSidebarHeader({
+    required this.colorScheme,
+    required this.canToggle,
+    required this.onToggle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 100,
+      padding: const EdgeInsets.symmetric(horizontal: 20.0),
+      alignment: Alignment.center,
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: colorScheme.primary.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(
+              Icons.admin_panel_settings,
+              color: colorScheme.primary,
+              size: 24,
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'ExpenseSplit Pro',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                    letterSpacing: 0.15,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Admin Portal',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: colorScheme.onSurfaceVariant.withOpacity(0.8),
+                    fontWeight: FontWeight.w500,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          if (canToggle) ...[
+            const SizedBox(width: 8),
+            _SidebarHeaderToggleButton(
+              icon: Icons.chevron_left,
+              tooltip: 'Collapse Sidebar',
+              onTap: onToggle,
+              colorScheme: colorScheme,
+            ),
+          ],
+        ],
+      ),
+    );
   }
 }
