@@ -1012,6 +1012,20 @@ class _SettingsViewState extends ConsumerState<SettingsView>
                             colorScheme.primary,
                             onTap: _exportCurrentMonth,
                           ),
+                          const Divider(height: 1),
+                          _buildListTile(
+                            Icons.privacy_tip_outlined,
+                            'Privacy Policy',
+                            colorScheme.primary,
+                            onTap: _showPrivacyPolicyDialog,
+                          ),
+                          const Divider(height: 1),
+                          _buildListTile(
+                            Icons.description_outlined,
+                            'Terms of Service',
+                            colorScheme.primary,
+                            onTap: _showTermsDialog,
+                          ),
                         ]),
                         const SizedBox(height: 40),
                         _buildLogoutButton(ref),
@@ -1042,6 +1056,112 @@ class _SettingsViewState extends ConsumerState<SettingsView>
             width: 1.5,
           ),
         ),
+      ),
+    );
+  }
+
+  void _showPrivacyPolicyDialog() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Row(
+          children: [
+            Icon(Icons.privacy_tip_outlined),
+            SizedBox(width: 10),
+            Text('Privacy Policy', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+          ],
+        ),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _policySection('Data Collection',
+                    'We collect the following data to operate ExpenseSplit Pro:\n\n• Expense records, amounts, categories, and split allocations entered by you.\n• Receipt images you upload for OCR-based parsing.\n• Your login email address via Google OAuth 2.0 authentication.\n• An optional phone number if you link it for account recovery.'),
+                _policySection('Data Usage',
+                    '• Group expense splitting metrics and balance calculations.\n• Internal audit trail logging for accountability and compliance.\n• Financial reports and analytics for your expense groups.\n• We never use your data for advertising or share it with third parties commercially.'),
+                _policySection('Security',
+                    '• All data is transmitted over HTTPS/TLS encryption.\n• Role-based access control enforced at the database level.\n• Explicit enforcement of PII data masking configurations is available via the Admin Portal.\n• Immutable audit logs protect against unauthorised data modification.'),
+                _policySection('Data Retention',
+                    'Your data is retained only as long as necessary to provide the service. Administrators can configure retention periods. You may request deletion of your account and data at any time.'),
+                _policySection('Your Rights',
+                    'You have the right to access, correct, or delete your personal data. Contact your system administrator to exercise these rights.'),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showTermsDialog() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Row(
+          children: [
+            Icon(Icons.description_outlined),
+            SizedBox(width: 10),
+            Text('Terms of Service', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+          ],
+        ),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _policySection('Acceptance',
+                    'By using ExpenseSplit Pro, you agree to these Terms. If you do not agree, please discontinue use of the application immediately.'),
+                _policySection('Authorised Use',
+                    'This app is for personal and group expense tracking only. You agree to:\n\n• Enter truthful and accurate expense data.\n• Use your own account and not share credentials.\n• Not attempt to access other users\' data without permission.\n• Not use this app for any illegal or fraudulent purpose.'),
+                _policySection('User Responsibilities',
+                    '• You are responsible for the accuracy of expense records you create.\n• Report any bugs, security issues, or suspicious behaviour to the system administrator.\n• You are responsible for keeping your login credentials secure.'),
+                _policySection('Account Termination',
+                    'Accounts may be suspended or terminated for violation of these terms, including falsifying data, unauthorised access attempts, or misuse of the application.'),
+                _policySection('Google Authentication',
+                    'This app uses Google OAuth 2.0 for sign-in. By using Google sign-in, you also agree to Google\'s Terms of Service and Privacy Policy.'),
+                _policySection('Governing Law',
+                    'These Terms are governed by the laws of Malaysia. Any disputes shall be resolved under the jurisdiction of Malaysian courts.'),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Dismiss'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _policySection(String title, String body) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            body,
+            style: const TextStyle(fontSize: 13, height: 1.6),
+          ),
+        ],
       ),
     );
   }
