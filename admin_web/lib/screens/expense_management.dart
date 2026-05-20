@@ -175,51 +175,83 @@ class _ExpenseManagementScreenState extends ConsumerState<ExpenseManagementScree
         return Scaffold(
           body: Padding(
             padding: const EdgeInsets.all(32.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Header
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final isNarrow = constraints.maxWidth < 900;
+
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Expense Management',
-                          style: TextStyle(
-                            fontSize: 32,
-                            fontWeight: FontWeight.bold,
+                    // Header
+                    isNarrow
+                        ? Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Expense Management',
+                                style: TextStyle(
+                                  fontSize: 32,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Inspect, filter, edit, and moderate expense records across all system users.',
+                                style: TextStyle(color: colorScheme.onSurfaceVariant, fontSize: 16),
+                              ),
+                              const SizedBox(height: 16),
+                              ElevatedButton.icon(
+                                onPressed: () => _loadUserCache(),
+                                icon: const Icon(Icons.refresh),
+                                label: const Text('Sync Cache'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: colorScheme.primaryContainer,
+                                  foregroundColor: colorScheme.onPrimaryContainer,
+                                ),
+                              ),
+                            ],
+                          )
+                        : Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    'Expense Management',
+                                    style: TextStyle(
+                                      fontSize: 32,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    'Inspect, filter, edit, and moderate expense records across all system users.',
+                                    style: TextStyle(color: colorScheme.onSurfaceVariant, fontSize: 16),
+                                  ),
+                                ],
+                              ),
+                              ElevatedButton.icon(
+                                onPressed: () => _loadUserCache(),
+                                icon: const Icon(Icons.refresh),
+                                label: const Text('Sync Cache'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: colorScheme.primaryContainer,
+                                  foregroundColor: colorScheme.onPrimaryContainer,
+                                ),
+                              )
+                            ],
                           ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Inspect, filter, edit, and moderate expense records across all system users.',
-                          style: TextStyle(color: colorScheme.onSurfaceVariant, fontSize: 16),
-                        ),
-                      ],
-                    ),
-                    ElevatedButton.icon(
-                      onPressed: () => _loadUserCache(),
-                      icon: const Icon(Icons.refresh),
-                      label: const Text('Sync Cache'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: colorScheme.primaryContainer,
-                        foregroundColor: colorScheme.onPrimaryContainer,
-                      ),
-                    )
-                  ],
-                ),
-                const SizedBox(height: 32),
+                    const SizedBox(height: 32),
 
-                // Filters panel card
-                _buildFiltersCard(colorScheme),
+                    // Filters panel card
+                    _buildFiltersCard(colorScheme),
 
-                const SizedBox(height: 24),
+                    const SizedBox(height: 24),
 
-                // Table and Data view
-                Expanded(
-                  child: StreamBuilder<QuerySnapshot>(
+                    // Table and Data view
+                    Expanded(
+                      child: StreamBuilder<QuerySnapshot>(
                     stream: _firestore.collectionGroup('expenses').snapshots(),
                     builder: (context, snapshot) {
                       if (snapshot.connectionState == ConnectionState.waiting) {
@@ -376,9 +408,11 @@ class _ExpenseManagementScreenState extends ConsumerState<ExpenseManagementScree
                         ),
                       );
                     },
-                  ),
-                ),
-              ],
+                      ),
+                    ),
+                  ],
+                );
+              },
             ),
           ),
         );

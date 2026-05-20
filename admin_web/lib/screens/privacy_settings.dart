@@ -111,50 +111,67 @@ class _PrivacySettingsScreenState extends ConsumerState<PrivacySettingsScreen> {
       body: Padding(
         padding: const EdgeInsets.all(32.0),
         child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Privacy & Data Governance',
-                    style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Configure personal data masking rules, record retention schedules, and oversee regulatory compliance policies.',
-                    style: TextStyle(color: colorScheme.onSurfaceVariant, fontSize: 16),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 32),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final isNarrow = constraints.maxWidth < 900;
 
-              // Layout Grid
-              Row(
+              return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Left panel: Settings Form
-                  Expanded(
-                    flex: 3,
-                    child: Column(
-                      children: [
-                        _buildSettingsCard(colorScheme),
-                        const SizedBox(height: 24),
-                        _buildComplianceSummaryCard(colorScheme),
-                      ],
-                    ),
+                  // Header
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Privacy & Data Governance',
+                        style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Configure personal data masking rules, record retention schedules, and oversee regulatory compliance policies.',
+                        style: TextStyle(color: colorScheme.onSurfaceVariant, fontSize: 16),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 32),
-                  // Right panel: Info & Standards
-                  Expanded(
-                    flex: 2,
-                    child: _buildGovernanceInfoCard(colorScheme),
-                  ),
+                  const SizedBox(height: 32),
+
+                  // Layout Grid
+                  isNarrow
+                      ? Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            _buildSettingsCard(colorScheme),
+                            const SizedBox(height: 24),
+                            _buildComplianceSummaryCard(colorScheme),
+                            const SizedBox(height: 24),
+                            _buildGovernanceInfoCard(colorScheme),
+                          ],
+                        )
+                      : Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Left panel: Settings Form
+                            Expanded(
+                              flex: 3,
+                              child: Column(
+                                children: [
+                                  _buildSettingsCard(colorScheme),
+                                  const SizedBox(height: 24),
+                                  _buildComplianceSummaryCard(colorScheme),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 32),
+                            // Right panel: Info & Standards
+                            Expanded(
+                              flex: 2,
+                              child: _buildGovernanceInfoCard(colorScheme),
+                            ),
+                          ],
+                        ),
                 ],
-              ),
-            ],
+              );
+            },
           ),
         ),
       ),

@@ -56,11 +56,7 @@ class _DashboardLayoutState extends ConsumerState<DashboardLayout> {
           if (useMobileLayout) {
             return SafeArea(
               top: false,
-              child: Container(
-                width: double.infinity,
-                clipBehavior: Clip.hardEdge,
-                child: SizedBox.expand(child: _buildContentArea()),
-              ),
+              child: _buildContentArea(),
             );
           }
 
@@ -73,7 +69,7 @@ class _DashboardLayoutState extends ConsumerState<DashboardLayout> {
               ),
               const VerticalDivider(thickness: 1, width: 1),
               Expanded(
-                child: SizedBox.expand(child: _buildContentArea()),
+                child: _buildContentArea(),
               ),
             ],
           );
@@ -87,11 +83,11 @@ class _DashboardLayoutState extends ConsumerState<DashboardLayout> {
     required ColorScheme colorScheme,
     required bool isMobile,
   }) {
-    final sidebarWidth = _isCollapsed ? 76.0 : 280.0;
+    final sidebarWidth = _isCollapsed ? 76.0 : 300.0;
 
     // compute header padding so the positioned toggle doesn't overlap header content
     final headerLeftPad = _isCollapsed && !isMobile ? 10.0 : 20.0;
-    final headerRightPad = !isMobile && !_isCollapsed ? 56.0 : ( _isCollapsed && !isMobile ? 10.0 : 20.0 );
+    final headerRightPad = !isMobile && !_isCollapsed ? 64.0 : (_isCollapsed && !isMobile ? 10.0 : 20.0);
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 200),
@@ -133,40 +129,35 @@ class _DashboardLayoutState extends ConsumerState<DashboardLayout> {
                               opacity: 1.0,
                               duration: const Duration(milliseconds: 200),
                               curve: Curves.easeInOut,
-                              child: SingleChildScrollView(
-                                scrollDirection: Axis.horizontal,
-                                physics: const NeverScrollableScrollPhysics(),
-                                child: Row(
+                              child: Padding(
+                                padding: const EdgeInsets.only(left: 16),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    const SizedBox(width: 16),
-                                    Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        const Text(
-                                          'ExpenseSplit Pro',
-                                          style: TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 16,
-                                          ),
-                                        ),
-                                        Text(
-                                          'Admin Portal',
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            color: colorScheme.onSurfaceVariant,
-                                          ),
-                                        ),
-                                      ],
+                                    const Text(
+                                      'ExpenseSplit Pro',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16,
+                                      ),
+                                    ),
+                                    Text(
+                                      'Admin Portal',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: colorScheme.onSurfaceVariant,
+                                      ),
                                     ),
                                   ],
                                 ),
                               ),
                             ),
                           ),
-                        const Spacer(),
-                        // note: toggle button moved out of this Row to avoid overflow
-                        // and is positioned separately below
                       ],
                     ),
                   ),
@@ -314,23 +305,20 @@ class _DashboardLayoutState extends ConsumerState<DashboardLayout> {
           // Toggle button pinned to the right and vertically centered of the header
           if (!isMobile)
             Positioned(
-              right: 8,
-              top: 0,
-              bottom: 0,
-              child: Center(
-                child: Material(
-                  color: Colors.transparent,
-                  child: SizedBox(
-                    width: 36,
-                    height: 36,
-                    child: IconButton(
-                      padding: EdgeInsets.zero,
-                      visualDensity: VisualDensity.compact,
-                      constraints: const BoxConstraints.tightFor(width: 36, height: 36),
-                      onPressed: () => setState(() => _isCollapsed = !_isCollapsed),
-                      icon: Icon(_isCollapsed ? Icons.chevron_right : Icons.chevron_left, color: colorScheme.onSurfaceVariant),
-                      tooltip: _isCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar',
-                    ),
+              right: 0,
+              top: 12,
+              child: Material(
+                color: Colors.transparent,
+                child: SizedBox(
+                  width: 40,
+                  height: 40,
+                  child: IconButton(
+                    padding: EdgeInsets.zero,
+                    visualDensity: VisualDensity.compact,
+                    constraints: const BoxConstraints.tightFor(width: 40, height: 40),
+                    onPressed: () => setState(() => _isCollapsed = !_isCollapsed),
+                    icon: Icon(_isCollapsed ? Icons.chevron_right : Icons.chevron_left, color: colorScheme.onSurfaceVariant),
+                    tooltip: _isCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar',
                   ),
                 ),
               ),
@@ -357,7 +345,7 @@ class _DashboardLayoutState extends ConsumerState<DashboardLayout> {
           ),
         );
       },
-      child: SizedBox.expand(
+      child: KeyedSubtree(
         key: ValueKey<int>(_selectedIndex),
         child: _buildContent(_selectedIndex),
       ),
