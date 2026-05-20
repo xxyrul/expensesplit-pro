@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
-import 'package:csv/csv.dart';
+
 // ignore: avoid_web_libraries_in_flutter
 import 'dart:html' as html;
 import '../widgets/modern_bottom_toast.dart';
@@ -38,20 +38,15 @@ class _GlobalAnalyticsScreenState
       final snapshot =
           await _firestore.collectionGroup('expenses').get();
 
-      final List<List<dynamic>> csvData = [
-        ['Date', 'Category', 'Platform'],
-      ];
-
+      // Build CSV manually — no external package needed
+      final rows = <String>['Date,Category,Platform'];
       for (final doc in snapshot.docs) {
         final data = doc.data() as Map<String, dynamic>;
-        csvData.add([
-          data['date'] ?? 'Unknown',
-          data['category'] ?? 'General',
-          'ExpenseSplit Pro',
-        ]);
+        final date = (data['date'] ?? 'Unknown').toString().replaceAll(',', ' ');
+        final cat  = (data['category'] ?? 'General').toString().replaceAll(',', ' ');
+        rows.add('$date,$cat,ExpenseSplit Pro');
       }
-
-      final csvString = ListToCsvConverter().convert(csvData);
+      final csvString = rows.join('\n');
       final bytes = Uri.encodeComponent(csvString);
 
       html.AnchorElement(href: 'data:text/csv;charset=utf-8,$bytes')
