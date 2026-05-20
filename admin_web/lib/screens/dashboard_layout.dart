@@ -38,7 +38,7 @@ class _DashboardLayoutState extends ConsumerState<DashboardLayout> {
           : null,
       drawer: isMobile
           ? Drawer(
-              width: 304,
+              width: 340,
               child: SafeArea(
                 bottom: false,
                 child: _buildSidebar(
@@ -56,7 +56,9 @@ class _DashboardLayoutState extends ConsumerState<DashboardLayout> {
           if (useMobileLayout) {
             return SafeArea(
               top: false,
-              child: _buildContentArea(),
+              child: SizedBox.expand(
+                child: _buildContentArea(),
+              ),
             );
           }
 
@@ -69,7 +71,9 @@ class _DashboardLayoutState extends ConsumerState<DashboardLayout> {
               ),
               const VerticalDivider(thickness: 1, width: 1),
               Expanded(
-                child: _buildContentArea(),
+                child: SizedBox.expand(
+                  child: _buildContentArea(),
+                ),
               ),
             ],
           );
@@ -329,25 +333,36 @@ class _DashboardLayoutState extends ConsumerState<DashboardLayout> {
   }
 
   Widget _buildContentArea() {
-    return AnimatedSwitcher(
-      duration: const Duration(milliseconds: 220),
-      switchInCurve: Curves.easeInOut,
-      switchOutCurve: Curves.easeInOut,
-      transitionBuilder: (Widget child, Animation<double> animation) {
-        return FadeTransition(
-          opacity: animation,
-          child: SlideTransition(
-            position: Tween<Offset>(
-              begin: const Offset(0.01, 0.0),
-              end: Offset.zero,
-            ).animate(animation),
-            child: child,
-          ),
-        );
-      },
-      child: KeyedSubtree(
-        key: ValueKey<int>(_selectedIndex),
-        child: _buildContent(_selectedIndex),
+    return SizedBox.expand(
+      child: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 220),
+        switchInCurve: Curves.easeInOut,
+        switchOutCurve: Curves.easeInOut,
+        layoutBuilder: (currentChild, previousChildren) {
+          return Stack(
+            fit: StackFit.expand,
+            children: [
+              ...previousChildren,
+              if (currentChild != null) currentChild,
+            ],
+          );
+        },
+        transitionBuilder: (Widget child, Animation<double> animation) {
+          return FadeTransition(
+            opacity: animation,
+            child: SlideTransition(
+              position: Tween<Offset>(
+                begin: const Offset(0.01, 0.0),
+                end: Offset.zero,
+              ).animate(animation),
+              child: child,
+            ),
+          );
+        },
+        child: KeyedSubtree(
+          key: ValueKey<int>(_selectedIndex),
+          child: _buildContent(_selectedIndex),
+        ),
       ),
     );
   }

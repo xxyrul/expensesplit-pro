@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../services/budget_alert_provider.dart';
 import '../../services/expense_service.dart';
 import '../../services/budget_service.dart';
 import '../../theme/brand_theme.dart';
@@ -27,6 +28,7 @@ class _NotificationsSheetState extends ConsumerState<NotificationsSheet> {
   int _broadcastTs = 0;
   bool _broadcastActive = false;
   bool _broadcastDismissed = false;
+  bool _clearingAll = false;
 
   @override
   void initState() {
@@ -75,6 +77,23 @@ class _NotificationsSheetState extends ConsumerState<NotificationsSheet> {
     });
   }
 
+  Future<void> _clearAllNotifications() async {
+    setState(() => _clearingAll = true);
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('last_dismissed_broadcast');
+    await prefs.remove('last_dismissed_broadcast_msg');
+    await prefs.remove('budget_alert_sent_month');
+    await prefs.remove('budget_category_alert_sent_keys');
+    await resetBudgetAlertCache();
+
+    if (!mounted) return;
+    setState(() {
+      _broadcastDismissed = false;
+      _clearingAll = false;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -86,172 +105,192 @@ class _NotificationsSheetState extends ConsumerState<NotificationsSheet> {
         color: theme.colorScheme.surfaceContainerHigh,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
       ),
-      padding: EdgeInsets.only(
-        top: 20,
-        left: 20,
-        right: 20,
-        bottom: MediaQuery.of(context).padding.bottom + 20,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // Drag handle
-          Center(
-            child: Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: theme.colorScheme.onSurfaceVariant.withOpacity(0.4),
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: EdgeInsets.only(
+            top: 12,
+            left: 20,
+            right: 20,
+            bottom: MediaQuery.of(context).padding.bottom + 12,
           ),
-          const SizedBox(height: 18),
-          
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text(
-                'Notifications & Alerts',
-                style: theme.textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: -0.5,
+              Center(
+                child: Container(
+                  width: 44,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.onSurfaceVariant.withOpacity(0.35),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
                 ),
               ),
-              IconButton(
-                icon: const Icon(Icons.close),
-                onPressed: () => Navigator.pop(context),
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Notifications',
+                      style: theme.textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: -0.4,
+                      ),
+                    ),
+                  ),
+                  TextButton.icon(
+                    onPressed: _clearingAll ? null : _clearAllNotifications,
+                    icon: _clearingAll
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.clear_all_rounded),
+                    label: const Text('Clear all'),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Recent alerts and announcements',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 14),
+              const Divider(height: 1),
+              const SizedBox(height: 12),
+              Flexible(
+                child: expensesAsync.when(
+                  data: (expenses) {
+                    return budgetsAsync.when(
+                      data: (budgets) {
+                        final now = DateTime.now();
+                        final monthExpenses = expenses.where((e) {
+                          return e.date.year == now.year && e.date.month == now.month;
+                        }).toList();
+
+                        final totalSpent = monthExpenses.fold(0.0, (sum, e) => sum + e.amount);
+                        final totalLimit = budgets['Total'] ?? 0.0;
+
+                        final List<Widget> alertWidgets = [];
+
+                        if (_broadcastActive) {
+                          alertWidgets.add(
+                            _buildAlertCard(
+                              context: context,
+                              title: 'SYSTEM ANNOUNCEMENT',
+                              subtitle: _broadcastMsg ?? '',
+                              icon: Icons.campaign_rounded,
+                              color: theme.colorScheme.primary,
+                              isDismissed: _broadcastDismissed,
+                              action: _broadcastDismissed
+                                  ? null
+                                  : TextButton(
+                                      onPressed: _dismissBroadcast,
+                                      child: const Text('Mark read'),
+                                    ),
+                            ),
+                          );
+                        }
+
+                        if (totalLimit > 0) {
+                          final progress = totalSpent / totalLimit;
+                          if (progress >= 0.8) {
+                            alertWidgets.add(
+                              _buildAlertCard(
+                                context: context,
+                                title: 'BUDGET WARNING',
+                                subtitle:
+                                    'Spent RM ${totalSpent.toStringAsFixed(2)} of RM ${totalLimit.toStringAsFixed(0)} monthly budget (${(progress * 100).toStringAsFixed(0)}%).',
+                                icon: Icons.warning_amber_rounded,
+                                color: progress >= 1.0 ? Colors.red : Colors.orange,
+                                progress: progress,
+                              ),
+                            );
+                          }
+                        }
+
+                        for (final entry in budgets.entries) {
+                          if (entry.key == 'Total' || entry.value <= 0) continue;
+
+                          final categorySpent = monthExpenses
+                              .where((e) => e.category == entry.key)
+                              .fold(0.0, (sum, e) => sum + e.amount);
+
+                          final progress = categorySpent / entry.value;
+                          if (progress >= 0.8) {
+                            alertWidgets.add(
+                              _buildAlertCard(
+                                context: context,
+                                title: '${entry.key.toUpperCase()} BUDGET WARNING',
+                                subtitle:
+                                    'Spent RM ${categorySpent.toStringAsFixed(2)} of RM ${entry.value.toStringAsFixed(0)} allocation.',
+                                icon: Icons.pie_chart_outline_rounded,
+                                color: progress >= 1.0 ? Colors.red : Colors.orange,
+                                progress: progress,
+                              ),
+                            );
+                          }
+                        }
+
+                        if (alertWidgets.isEmpty) {
+                          return Center(
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 36),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.notifications_none_rounded,
+                                    size: 64,
+                                    color: theme.colorScheme.onSurfaceVariant.withOpacity(0.3),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    'All caught up',
+                                    style: theme.textTheme.titleMedium?.copyWith(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    'No active alerts right now.',
+                                    style: theme.textTheme.bodyMedium?.copyWith(
+                                      color: theme.colorScheme.onSurfaceVariant,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        }
+
+                        return ListView.separated(
+                          shrinkWrap: true,
+                          itemCount: alertWidgets.length,
+                          separatorBuilder: (_, __) => const SizedBox(height: 12),
+                          itemBuilder: (context, index) => alertWidgets[index],
+                        );
+                      },
+                      loading: () => const Center(child: CircularProgressIndicator()),
+                      error: (_, __) => const SizedBox.shrink(),
+                    );
+                  },
+                  loading: () => const Center(child: CircularProgressIndicator()),
+                  error: (_, __) => const SizedBox.shrink(),
+                ),
               ),
             ],
           ),
-          const Divider(height: 24),
-
-          // Build dynamic lists of alerts
-          expensesAsync.when(
-            data: (expenses) {
-              return budgetsAsync.when(
-                data: (budgets) {
-                  final now = DateTime.now();
-                  final monthExpenses = expenses.where((e) {
-                    return e.date.year == now.year && e.date.month == now.month;
-                  }).toList();
-
-                  final totalSpent = monthExpenses.fold(0.0, (sum, e) => sum + e.amount);
-                  final totalLimit = budgets['Total'] ?? 0.0;
-
-                  final List<Widget> alertWidgets = [];
-
-                  // 1. System Broadcast (if active, even if dismissed from banner, show here as read/dismissed or unread)
-                  if (_broadcastActive) {
-                    alertWidgets.add(
-                      _buildAlertCard(
-                        context: context,
-                        title: 'SYSTEM ANNOUNCEMENT',
-                        subtitle: _broadcastMsg ?? '',
-                        icon: Icons.campaign_rounded,
-                        color: theme.colorScheme.primary,
-                        isDismissed: _broadcastDismissed,
-                        action: _broadcastDismissed
-                            ? null
-                            : TextButton(
-                                onPressed: _dismissBroadcast,
-                                child: const Text('Mark Read'),
-                              ),
-                      ),
-                    );
-                  }
-
-                  // 2. Budget Alert
-                  if (totalLimit > 0) {
-                    final progress = totalSpent / totalLimit;
-                    if (progress >= 0.8) {
-                      alertWidgets.add(
-                        _buildAlertCard(
-                          context: context,
-                          title: 'BUDGET WARNING',
-                          subtitle: 'You have spent RM ${totalSpent.toStringAsFixed(2)} of your RM ${totalLimit.toStringAsFixed(0)} monthly budget (${(progress * 100).toStringAsFixed(0)}%).',
-                          icon: Icons.warning_amber_rounded,
-                          color: progress >= 1.0 ? Colors.red : Colors.orange,
-                          progress: progress,
-                        ),
-                      );
-                    }
-                  }
-
-                  // 3. Category Budget Alerts
-                  for (final entry in budgets.entries) {
-                    if (entry.key == 'Total' || entry.value <= 0) continue;
-
-                    final categorySpent = monthExpenses
-                        .where((e) => e.category == entry.key)
-                        .fold(0.0, (sum, e) => sum + e.amount);
-
-                    final progress = categorySpent / entry.value;
-                    if (progress >= 0.8) {
-                      alertWidgets.add(
-                        _buildAlertCard(
-                          context: context,
-                          title: '${entry.key.toUpperCase()} BUDGET WARNING',
-                          subtitle: 'Spent RM ${categorySpent.toStringAsFixed(2)} of RM ${entry.value.toStringAsFixed(0)} allocation.',
-                          icon: Icons.pie_chart_outline_rounded,
-                          color: progress >= 1.0 ? Colors.red : Colors.orange,
-                          progress: progress,
-                        ),
-                      );
-                    }
-                  }
-
-                  if (alertWidgets.isEmpty) {
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 40),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.notifications_none_rounded,
-                            size: 64,
-                            color: theme.colorScheme.onSurfaceVariant.withOpacity(0.3),
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            'All Quiet Here',
-                            style: theme.textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            'You have no active alerts or warnings.',
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              color: theme.colorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  }
-
-                  return ConstrainedBox(
-                    constraints: BoxConstraints(
-                      maxHeight: MediaQuery.of(context).size.height * 0.5,
-                    ),
-                    child: ListView.separated(
-                      shrinkWrap: true,
-                      itemCount: alertWidgets.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 12),
-                      itemBuilder: (context, index) => alertWidgets[index],
-                    ),
-                  );
-                },
-                loading: () => const Center(child: CircularProgressIndicator()),
-                error: (_, __) => const SizedBox.shrink(),
-              );
-            },
-            loading: () => const Center(child: CircularProgressIndicator()),
-            error: (_, __) => const SizedBox.shrink(),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -356,10 +395,12 @@ class _NotificationsSheetState extends ConsumerState<NotificationsSheet> {
               ],
             ),
           ),
-          if (action != null) ...[
-            const SizedBox(width: 8),
-            action,
-          ],
+              if (!isDismissed || action != null) const SizedBox(height: 10),
+              if (action != null)
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: action,
+                ),
         ],
       ),
     );
