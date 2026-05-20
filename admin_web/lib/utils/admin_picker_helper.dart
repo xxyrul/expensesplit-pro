@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+// ignore: avoid_web_libraries_in_flutter
+import 'dart:html' as html;
+import 'dart:async';
 
 class AdminPickerHelper {
   static const double _mobileBreakpoint = 768;
@@ -17,6 +20,56 @@ class AdminPickerHelper {
       start: DateUtils.dateOnly(now.subtract(const Duration(days: 30))),
       end: DateUtils.dateOnly(now),
     );
+
+    // On small web viewports, use native HTML date inputs (mobile-friendly)
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isDesktop = screenWidth >= _mobileBreakpoint;
+
+    if (!isDesktop) {
+      // Use two native date inputs sequentially for start and end
+      Future<DateTime?> _pickNativeDate({DateTime? initial}) async {
+        final completer = Completer<DateTime?>();
+        final input = html.InputElement();
+        input.type = 'date';
+        if (initial != null) {
+          // format as yyyy-MM-dd
+          input.value = '${initial.year.toString().padLeft(4, '0')}-'
+              '${initial.month.toString().padLeft(2, '0')}-'
+              '${initial.day.toString().padLeft(2, '0')}';
+        }
+        // keep it off-screen but clickable
+        input.style.position = 'absolute';
+        input.style.left = '-9999px';
+        html.document.body!.append(input);
+
+        late StreamSubscription sub; sub = input.onChange.listen((_) {
+          final val = input.value;
+          input.remove();
+          sub.cancel();
+          if (val == null || val.isEmpty) {
+            completer.complete(null);
+            return;
+          }
+          try {
+            completer.complete(DateTime.parse(val));
+          } catch (_) {
+            completer.complete(null);
+          }
+        });
+
+        input.click();
+        return completer.future;
+      }
+
+      // pick start
+      final start = await _pickNativeDate(initial: defaultRange.start);
+      if (start == null) return null;
+      // pick end
+      final end = await _pickNativeDate(initial: defaultRange.end);
+      if (end == null) return null;
+
+      return DateTimeRange(start: DateUtils.dateOnly(start), end: DateUtils.dateOnly(end));
+    }
 
     return await showDateRangePicker(
       context: context,
@@ -111,6 +164,41 @@ class AdminPickerHelper {
   }) async {
     final now = DateTime.now();
     final defaultDate = initialDate ?? now;
+
+    // For single-date picker: swap to native HTML input on small web viewports
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isDesktop = screenWidth >= _mobileBreakpoint;
+
+    if (!isDesktop) {
+      final completer = Completer<DateTime?>();
+      final input = html.InputElement();
+      input.type = 'date';
+      final d = defaultDate;
+      input.value = '${d.year.toString().padLeft(4, '0')}-'
+          '${d.month.toString().padLeft(2, '0')}-'
+          '${d.day.toString().padLeft(2, '0')}';
+      input.style.position = 'absolute';
+      input.style.left = '-9999px';
+      html.document.body!.append(input);
+
+      late StreamSubscription sub; sub = input.onChange.listen((_) {
+        final val = input.value;
+        input.remove();
+        sub.cancel();
+        if (val == null || val.isEmpty) {
+          completer.complete(null);
+          return;
+        }
+        try {
+          completer.complete(DateTime.parse(val));
+        } catch (_) {
+          completer.complete(null);
+        }
+      });
+
+      input.click();
+      return completer.future;
+    }
 
     return await showDatePicker(
       context: context,

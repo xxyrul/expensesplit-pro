@@ -1,6 +1,6 @@
 {
-    "name": "expensesplit_pro",
-    "short_name": "expensesplit_pro",
+    "name": "ExpenseSplit Pro",
+    "short_name": "ExpenseSplit Pro",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
