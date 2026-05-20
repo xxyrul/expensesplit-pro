@@ -18,7 +18,7 @@ void main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  // Initialize notifications and prompt for permission
+  // Initialize notification services and prompt for user permissions
   await NotificationService.instance.initialize();
 
   // 3. Run the app wrapped in ProviderScope for Riverpod
