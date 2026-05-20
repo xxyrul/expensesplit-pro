@@ -69,6 +69,9 @@ class _DashboardLayoutState extends ConsumerState<DashboardLayout> {
           final effectiveCollapsed = forceCollapsed || _isCollapsed;
           final canToggle = !forceCollapsed;
 
+          // The sidebar pixel width (not counting the 1px divider).
+          final sidebarWidth = effectiveCollapsed ? 76.0 : 300.0;
+
           return Stack(
             children: [
               Row(
@@ -92,6 +95,27 @@ class _DashboardLayoutState extends ConsumerState<DashboardLayout> {
                   ),
                 ],
               ),
+
+              // ── Floating sidebar toggle ─────────────────────────────────
+              // Sits exactly on the divider line between sidebar & content,
+              // vertically centred in the top header band — just like the
+              // Firebase Console toggle button.
+              if (canToggle)
+                Positioned(
+                  // +1 for the VerticalDivider width; -16 centres the 32px button
+                  left: sidebarWidth + 1 - 16,
+                  top: 24,   // vertically centred inside the 80px header
+                  child: _SidebarHeaderToggleButton(
+                    icon: effectiveCollapsed
+                        ? Icons.chevron_right
+                        : Icons.chevron_left,
+                    tooltip: effectiveCollapsed
+                        ? 'Expand sidebar'
+                        : 'Collapse sidebar',
+                    onTap: () => setState(() => _isCollapsed = !_isCollapsed),
+                    colorScheme: colorScheme,
+                  ),
+                ),
             ],
           );
         },
@@ -120,14 +144,8 @@ class _DashboardLayoutState extends ConsumerState<DashboardLayout> {
           SafeArea(
             bottom: false,
             child: effectiveCollapsed
-                ? _CollapsedSidebarHeader(
-                    colorScheme: colorScheme,
-                    onToggle: canToggle ? () => setState(() => _isCollapsed = !_isCollapsed) : null,
-                  )
-                : _ExpandedSidebarHeader(
-                    colorScheme: colorScheme,
-                    onToggle: canToggle ? () => setState(() => _isCollapsed = !_isCollapsed) : null,
-                  ),
+                ? _CollapsedSidebarHeader(colorScheme: colorScheme)
+                : _ExpandedSidebarHeader(colorScheme: colorScheme),
           ),
 
           const Divider(height: 1, thickness: 1),
@@ -483,21 +501,44 @@ class _SidebarHeaderToggleButton extends StatelessWidget {
 
 class _CollapsedSidebarHeader extends StatelessWidget {
   final ColorScheme colorScheme;
-  final VoidCallback? onToggle;
 
-  const _CollapsedSidebarHeader({
-    required this.colorScheme,
-    this.onToggle,
-  });
+  const _CollapsedSidebarHeader({required this.colorScheme});
 
   @override
   Widget build(BuildContext context) {
     return Container(
       height: 80,
       alignment: Alignment.center,
-      child: Stack(
-        clipBehavior: Clip.none,
+      child: Container(
+        width: 40,
+        height: 40,
         alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: colorScheme.primary.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Icon(
+          Icons.admin_panel_settings,
+          color: colorScheme.primary,
+          size: 24,
+        ),
+      ),
+    );
+  }
+}
+
+class _ExpandedSidebarHeader extends StatelessWidget {
+  final ColorScheme colorScheme;
+
+  const _ExpandedSidebarHeader({required this.colorScheme});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 80,
+      padding: const EdgeInsets.symmetric(horizontal: 20.0),
+      alignment: Alignment.center,
+      child: Row(
         children: [
           Container(
             width: 40,
@@ -513,30 +554,41 @@ class _CollapsedSidebarHeader extends StatelessWidget {
               size: 24,
             ),
           ),
-          if (onToggle != null)
-            Positioned(
-              right: -16,
-              child: _SidebarHeaderToggleButton(
-                icon: Icons.chevron_right,
-                tooltip: 'Expand Sidebar',
-                onTap: onToggle!,
-                colorScheme: colorScheme,
-              ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'ExpenseSplit Pro',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                    letterSpacing: 0.15,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Admin Portal',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: colorScheme.onSurfaceVariant.withOpacity(0.8),
+                    fontWeight: FontWeight.w500,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
             ),
+          ),
         ],
       ),
     );
   }
 }
-
-class _ExpandedSidebarHeader extends StatelessWidget {
-  final ColorScheme colorScheme;
-  final VoidCallback? onToggle;
-
-  const _ExpandedSidebarHeader({
-    required this.colorScheme,
-    this.onToggle,
-  });
 
   @override
   Widget build(BuildContext context) {
@@ -590,17 +642,3 @@ class _ExpandedSidebarHeader extends StatelessWidget {
               ],
             ),
           ),
-          if (onToggle != null) ...[
-            const SizedBox(width: 8),
-            _SidebarHeaderToggleButton(
-              icon: Icons.chevron_left,
-              tooltip: 'Collapse Sidebar',
-              onTap: onToggle!,
-              colorScheme: colorScheme,
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}
