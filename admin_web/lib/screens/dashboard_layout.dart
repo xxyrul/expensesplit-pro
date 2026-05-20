@@ -65,48 +65,45 @@ class _DashboardLayoutState extends ConsumerState<DashboardLayout> {
             );
           }
 
-          if (useCompactDesktopLayout) {
-            return Row(
-              children: [
-                _buildSidebar(
-                  context: context,
-                  colorScheme: colorScheme,
-                  isMobile: false,
-                  forceCollapsed: true,
-                ),
-                const VerticalDivider(thickness: 1, width: 1),
-                Expanded(
-                  child: Center(
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: _contentMaxWidth),
-                      child: SizedBox.expand(
-                        child: _buildContentArea(),
+          final forceCollapsed = useCompactDesktopLayout;
+          final effectiveCollapsed = forceCollapsed || _isCollapsed;
+          final canToggle = !forceCollapsed;
+
+          return Stack(
+            children: [
+              Row(
+                children: [
+                  _buildSidebar(
+                    context: context,
+                    colorScheme: colorScheme,
+                    isMobile: false,
+                    forceCollapsed: forceCollapsed,
+                  ),
+                  const VerticalDivider(thickness: 1, width: 1),
+                  Expanded(
+                    child: Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: _contentMaxWidth),
+                        child: SizedBox.expand(
+                          child: _buildContentArea(),
+                        ),
                       ),
                     ),
                   ),
-                ),
-              ],
-            );
-          }
-
-          return Row(
-            children: [
-              _buildSidebar(
-                context: context,
-                colorScheme: colorScheme,
-                isMobile: false,
+                ],
               ),
-              const VerticalDivider(thickness: 1, width: 1),
-              Expanded(
-                child: Center(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: _contentMaxWidth),
-                    child: SizedBox.expand(
-                      child: _buildContentArea(),
-                    ),
+              if (canToggle)
+                AnimatedPositioned(
+                  duration: const Duration(milliseconds: 200),
+                  bottom: 20,
+                  left: effectiveCollapsed ? 22.0 : 284.0,
+                  child: _SidebarHeaderToggleButton(
+                    icon: effectiveCollapsed ? Icons.chevron_right : Icons.chevron_left,
+                    tooltip: effectiveCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar',
+                    onTap: () => setState(() => _isCollapsed = !_isCollapsed),
+                    colorScheme: colorScheme,
                   ),
                 ),
-              ),
             ],
           );
         },
@@ -287,27 +284,7 @@ class _DashboardLayoutState extends ConsumerState<DashboardLayout> {
       ),
     );
 
-    if (!canToggle) return sidebar;
-
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        sidebar,
-        Positioned(
-          bottom: 20,
-          left: effectiveCollapsed ? 0 : null,
-          right: effectiveCollapsed ? 0 : -16,
-          child: Center(
-            child: _SidebarHeaderToggleButton(
-              icon: effectiveCollapsed ? Icons.chevron_right : Icons.chevron_left,
-              tooltip: effectiveCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar',
-              onTap: () => setState(() => _isCollapsed = !_isCollapsed),
-              colorScheme: colorScheme,
-            ),
-          ),
-        ),
-      ],
-    );
+    return sidebar;
   }
 
   Widget _buildContentArea() {
