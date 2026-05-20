@@ -309,102 +309,263 @@ class _ExpenseManagementScreenState extends ConsumerState<ExpenseManagementScree
                                         style: TextStyle(fontSize: 16, color: Colors.grey),
                                       ),
                                     )
-                                  : SingleChildScrollView(
-                                      scrollDirection: Axis.vertical,
-                                      child: SingleChildScrollView(
-                                        scrollDirection: Axis.horizontal,
-                                        child: DataTable(
-                                            headingRowColor: WidgetStateProperty.all(
-                                              colorScheme.surfaceContainerHighest,
-                                            ),
-                                            columns: const [
-                                              DataColumn(label: Text('Date')),
-                                              DataColumn(label: Text('User')),
-                                              DataColumn(label: Text('Vendor')),
-                                              DataColumn(label: Text('Category')),
-                                              DataColumn(label: Text('Amount')),
-                                              DataColumn(label: Text('Actions')),
-                                            ],
-                                            rows: filteredDocs.map((doc) {
-                                              final data = doc.data() as Map<String, dynamic>;
-                                              final userId = doc.reference.parent.parent?.id ?? '';
-                                              final expenseId = doc.id;
+                                  : isMobile
+                                      ? ListView.separated(
+                                          padding: const EdgeInsets.all(16),
+                                          itemCount: filteredDocs.length,
+                                          separatorBuilder: (_, __) => const SizedBox(height: 12),
+                                          itemBuilder: (context, index) {
+                                            final doc = filteredDocs[index];
+                                            final data = doc.data() as Map<String, dynamic>;
+                                            final userId = doc.reference.parent.parent?.id ?? '';
+                                            final expenseId = doc.id;
 
-                                              final user = _userCache[userId];
-                                              final userEmail = _maskEmail(user?['email'] ?? 'Unknown', isMasked);
-                                              final userName = user?['displayName'] ?? 'User';
+                                            final user = _userCache[userId];
+                                            final userEmail = _maskEmail(user?['email'] ?? 'Unknown', isMasked);
+                                            final userName = user?['displayName'] ?? 'User';
 
-                                              final vendor = data['vendor'] ?? 'N/A';
-                                              final category = data['category'] ?? 'General';
-                                              final amount = (data['amount'] as num?)?.toDouble() ?? 0.0;
-                                              
-                                              String dateStr = '';
-                                              if (data['date'] != null) {
-                                                final parsedDate = DateTime.tryParse(data['date']);
-                                                if (parsedDate != null) {
-                                                  dateStr = DateFormat('yyyy-MM-dd').format(parsedDate);
-                                                }
+                                            final vendor = data['vendor'] ?? 'N/A';
+                                            final category = data['category'] ?? 'General';
+                                            final amount = (data['amount'] as num?)?.toDouble() ?? 0.0;
+
+                                            String dateStr = '';
+                                            if (data['date'] != null) {
+                                              final parsedDate = DateTime.tryParse(data['date']);
+                                              if (parsedDate != null) {
+                                                dateStr = DateFormat('yyyy-MM-dd').format(parsedDate);
                                               }
+                                            }
 
-                                              return DataRow(cells: [
-                                                DataCell(Text(dateStr)),
-                                                DataCell(Column(
+                                            return Card(
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius: BorderRadius.circular(12),
+                                                side: BorderSide(color: colorScheme.outlineVariant),
+                                              ),
+                                              elevation: 0,
+                                              color: colorScheme.surfaceContainerLow,
+                                              child: Padding(
+                                                padding: const EdgeInsets.all(16),
+                                                child: Column(
                                                   crossAxisAlignment: CrossAxisAlignment.start,
-                                                  mainAxisAlignment: MainAxisAlignment.center,
                                                   children: [
-                                                    Text(userName, style: const TextStyle(fontWeight: FontWeight.bold)),
-                                                    Text(userEmail, style: TextStyle(fontSize: 11, color: colorScheme.onSurfaceVariant)),
+                                                    Row(
+                                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                                      children: [
+                                                        Expanded(
+                                                          child: Text(
+                                                            vendor,
+                                                            style: const TextStyle(
+                                                              fontWeight: FontWeight.bold,
+                                                              fontSize: 16,
+                                                            ),
+                                                            maxLines: 1,
+                                                            overflow: TextOverflow.ellipsis,
+                                                          ),
+                                                        ),
+                                                        const SizedBox(width: 8),
+                                                        Text(
+                                                          dateStr,
+                                                          style: TextStyle(
+                                                            fontSize: 11,
+                                                            color: colorScheme.onSurfaceVariant,
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                    const SizedBox(height: 8),
+                                                    Row(
+                                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                                      children: [
+                                                        Expanded(
+                                                          child: Column(
+                                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                                            children: [
+                                                              Text(
+                                                                userName,
+                                                                style: const TextStyle(
+                                                                  fontWeight: FontWeight.w500,
+                                                                  fontSize: 13,
+                                                                ),
+                                                                maxLines: 1,
+                                                                overflow: TextOverflow.ellipsis,
+                                                              ),
+                                                              const SizedBox(height: 2),
+                                                              Text(
+                                                                userEmail,
+                                                                style: TextStyle(
+                                                                  fontSize: 11,
+                                                                  color: colorScheme.onSurfaceVariant,
+                                                                ),
+                                                                maxLines: 1,
+                                                                overflow: TextOverflow.ellipsis,
+                                                              ),
+                                                            ],
+                                                          ),
+                                                        ),
+                                                        const SizedBox(width: 8),
+                                                        Text(
+                                                          'RM ${amount.toStringAsFixed(2)}',
+                                                          style: TextStyle(
+                                                            fontSize: 16,
+                                                            fontWeight: FontWeight.bold,
+                                                            color: colorScheme.primary,
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                    const SizedBox(height: 12),
+                                                    Row(
+                                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                                      children: [
+                                                        Chip(
+                                                          label: Text(category, style: const TextStyle(fontSize: 10)),
+                                                          backgroundColor: colorScheme.surfaceContainerHighest,
+                                                          side: BorderSide.none,
+                                                          visualDensity: VisualDensity.compact,
+                                                        ),
+                                                        Row(
+                                                          children: [
+                                                            IconButton.filledTonal(
+                                                              icon: const Icon(Icons.visibility, size: 18),
+                                                              tooltip: 'View Details',
+                                                              onPressed: () => _viewDetailsDialog(
+                                                                context,
+                                                                data,
+                                                                userName,
+                                                                userEmail,
+                                                                dateStr,
+                                                              ),
+                                                            ),
+                                                            const SizedBox(width: 6),
+                                                            IconButton.filledTonal(
+                                                              icon: const Icon(Icons.edit, size: 18),
+                                                              tooltip: 'Edit Record',
+                                                              onPressed: () => _editExpenseDialog(
+                                                                context,
+                                                                doc,
+                                                                data,
+                                                                userId,
+                                                                expenseId,
+                                                              ),
+                                                            ),
+                                                            const SizedBox(width: 6),
+                                                            IconButton.filledTonal(
+                                                              icon: const Icon(Icons.delete, color: Colors.red, size: 18),
+                                                              tooltip: 'Delete Record',
+                                                              onPressed: () => _confirmDelete(
+                                                                context,
+                                                                userId,
+                                                                expenseId,
+                                                                vendor,
+                                                                amount,
+                                                              ),
+                                                            ),
+                                                          ],
+                                                        ),
+                                                      ],
+                                                    ),
                                                   ],
-                                                )),
-                                                DataCell(Text(vendor)),
-                                                DataCell(Chip(
-                                                  label: Text(category, style: const TextStyle(fontSize: 11)),
-                                                  backgroundColor: colorScheme.surfaceContainerHighest,
-                                                  side: BorderSide.none,
-                                                )),
-                                                DataCell(Text('RM ${amount.toStringAsFixed(2)}')),
-                                                DataCell(Row(
-                                                  children: [
-                                                    IconButton(
-                                                      icon: const Icon(Icons.visibility),
-                                                      tooltip: 'View Details',
-                                                      onPressed: () => _viewDetailsDialog(
-                                                        context,
-                                                        data,
-                                                        userName,
-                                                        userEmail,
-                                                        dateStr,
+                                                ),
+                                              ),
+                                            );
+                                          },
+                                        )
+                                      : SingleChildScrollView(
+                                          scrollDirection: Axis.vertical,
+                                          child: SingleChildScrollView(
+                                            scrollDirection: Axis.horizontal,
+                                            child: DataTable(
+                                              headingRowColor: WidgetStateProperty.all(
+                                                colorScheme.surfaceContainerHighest,
+                                              ),
+                                              columns: const [
+                                                DataColumn(label: Text('Date')),
+                                                DataColumn(label: Text('User')),
+                                                DataColumn(label: Text('Vendor')),
+                                                DataColumn(label: Text('Category')),
+                                                DataColumn(label: Text('Amount')),
+                                                DataColumn(label: Text('Actions')),
+                                              ],
+                                              rows: filteredDocs.map((doc) {
+                                                final data = doc.data() as Map<String, dynamic>;
+                                                final userId = doc.reference.parent.parent?.id ?? '';
+                                                final expenseId = doc.id;
+
+                                                final user = _userCache[userId];
+                                                final userEmail = _maskEmail(user?['email'] ?? 'Unknown', isMasked);
+                                                final userName = user?['displayName'] ?? 'User';
+
+                                                final vendor = data['vendor'] ?? 'N/A';
+                                                final category = data['category'] ?? 'General';
+                                                final amount = (data['amount'] as num?)?.toDouble() ?? 0.0;
+
+                                                String dateStr = '';
+                                                if (data['date'] != null) {
+                                                  final parsedDate = DateTime.tryParse(data['date']);
+                                                  if (parsedDate != null) {
+                                                    dateStr = DateFormat('yyyy-MM-dd').format(parsedDate);
+                                                  }
+                                                }
+
+                                                return DataRow(cells: [
+                                                  DataCell(Text(dateStr)),
+                                                  DataCell(Column(
+                                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                                    mainAxisAlignment: MainAxisAlignment.center,
+                                                    children: [
+                                                      Text(userName, style: const TextStyle(fontWeight: FontWeight.bold)),
+                                                      Text(userEmail, style: TextStyle(fontSize: 11, color: colorScheme.onSurfaceVariant)),
+                                                    ],
+                                                  )),
+                                                  DataCell(Text(vendor)),
+                                                  DataCell(Chip(
+                                                    label: Text(category, style: const TextStyle(fontSize: 11)),
+                                                    backgroundColor: colorScheme.surfaceContainerHighest,
+                                                    side: BorderSide.none,
+                                                  )),
+                                                  DataCell(Text('RM ${amount.toStringAsFixed(2)}')),
+                                                  DataCell(Row(
+                                                    children: [
+                                                      IconButton(
+                                                        icon: const Icon(Icons.visibility),
+                                                        tooltip: 'View Details',
+                                                        onPressed: () => _viewDetailsDialog(
+                                                          context,
+                                                          data,
+                                                          userName,
+                                                          userEmail,
+                                                          dateStr,
+                                                        ),
                                                       ),
-                                                    ),
-                                                    IconButton(
-                                                      icon: const Icon(Icons.edit),
-                                                      tooltip: 'Edit Record',
-                                                      onPressed: () => _editExpenseDialog(
-                                                        context,
-                                                        doc,
-                                                        data,
-                                                        userId,
-                                                        expenseId,
+                                                      IconButton(
+                                                        icon: const Icon(Icons.edit),
+                                                        tooltip: 'Edit Record',
+                                                        onPressed: () => _editExpenseDialog(
+                                                          context,
+                                                          doc,
+                                                          data,
+                                                          userId,
+                                                          expenseId,
+                                                        ),
                                                       ),
-                                                    ),
-                                                    IconButton(
-                                                      icon: const Icon(Icons.delete, color: Colors.red),
-                                                      tooltip: 'Delete Record',
-                                                      onPressed: () => _confirmDelete(
-                                                        context,
-                                                        userId,
-                                                        expenseId,
-                                                        vendor,
-                                                        amount,
+                                                      IconButton(
+                                                        icon: const Icon(Icons.delete, color: Colors.red),
+                                                        tooltip: 'Delete Record',
+                                                        onPressed: () => _confirmDelete(
+                                                          context,
+                                                          userId,
+                                                          expenseId,
+                                                          vendor,
+                                                          amount,
+                                                        ),
                                                       ),
-                                                    ),
-                                                  ],
-                                                )),
-                                              ]);
-                                            }).toList(),
+                                                    ],
+                                                  )),
+                                                ]);
+                                              }).toList(),
+                                            ),
                                           ),
                                         ),
-                                      ),
                             ),
                           ],
                         ),

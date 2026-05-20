@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import '../../theme/brand_theme.dart';
@@ -6,6 +7,7 @@ class EditProfileScreen extends StatefulWidget {
   final String initialDisplayName;
   final String initialUsername;
   final String email;
+  final String? phoneNumber;
   final bool isGoogleUser;
   final bool hasPasswordProvider;
   final Future<void> Function(String displayName, String username, String email) onSaveProfile;
@@ -15,12 +17,15 @@ class EditProfileScreen extends StatefulWidget {
   final Future<void> Function() onDeleteAccount;
   final Future<void> Function() onLinkGoogle;
   final Future<void> Function() onUnlinkGoogle;
+  final Future<void> Function(String verificationId, String smsCode) onLinkPhoneNumber;
+  final Future<void> Function() onUnlinkPhoneNumber;
 
   const EditProfileScreen({
     super.key,
     required this.initialDisplayName,
     required this.initialUsername,
     required this.email,
+    this.phoneNumber,
     required this.isGoogleUser,
     required this.hasPasswordProvider,
     required this.onSaveProfile,
@@ -30,6 +35,8 @@ class EditProfileScreen extends StatefulWidget {
     required this.onDeleteAccount,
     required this.onLinkGoogle,
     required this.onUnlinkGoogle,
+    required this.onLinkPhoneNumber,
+    required this.onUnlinkPhoneNumber,
   });
 
   @override
@@ -46,7 +53,10 @@ class _EditProfileScreenState extends State<EditProfileScreen>
   bool _isSavingProfile = false;
   bool _isLinkingGoogle = false;
   bool _isUnlinkingGoogle = false;
+  bool _isLinkingPhone = false;
+  bool _isUnlinkingPhone = false;
   late bool _localIsGoogleUser;
+  late String? _localPhoneNumber;
 
   bool get _showSetPasswordCta => _localIsGoogleUser && !widget.hasPasswordProvider;
   bool get _canUsePasswordAuth => !_localIsGoogleUser || widget.hasPasswordProvider;
@@ -55,6 +65,7 @@ class _EditProfileScreenState extends State<EditProfileScreen>
   void initState() {
     super.initState();
     _localIsGoogleUser = widget.isGoogleUser;
+    _localPhoneNumber = widget.phoneNumber;
     _displayNameController = TextEditingController(text: widget.initialDisplayName);
     _usernameController = TextEditingController(text: widget.initialUsername);
     _emailController = TextEditingController(text: widget.email);
@@ -107,13 +118,229 @@ class _EditProfileScreenState extends State<EditProfileScreen>
     try {
       await widget.onUnlinkGoogle();
       if (mounted) {
-        setState(() => _localIsGoogleUser = false);
+        setState(() {
+          _localIsGoogleUser = false;
+        });
       }
     } finally {
       if (mounted) {
         setState(() => _isUnlinkingGoogle = false);
       }
     }
+  }
+
+  Future<void> _confirmUnlinkPhone() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Unlink Phone Number'),
+        content: const Text(
+          'Are you sure you want to remove your linked phone number?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Unlink', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _isUnlinkingPhone = true);
+    try {
+      await widget.onUnlinkPhoneNumber();
+      if (mounted) {
+        setState(() {
+          _localPhoneNumber = null;
+        });
+      }
+    } catch (_) {
+      // Handled by settings_view
+    } finally {
+      if (mounted) {
+        setState(() => _isUnlinkingPhone = false);
+      }
+    }
+  }
+
+  Future<void> _startPhoneLinkingFlow() async {
+    final phoneController = TextEditingController();
+    final smsCodeController = TextEditingController();
+    final colorScheme = Theme.of(context).colorScheme;
+
+    String? flowError;
+    bool codeSent = false;
+    String? currentVerificationId;
+    bool isDialogLoading = false;
+
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogCtx) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              title: Text(
+                codeSent ? "Verify SMS Code" : "Link Phone Number",
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    codeSent
+                        ? "Enter the 6-digit verification code sent to your phone."
+                        : "Enter your phone number with country code (e.g. +60123456789) to link it to your account.",
+                    style: const TextStyle(fontSize: 14),
+                  ),
+                  const SizedBox(height: 16),
+                  if (!codeSent)
+                    TextField(
+                      controller: phoneController,
+                      keyboardType: TextInputType.phone,
+                      autofocus: true,
+                      decoration: InputDecoration(
+                        labelText: "Phone Number",
+                        hintText: "+1234567890",
+                        prefixIcon: Icon(Icons.phone_outlined, color: colorScheme.primary),
+                      ),
+                    )
+                  else
+                    TextField(
+                      controller: smsCodeController,
+                      keyboardType: TextInputType.number,
+                      autofocus: true,
+                      maxLength: 6,
+                      decoration: InputDecoration(
+                        labelText: "SMS Code",
+                        prefixIcon: Icon(Icons.lock_clock_outlined, color: colorScheme.primary),
+                      ),
+                    ),
+                  if (flowError != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 12),
+                      child: Text(
+                        flowError!,
+                        style: const TextStyle(color: Colors.redAccent, fontSize: 12),
+                      ),
+                    ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: isDialogLoading
+                      ? null
+                      : () => Navigator.pop(dialogCtx),
+                  child: const Text("Cancel"),
+                ),
+                ElevatedButton(
+                  onPressed: isDialogLoading
+                      ? null
+                      : () async {
+                          if (!codeSent) {
+                            final rawPhone = phoneController.text.trim();
+                            if (rawPhone.isEmpty) {
+                              setDialogState(() => flowError = "Please enter phone number");
+                              return;
+                            }
+                            setDialogState(() {
+                              isDialogLoading = true;
+                              flowError = null;
+                            });
+                            
+                            try {
+                              await FirebaseAuth.instance.verifyPhoneNumber(
+                                phoneNumber: rawPhone,
+                                verificationCompleted: (PhoneAuthCredential credential) async {
+                                  try {
+                                    await widget.onLinkPhoneNumber(credential.verificationId!, credential.smsCode!);
+                                    if (mounted) {
+                                      setState(() {
+                                        _localPhoneNumber = rawPhone;
+                                      });
+                                    }
+                                    Navigator.pop(dialogCtx);
+                                  } catch (e) {
+                                    setDialogState(() {
+                                      isDialogLoading = false;
+                                      flowError = e.toString();
+                                    });
+                                  }
+                                },
+                                verificationFailed: (FirebaseAuthException e) {
+                                  setDialogState(() {
+                                    isDialogLoading = false;
+                                    flowError = e.message ?? e.code;
+                                  });
+                                },
+                                codeSent: (String verificationId, int? resendToken) {
+                                  setDialogState(() {
+                                    currentVerificationId = verificationId;
+                                    codeSent = true;
+                                    isDialogLoading = false;
+                                    flowError = null;
+                                  });
+                                },
+                                codeAutoRetrievalTimeout: (String verificationId) {
+                                  currentVerificationId = verificationId;
+                                },
+                              );
+                            } catch (e) {
+                              setDialogState(() {
+                                isDialogLoading = false;
+                                flowError = e.toString();
+                              });
+                            }
+                          } else {
+                            final code = smsCodeController.text.trim();
+                            if (code.length != 6) {
+                              setDialogState(() => flowError = "SMS code must be 6 digits");
+                              return;
+                            }
+                            setDialogState(() {
+                              isDialogLoading = true;
+                              flowError = null;
+                            });
+
+                            try {
+                              await widget.onLinkPhoneNumber(currentVerificationId!, code);
+                              if (mounted) {
+                                setState(() {
+                                  _localPhoneNumber = phoneController.text.trim();
+                                });
+                              }
+                              Navigator.pop(dialogCtx);
+                            } catch (e) {
+                              setDialogState(() {
+                                isDialogLoading = false;
+                                flowError = e.toString();
+                              });
+                            }
+                          }
+                        },
+                  child: isDialogLoading
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        )
+                      : Text(codeSent ? "Verify" : "Send Code"),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
   }
 
   @override
@@ -379,6 +606,39 @@ class _EditProfileScreenState extends State<EditProfileScreen>
                     )
                   : const Icon(Icons.chevron_right, color: Colors.grey),
             ),
+          _divider(),
+          _accountTile(
+            icon: Icons.phone_android_outlined,
+            title: _localPhoneNumber != null
+                ? 'Phone: $_localPhoneNumber'
+                : 'Link Phone Number',
+            color: const Color(0xFF10B981),
+            onTap: _isLinkingPhone || _isUnlinkingPhone
+                ? () {}
+                : (_localPhoneNumber != null ? _confirmUnlinkPhone : _startPhoneLinkingFlow),
+            trailing: _isLinkingPhone || _isUnlinkingPhone
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (_localPhoneNumber != null)
+                        const Text(
+                          'Unlink',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.redAccent,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      const SizedBox(width: 4),
+                      const Icon(Icons.chevron_right, color: Colors.grey),
+                    ],
+                  ),
+          ),
           _divider(),
           _accountTile(
             icon: Icons.delete_forever_outlined,

@@ -193,13 +193,11 @@ class _AnomalyAlertsScreenState extends ConsumerState<AnomalyAlertsScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Flex(
-                  direction: isMobile ? Axis.vertical : Axis.horizontal,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      flex: isMobile ? 0 : 1,
-                      child: Column(
+                if (isMobile)
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
@@ -221,30 +219,80 @@ class _AnomalyAlertsScreenState extends ConsumerState<AnomalyAlertsScreen> {
                           ),
                         ],
                       ),
-                    ),
-                    SizedBox(width: isMobile ? 0 : 12, height: isMobile ? 12 : 0),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        OutlinedButton.icon(
-                          onPressed: _showRulesReference,
-                          icon: const Icon(Icons.menu_book_outlined),
-                          label: const Text('Rule reference'),
-                        ),
-                        ElevatedButton.icon(
-                          onPressed: _loadReferenceData,
-                          icon: const Icon(Icons.refresh),
-                          label: const Text('Refresh data'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: colorScheme.primaryContainer,
-                            foregroundColor: colorScheme.onPrimaryContainer,
+                      const SizedBox(height: 12),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          OutlinedButton.icon(
+                            onPressed: _showRulesReference,
+                            icon: const Icon(Icons.menu_book_outlined),
+                            label: const Text('Rule reference'),
                           ),
+                          ElevatedButton.icon(
+                            onPressed: _loadReferenceData,
+                            icon: const Icon(Icons.refresh),
+                            label: const Text('Refresh data'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: colorScheme.primaryContainer,
+                              foregroundColor: colorScheme.onPrimaryContainer,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  )
+                else
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Anomalies & Integrity Monitor',
+                              style: TextStyle(
+                                fontSize: 32,
+                                fontWeight: FontWeight.bold,
+                                height: 1.1,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Rule-based scanner with explainable reasons for each flag — suitable for governance review and thesis demonstration.',
+                              style: TextStyle(
+                                color: colorScheme.onSurfaceVariant,
+                                fontSize: 16,
+                                height: 1.35,
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                  ],
-                ),
+                      ),
+                      const SizedBox(width: 12),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          OutlinedButton.icon(
+                            onPressed: _showRulesReference,
+                            icon: const Icon(Icons.menu_book_outlined),
+                            label: const Text('Rule reference'),
+                          ),
+                          ElevatedButton.icon(
+                            onPressed: _loadReferenceData,
+                            icon: const Icon(Icons.refresh),
+                            label: const Text('Refresh data'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: colorScheme.primaryContainer,
+                              foregroundColor: colorScheme.onPrimaryContainer,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 const SizedBox(height: 20),
                 Wrap(
                   spacing: 12,

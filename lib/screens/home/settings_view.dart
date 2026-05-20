@@ -206,6 +206,68 @@ class _SettingsViewState extends ConsumerState<SettingsView>
     }
   }
 
+  Future<void> _linkPhoneNumber(String verificationId, String smsCode) async {
+    try {
+      final authService = ref.read(authServiceProvider);
+      await authService.linkPhoneNumber(verificationId, smsCode);
+      
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
+          'phoneNumber': user.phoneNumber,
+        });
+      }
+      
+      if (!mounted) return;
+      ModernBottomToast.show(
+        context,
+        message: 'Phone number linked successfully.',
+        type: ModernToastType.success,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ModernBottomToast.show(
+        context,
+        message: 'Failed to link phone number: $e',
+        type: ModernToastType.error,
+      );
+      rethrow;
+    } finally {
+      await _refreshAuthProviderState();
+    }
+  }
+
+  Future<void> _unlinkPhoneNumber() async {
+    try {
+      final authService = ref.read(authServiceProvider);
+      await authService.unlinkPhoneNumber();
+      
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
+          'phoneNumber': FieldValue.delete(),
+        });
+      }
+      
+      if (!mounted) return;
+      ModernBottomToast.show(
+        context,
+        message: 'Phone number unlinked successfully.',
+        type: ModernToastType.success,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ModernBottomToast.show(
+        context,
+        message: 'Failed to unlink phone number: $e',
+        type: ModernToastType.error,
+      );
+      rethrow;
+    } finally {
+      await _refreshAuthProviderState();
+    }
+  }
+
   Future<void> _setPasswordForGoogleUser() async {
     final user = FirebaseAuth.instance.currentUser;
     final email = user?.email;
@@ -439,6 +501,7 @@ class _SettingsViewState extends ConsumerState<SettingsView>
           initialDisplayName: name,
           initialUsername: rawUsername,
           email: email,
+          phoneNumber: FirebaseAuth.instance.currentUser?.phoneNumber,
           isGoogleUser: _isGoogleUser,
           hasPasswordProvider: _hasPasswordProvider,
           onSaveProfile: _saveProfileDetails,
@@ -448,6 +511,8 @@ class _SettingsViewState extends ConsumerState<SettingsView>
           onDeleteAccount: _deleteAccount,
           onLinkGoogle: _linkGoogleAccount,
           onUnlinkGoogle: _unlinkGoogleAccount,
+          onLinkPhoneNumber: _linkPhoneNumber,
+          onUnlinkPhoneNumber: _unlinkPhoneNumber,
         ),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           final slide = Tween<Offset>(

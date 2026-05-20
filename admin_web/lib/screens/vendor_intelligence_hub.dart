@@ -514,25 +514,55 @@ class _Panel extends StatelessWidget {
         side: BorderSide(color: colorScheme.outlineVariant),
       ),
       clipBehavior: Clip.antiAlias,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                Icon(icon, color: colorScheme.primary),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(title, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
-                ),
-                if (headerAction != null) SizedBox(width: 200, child: headerAction),
-              ],
-            ),
-          ),
-          Divider(height: 1, color: colorScheme.outlineVariant),
-          Expanded(child: child),
-        ],
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final isMobilePanel = constraints.maxWidth < 500;
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: isMobilePanel
+                    ? Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(icon, color: colorScheme.primary),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(title, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+                              ),
+                            ],
+                          ),
+                          if (headerAction != null) ...[
+                            const SizedBox(height: 12),
+                            SizedBox(
+                              width: double.infinity,
+                              child: headerAction,
+                            ),
+                          ],
+                        ],
+                      )
+                    : Row(
+                        children: [
+                          Icon(icon, color: colorScheme.primary),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(title, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+                          ),
+                          if (headerAction != null) ...[
+                            const SizedBox(width: 12),
+                            SizedBox(width: 200, child: headerAction),
+                          ],
+                        ],
+                      ),
+              ),
+              Divider(height: 1, color: colorScheme.outlineVariant),
+              Expanded(child: child),
+            ],
+          );
+        },
       ),
     );
   }

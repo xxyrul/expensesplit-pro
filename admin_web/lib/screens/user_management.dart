@@ -107,118 +107,245 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                             Expanded(
                               child: docs.isEmpty
                                   ? const Center(child: Text('No registered users found.'))
-                                  : LayoutBuilder(
-                                      builder: (context, constraints) {
-                                        final tableWidth = constraints.maxWidth > 1000 ? constraints.maxWidth : 1000.0;
-                                        final emailColumnWidth = tableWidth - 620.0;
+                                  : isMobile
+                                      ? ListView.separated(
+                                          padding: const EdgeInsets.all(16),
+                                          itemCount: docs.length,
+                                          separatorBuilder: (_, __) => const SizedBox(height: 12),
+                                          itemBuilder: (context, index) {
+                                            final doc = docs[index];
+                                            final data = doc.data() as Map<String, dynamic>;
+                                            final userId = doc.id;
+                                            final name = data['displayName'] ?? data['name'] ?? 'User';
+                                            final email = data['email'] ?? 'No Email';
+                                            final role = data['role'] ?? 'User';
+                                            final isActive = data['isActive'] ?? true;
 
-                                        return Scrollbar(
-                                          child: SingleChildScrollView(
-                                            scrollDirection: Axis.horizontal,
-                                            child: SizedBox(
-                                              width: tableWidth,
-                                              child: SingleChildScrollView(
-                                                scrollDirection: Axis.vertical,
-                                                child: DataTable(
-                                                  headingRowColor: WidgetStateProperty.all(
-                                                    colorScheme.surfaceContainerHighest,
-                                                  ),
-                                                  columns: const [
-                                                    DataColumn(label: Text('Display Name')),
-                                                    DataColumn(label: Text('Email')),
-                                                    DataColumn(label: Text('Role')),
-                                                    DataColumn(label: Text('Status')),
-                                                    DataColumn(label: Text('Actions')),
+                                            return Card(
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius: BorderRadius.circular(12),
+                                                side: BorderSide(color: colorScheme.outlineVariant),
+                                              ),
+                                              elevation: 0,
+                                              color: colorScheme.surfaceContainerLow,
+                                              child: Padding(
+                                                padding: const EdgeInsets.all(16),
+                                                child: Column(
+                                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                                  children: [
+                                                    Row(
+                                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                                      children: [
+                                                        Expanded(
+                                                          child: Text(
+                                                            name,
+                                                            style: const TextStyle(
+                                                              fontWeight: FontWeight.bold,
+                                                              fontSize: 16,
+                                                            ),
+                                                            maxLines: 1,
+                                                            overflow: TextOverflow.ellipsis,
+                                                          ),
+                                                        ),
+                                                        const SizedBox(width: 8),
+                                                        Row(
+                                                          children: [
+                                                            Chip(
+                                                              label: Text(role, style: const TextStyle(fontSize: 10)),
+                                                              backgroundColor: role == 'Admin'
+                                                                  ? Colors.blue.withOpacity(0.1)
+                                                                  : Colors.grey.withOpacity(0.1),
+                                                              labelStyle: TextStyle(
+                                                                color: role == 'Admin' ? Colors.blue : Colors.grey[700],
+                                                              ),
+                                                              side: BorderSide.none,
+                                                              visualDensity: VisualDensity.compact,
+                                                            ),
+                                                            const SizedBox(width: 6),
+                                                            Chip(
+                                                              label: Text(isActive ? 'Active' : 'Deactivated', style: const TextStyle(fontSize: 10)),
+                                                              backgroundColor: isActive
+                                                                  ? Colors.green.withOpacity(0.1)
+                                                                  : Colors.red.withOpacity(0.1),
+                                                              labelStyle: TextStyle(
+                                                                color: isActive ? Colors.green : Colors.red,
+                                                              ),
+                                                              side: BorderSide.none,
+                                                              visualDensity: VisualDensity.compact,
+                                                            ),
+                                                          ],
+                                                        ),
+                                                      ],
+                                                    ),
+                                                    const SizedBox(height: 8),
+                                                    Text(
+                                                      _maskEmail(email, isMasked),
+                                                      style: TextStyle(
+                                                        color: colorScheme.onSurfaceVariant,
+                                                        fontSize: 13,
+                                                      ),
+                                                    ),
+                                                    const SizedBox(height: 12),
+                                                    const Divider(height: 1),
+                                                    const SizedBox(height: 12),
+                                                    Row(
+                                                      mainAxisAlignment: MainAxisAlignment.end,
+                                                      children: [
+                                                        IconButton.filledTonal(
+                                                          icon: Icon(
+                                                            isActive ? Icons.block : Icons.check_circle_outline,
+                                                            color: isActive ? Colors.red : Colors.green,
+                                                            size: 20,
+                                                          ),
+                                                          tooltip: isActive ? 'Deactivate Account' : 'Activate Account',
+                                                          onPressed: () => _toggleAccountStatus(
+                                                            userId,
+                                                            name,
+                                                            isActive,
+                                                          ),
+                                                        ),
+                                                        const SizedBox(width: 8),
+                                                        IconButton.filledTonal(
+                                                          icon: const Icon(Icons.shield, size: 20),
+                                                          tooltip: 'Change User Role',
+                                                          onPressed: () => _changeRoleDialog(
+                                                            context,
+                                                            userId,
+                                                            name,
+                                                            role,
+                                                            email,
+                                                          ),
+                                                        ),
+                                                        const SizedBox(width: 8),
+                                                        IconButton.filledTonal(
+                                                          icon: const Icon(Icons.analytics, size: 20),
+                                                          tooltip: 'View User Stats',
+                                                          onPressed: () => _showStatsDialog(
+                                                            context,
+                                                            userId,
+                                                            name,
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    )
                                                   ],
-                                                  rows: docs.map((doc) {
-                                                    final data = doc.data() as Map<String, dynamic>;
-                                                    final userId = doc.id;
-                                                    final name = data['displayName'] ?? data['name'] ?? 'User';
-                                                    final email = data['email'] ?? 'No Email';
-                                                    final role = data['role'] ?? 'User';
-                                                    final isActive = data['isActive'] ?? true;
-
-                                                    return DataRow(cells: [
-                                                      DataCell(SizedBox(
-                                                        width: 160,
-                                                        child: Text(name, style: const TextStyle(fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis),
-                                                      )),
-                                                      DataCell(SizedBox(
-                                                        width: emailColumnWidth,
-                                                        child: Text(_maskEmail(email, isMasked), maxLines: 1, overflow: TextOverflow.ellipsis),
-                                                      )),
-                                                      DataCell(Chip(
-                                                        label: Text(
-                                                          role,
-                                                          style: TextStyle(
-                                                            color: role == 'Admin' ? Colors.blue : Colors.grey,
-                                                            fontSize: 11,
-                                                          ),
-                                                        ),
-                                                        backgroundColor: role == 'Admin'
-                                                            ? Colors.blue.withOpacity(0.1)
-                                                            : Colors.grey.withOpacity(0.1),
-                                                        side: BorderSide.none,
-                                                      )),
-                                                      DataCell(Chip(
-                                                        label: Text(
-                                                          isActive ? 'Active' : 'Deactivated',
-                                                          style: TextStyle(
-                                                            color: isActive ? Colors.green : Colors.red,
-                                                            fontSize: 11,
-                                                          ),
-                                                        ),
-                                                        backgroundColor: isActive
-                                                            ? Colors.green.withOpacity(0.1)
-                                                            : Colors.red.withOpacity(0.1),
-                                                        side: BorderSide.none,
-                                                      )),
-                                                      DataCell(Row(
-                                                        mainAxisSize: MainAxisSize.min,
-                                                        children: [
-                                                          IconButton(
-                                                            icon: Icon(
-                                                              isActive ? Icons.block : Icons.check_circle_outline,
-                                                              color: isActive ? Colors.red : Colors.green,
-                                                            ),
-                                                            tooltip: isActive ? 'Deactivate Account' : 'Activate Account',
-                                                            onPressed: () => _toggleAccountStatus(
-                                                              userId,
-                                                              name,
-                                                              isActive,
-                                                            ),
-                                                          ),
-                                                          IconButton(
-                                                            icon: const Icon(Icons.shield),
-                                                            tooltip: 'Change User Role',
-                                                            onPressed: () => _changeRoleDialog(
-                                                              context,
-                                                              userId,
-                                                              name,
-                                                              role,
-                                                              email,
-                                                            ),
-                                                          ),
-                                                          IconButton(
-                                                            icon: const Icon(Icons.analytics),
-                                                            tooltip: 'View User Stats',
-                                                            onPressed: () => _showStatsDialog(
-                                                              context,
-                                                              userId,
-                                                              name,
-                                                            ),
-                                                          ),
-                                                        ],
-                                                      )),
-                                                    ]);
-                                                  }).toList(),
                                                 ),
                                               ),
-                                            ),
-                                          ),
-                                        );
-                                      },
-                                    ),
+                                            );
+                                          },
+                                        )
+                                      : LayoutBuilder(
+                                          builder: (context, constraints) {
+                                            final tableWidth = constraints.maxWidth > 1000 ? constraints.maxWidth : 1000.0;
+                                            final emailColumnWidth = tableWidth - 620.0;
+
+                                            return Scrollbar(
+                                              child: SingleChildScrollView(
+                                                scrollDirection: Axis.horizontal,
+                                                child: SizedBox(
+                                                  width: tableWidth,
+                                                  child: SingleChildScrollView(
+                                                    scrollDirection: Axis.vertical,
+                                                    child: DataTable(
+                                                      headingRowColor: WidgetStateProperty.all(
+                                                        colorScheme.surfaceContainerHighest,
+                                                      ),
+                                                      columns: const [
+                                                        DataColumn(label: Text('Display Name')),
+                                                        DataColumn(label: Text('Email')),
+                                                        DataColumn(label: Text('Role')),
+                                                        DataColumn(label: Text('Status')),
+                                                        DataColumn(label: Text('Actions')),
+                                                      ],
+                                                      rows: docs.map((doc) {
+                                                        final data = doc.data() as Map<String, dynamic>;
+                                                        final userId = doc.id;
+                                                        final name = data['displayName'] ?? data['name'] ?? 'User';
+                                                        final email = data['email'] ?? 'No Email';
+                                                        final role = data['role'] ?? 'User';
+                                                        final isActive = data['isActive'] ?? true;
+
+                                                        return DataRow(cells: [
+                                                          DataCell(SizedBox(
+                                                            width: 160,
+                                                            child: Text(name, style: const TextStyle(fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis),
+                                                          )),
+                                                          DataCell(SizedBox(
+                                                            width: emailColumnWidth,
+                                                            child: Text(_maskEmail(email, isMasked), maxLines: 1, overflow: TextOverflow.ellipsis),
+                                                          )),
+                                                          DataCell(Chip(
+                                                            label: Text(
+                                                              role,
+                                                              style: TextStyle(
+                                                                color: role == 'Admin' ? Colors.blue : Colors.grey,
+                                                                fontSize: 11,
+                                                              ),
+                                                            ),
+                                                            backgroundColor: role == 'Admin'
+                                                                ? Colors.blue.withOpacity(0.1)
+                                                                : Colors.grey.withOpacity(0.1),
+                                                            side: BorderSide.none,
+                                                          )),
+                                                          DataCell(Chip(
+                                                            label: Text(
+                                                              isActive ? 'Active' : 'Deactivated',
+                                                              style: TextStyle(
+                                                                color: isActive ? Colors.green : Colors.red,
+                                                                fontSize: 11,
+                                                              ),
+                                                            ),
+                                                            backgroundColor: isActive
+                                                                ? Colors.green.withOpacity(0.1)
+                                                                : Colors.red.withOpacity(0.1),
+                                                            side: BorderSide.none,
+                                                          )),
+                                                          DataCell(Row(
+                                                            mainAxisSize: MainAxisSize.min,
+                                                            children: [
+                                                              IconButton(
+                                                                icon: Icon(
+                                                                  isActive ? Icons.block : Icons.check_circle_outline,
+                                                                  color: isActive ? Colors.red : Colors.green,
+                                                                ),
+                                                                tooltip: isActive ? 'Deactivate Account' : 'Activate Account',
+                                                                onPressed: () => _toggleAccountStatus(
+                                                                  userId,
+                                                                  name,
+                                                                  isActive,
+                                                                ),
+                                                              ),
+                                                              IconButton(
+                                                                icon: const Icon(Icons.shield),
+                                                                tooltip: 'Change User Role',
+                                                                onPressed: () => _changeRoleDialog(
+                                                                  context,
+                                                                  userId,
+                                                                  name,
+                                                                  role,
+                                                                  email,
+                                                                ),
+                                                              ),
+                                                              IconButton(
+                                                                icon: const Icon(Icons.analytics),
+                                                                tooltip: 'View User Stats',
+                                                                onPressed: () => _showStatsDialog(
+                                                                  context,
+                                                                  userId,
+                                                                  name,
+                                                                ),
+                                                              ),
+                                                            ],
+                                                          )),
+                                                        ]);
+                                                      }).toList(),
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                            );
+                                          },
+                                        ),
                             ),
                           ],
                         ),

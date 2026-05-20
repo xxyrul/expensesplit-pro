@@ -16,6 +16,103 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   String? _errorMessage;
   bool _isLoading = false;
 
+  Future<void> _showForgotPasswordDialog() async {
+    final TextEditingController emailResetController =
+        TextEditingController(text: _emailController.text.trim());
+    final colorScheme = Theme.of(context).colorScheme;
+    String? dialogError;
+    bool dialogLoading = false;
+
+    await showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              title: const Text(
+                "Reset Password",
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    "Enter your email address to receive a password reset link.",
+                    style: TextStyle(fontSize: 14),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: emailResetController,
+                    keyboardType: TextInputType.emailAddress,
+                    decoration: InputDecoration(
+                      labelText: "Email Address",
+                      prefixIcon: Icon(Icons.email_outlined, color: colorScheme.primary),
+                    ),
+                  ),
+                  if (dialogError != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 12),
+                      child: Text(
+                        dialogError!,
+                        style: const TextStyle(color: Colors.redAccent, fontSize: 12),
+                      ),
+                    ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: dialogLoading ? null : () => Navigator.pop(context),
+                  child: const Text("Cancel"),
+                ),
+                ElevatedButton(
+                  onPressed: dialogLoading
+                      ? null
+                      : () async {
+                          final email = emailResetController.text.trim();
+                          if (email.isEmpty) {
+                            setState(() => dialogError = "Please enter your email");
+                            return;
+                          }
+                          setState(() {
+                            dialogLoading = true;
+                            dialogError = null;
+                          });
+                          try {
+                            await ref.read(authServiceProvider).sendPasswordReset(email);
+                            if (context.mounted) {
+                              Navigator.pop(context);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text("Password reset email sent to $email"),
+                                  backgroundColor: const Color(0xFF0D9488),
+                                ),
+                              );
+                            }
+                          } catch (e) {
+                            setState(() {
+                              dialogLoading = false;
+                              dialogError = e.toString();
+                            });
+                          }
+                        },
+                  child: dialogLoading
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        )
+                      : const Text("Send Link"),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
   Future<void> _signIn() async {
     if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
       setState(() => _errorMessage = "Please fill in all fields");
@@ -93,6 +190,26 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           label: "Password",
                           icon: Icons.lock_outline,
                           obscureText: true,
+                        ),
+                        const SizedBox(height: 8),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: TextButton(
+                            onPressed: _showForgotPasswordDialog,
+                            style: TextButton.styleFrom(
+                              padding: EdgeInsets.zero,
+                              minimumSize: const Size(50, 30),
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            ),
+                            child: Text(
+                              "Forgot Password?",
+                              style: TextStyle(
+                                color: colorScheme.primary,
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
                         ),
                       ],
                     ),

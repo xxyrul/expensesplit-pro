@@ -199,24 +199,13 @@ class _OcrReviewQueueScreenState extends ConsumerState<OcrReviewQueueScreen> {
                                             style: TextStyle(fontSize: 16, color: Colors.grey),
                                           ),
                                         )
-                                      : SingleChildScrollView(
-                                          scrollDirection: Axis.vertical,
-                                          child: SingleChildScrollView(
-                                            scrollDirection: Axis.horizontal,
-                                            child: DataTable(
-                                              headingRowColor: WidgetStateProperty.all(
-                                                colorScheme.surfaceContainerHighest,
-                                              ),
-                                              columns: const [
-                                                DataColumn(label: Text('Timestamp')),
-                                                DataColumn(label: Text('User')),
-                                                DataColumn(label: Text('System Suggested Amount')),
-                                                DataColumn(label: Text('User Corrected Amount')),
-                                                DataColumn(label: Text('Confidence')),
-                                                DataColumn(label: Text('Admin Status')),
-                                                DataColumn(label: Text('Actions')),
-                                              ],
-                                              rows: filteredDocs.map((doc) {
+                                      : isMobile
+                                          ? ListView.separated(
+                                              padding: const EdgeInsets.all(16),
+                                              itemCount: filteredDocs.length,
+                                              separatorBuilder: (_, __) => const SizedBox(height: 12),
+                                              itemBuilder: (context, index) {
+                                                final doc = filteredDocs[index];
                                                 final data = doc.data() as Map<String, dynamic>;
                                                 final docId = doc.id;
                                                 final userId = doc.reference.parent.parent?.id ?? '';
@@ -249,102 +238,320 @@ class _OcrReviewQueueScreenState extends ConsumerState<OcrReviewQueueScreen> {
                                                 final isApproved = adminStatus == 'Approved';
                                                 final isRejected = adminStatus == 'Rejected';
 
-                                                return DataRow(
-                                                  cells: [
-                                                    DataCell(Text(dateStr)),
-                                                    DataCell(Text(userEmail)),
-                                                    DataCell(Text('RM ${systemSuggestedAmount.toStringAsFixed(2)}')),
-                                                    DataCell(
-                                                      Text(
-                                                        'RM ${userCorrectedAmount.toStringAsFixed(2)}',
-                                                        style: TextStyle(
-                                                          color: systemSuggestedAmount != userCorrectedAmount
-                                                              ? Colors.amber
-                                                              : Colors.green,
-                                                          fontWeight: FontWeight.bold,
-                                                        ),
-                                                      ),
-                                                    ),
-                                                    DataCell(
-                                                      Chip(
-                                                        label: Text(
-                                                          confidence,
-                                                          style: TextStyle(
-                                                            color: isLowConfidence ? Colors.red : Colors.green,
-                                                            fontSize: 11,
-                                                          ),
-                                                        ),
-                                                        backgroundColor: isLowConfidence
-                                                            ? Colors.red.withOpacity(0.1)
-                                                            : Colors.green.withOpacity(0.1),
-                                                        side: BorderSide.none,
-                                                      ),
-                                                    ),
-                                                    DataCell(
-                                                      Text(
-                                                        adminStatus,
-                                                        style: TextStyle(
-                                                          fontWeight: FontWeight.bold,
-                                                          color: isApproved
-                                                              ? Colors.green
-                                                              : isRejected
-                                                                  ? Colors.red
-                                                                  : Colors.amber,
-                                                        ),
-                                                      ),
-                                                    ),
-                                                    DataCell(
-                                                      Row(
-                                                        children: [
-                                                          IconButton(
-                                                            icon: const Icon(Icons.text_snippet),
-                                                            tooltip: 'Show Raw OCR text',
-                                                            onPressed: () => _showRawTextDialog(context, rawText),
-                                                          ),
-                                                          if (adminStatus == 'Pending') ...[
-                                                            IconButton(
-                                                              icon: const Icon(Icons.check, color: Colors.green),
-                                                              tooltip: 'Approve System Value',
-                                                              onPressed: () => _updateStatus(
-                                                                userId,
-                                                                docId,
-                                                                'Approved',
-                                                                systemSuggestedAmount,
-                                                                userCorrectedAmount,
+                                                return Card(
+                                                  shape: RoundedRectangleBorder(
+                                                    borderRadius: BorderRadius.circular(12),
+                                                    side: BorderSide(color: colorScheme.outlineVariant),
+                                                  ),
+                                                  elevation: 0,
+                                                  color: colorScheme.surfaceContainerLow,
+                                                  child: Padding(
+                                                    padding: const EdgeInsets.all(16),
+                                                    child: Column(
+                                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                                      children: [
+                                                        Row(
+                                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                                          children: [
+                                                            Expanded(
+                                                              child: Text(
+                                                                userEmail,
+                                                                style: const TextStyle(
+                                                                  fontWeight: FontWeight.bold,
+                                                                  fontSize: 14,
+                                                                ),
+                                                                maxLines: 1,
+                                                                overflow: TextOverflow.ellipsis,
                                                               ),
                                                             ),
-                                                            IconButton(
-                                                              icon: const Icon(Icons.close, color: Colors.red),
-                                                              tooltip: 'Reject Scan',
-                                                              onPressed: () => _updateStatus(
-                                                                userId,
-                                                                docId,
-                                                                'Rejected',
-                                                                systemSuggestedAmount,
-                                                                userCorrectedAmount,
-                                                              ),
-                                                            ),
-                                                            IconButton(
-                                                              icon: const Icon(Icons.psychology, color: Colors.blue),
-                                                              tooltip: 'Correct & Add to Seed Dictionary',
-                                                              onPressed: () => _showLearnDialog(
-                                                                context,
-                                                                userId,
-                                                                docId,
-                                                                rawText,
+                                                            const SizedBox(width: 8),
+                                                            Text(
+                                                              dateStr,
+                                                              style: TextStyle(
+                                                                fontSize: 11,
+                                                                color: colorScheme.onSurfaceVariant,
                                                               ),
                                                             ),
                                                           ],
-                                                        ],
-                                                      ),
+                                                        ),
+                                                        const SizedBox(height: 12),
+                                                        Row(
+                                                          children: [
+                                                            Expanded(
+                                                              child: Column(
+                                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                                children: [
+                                                                  Text(
+                                                                    'System Suggested',
+                                                                    style: TextStyle(fontSize: 11, color: colorScheme.onSurfaceVariant),
+                                                                  ),
+                                                                  const SizedBox(height: 4),
+                                                                  Text(
+                                                                    'RM ${systemSuggestedAmount.toStringAsFixed(2)}',
+                                                                    style: const TextStyle(fontWeight: FontWeight.w500),
+                                                                  ),
+                                                                ],
+                                                              ),
+                                                            ),
+                                                            Expanded(
+                                                              child: Column(
+                                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                                children: [
+                                                                  Text(
+                                                                    'User Corrected',
+                                                                    style: TextStyle(fontSize: 11, color: colorScheme.onSurfaceVariant),
+                                                                  ),
+                                                                  const SizedBox(height: 4),
+                                                                  Text(
+                                                                    'RM ${userCorrectedAmount.toStringAsFixed(2)}',
+                                                                    style: TextStyle(
+                                                                      color: systemSuggestedAmount != userCorrectedAmount
+                                                                          ? Colors.amber[800]
+                                                                          : Colors.green,
+                                                                      fontWeight: FontWeight.bold,
+                                                                    ),
+                                                                  ),
+                                                                ],
+                                                              ),
+                                                            ),
+                                                          ],
+                                                        ),
+                                                        const SizedBox(height: 12),
+                                                        Row(
+                                                          children: [
+                                                            Chip(
+                                                              label: Text(confidence, style: const TextStyle(fontSize: 10)),
+                                                              backgroundColor: isLowConfidence
+                                                                  ? Colors.red.withOpacity(0.1)
+                                                                  : Colors.green.withOpacity(0.1),
+                                                              labelStyle: TextStyle(
+                                                                color: isLowConfidence ? Colors.red : Colors.green,
+                                                              ),
+                                                              side: BorderSide.none,
+                                                              visualDensity: VisualDensity.compact,
+                                                            ),
+                                                            const SizedBox(width: 8),
+                                                            Chip(
+                                                              label: Text(adminStatus, style: const TextStyle(fontSize: 10)),
+                                                              backgroundColor: isApproved
+                                                                  ? Colors.green.withOpacity(0.1)
+                                                                  : isRejected
+                                                                      ? Colors.red.withOpacity(0.1)
+                                                                      : Colors.amber.withOpacity(0.1),
+                                                              labelStyle: TextStyle(
+                                                                color: isApproved
+                                                                    ? Colors.green
+                                                                    : isRejected
+                                                                        ? Colors.red
+                                                                        : Colors.amber[800],
+                                                              ),
+                                                              side: BorderSide.none,
+                                                              visualDensity: VisualDensity.compact,
+                                                            ),
+                                                          ],
+                                                        ),
+                                                        const SizedBox(height: 8),
+                                                        const Divider(height: 1),
+                                                        const SizedBox(height: 8),
+                                                        Row(
+                                                          mainAxisAlignment: MainAxisAlignment.end,
+                                                          children: [
+                                                            IconButton.filledTonal(
+                                                              icon: const Icon(Icons.text_snippet, size: 20),
+                                                              tooltip: 'Show Raw OCR text',
+                                                              onPressed: () => _showRawTextDialog(context, rawText),
+                                                            ),
+                                                            if (adminStatus == 'Pending') ...[
+                                                              const SizedBox(width: 8),
+                                                              IconButton.filledTonal(
+                                                                icon: const Icon(Icons.check, color: Colors.green, size: 20),
+                                                                tooltip: 'Approve System Value',
+                                                                onPressed: () => _updateStatus(
+                                                                  userId,
+                                                                  docId,
+                                                                  'Approved',
+                                                                  systemSuggestedAmount,
+                                                                  userCorrectedAmount,
+                                                                ),
+                                                              ),
+                                                              const SizedBox(width: 8),
+                                                              IconButton.filledTonal(
+                                                                icon: const Icon(Icons.close, color: Colors.red, size: 20),
+                                                                tooltip: 'Reject Scan',
+                                                                onPressed: () => _updateStatus(
+                                                                  userId,
+                                                                  docId,
+                                                                  'Rejected',
+                                                                  systemSuggestedAmount,
+                                                                  userCorrectedAmount,
+                                                                ),
+                                                              ),
+                                                              const SizedBox(width: 8),
+                                                              IconButton.filledTonal(
+                                                                icon: const Icon(Icons.psychology, color: Colors.blue, size: 20),
+                                                                tooltip: 'Correct & Add to Seed Dictionary',
+                                                                onPressed: () => _showLearnDialog(
+                                                                  context,
+                                                                  userId,
+                                                                  docId,
+                                                                  rawText,
+                                                                ),
+                                                              ),
+                                                            ],
+                                                          ],
+                                                        )
+                                                      ],
                                                     ),
-                                                  ],
+                                                  ),
                                                 );
-                                              }).toList(),
+                                              },
+                                            )
+                                          : SingleChildScrollView(
+                                              scrollDirection: Axis.vertical,
+                                              child: SingleChildScrollView(
+                                                scrollDirection: Axis.horizontal,
+                                                child: DataTable(
+                                                  headingRowColor: WidgetStateProperty.all(
+                                                    colorScheme.surfaceContainerHighest,
+                                                  ),
+                                                  columns: const [
+                                                    DataColumn(label: Text('Timestamp')),
+                                                    DataColumn(label: Text('User')),
+                                                    DataColumn(label: Text('System Suggested Amount')),
+                                                    DataColumn(label: Text('User Corrected Amount')),
+                                                    DataColumn(label: Text('Confidence')),
+                                                    DataColumn(label: Text('Admin Status')),
+                                                    DataColumn(label: Text('Actions')),
+                                                  ],
+                                                  rows: filteredDocs.map((doc) {
+                                                    final data = doc.data() as Map<String, dynamic>;
+                                                    final docId = doc.id;
+                                                    final userId = doc.reference.parent.parent?.id ?? '';
+
+                                                    final user = _userCache[userId];
+                                                    final userEmail = _maskEmail(user?['email'] ?? 'Unknown', isMasked);
+
+                                                    final systemSuggestedAmount =
+                                                        (data['systemSuggestedAmount'] as num?)?.toDouble() ?? 0.0;
+                                                    final userCorrectedAmount =
+                                                        (data['userCorrectedAmount'] as num?)?.toDouble() ?? 0.0;
+                                                    final confidence = data['confidenceLabel'] ?? 'Unknown';
+                                                    final adminStatus = data['adminStatus'] ?? 'Pending';
+                                                    final rawText = data['rawText'] ?? '';
+
+                                                    String dateStr = '';
+                                                    if (data['createdAt'] != null) {
+                                                      DateTime? createdDate;
+                                                      if (data['createdAt'] is Timestamp) {
+                                                        createdDate = (data['createdAt'] as Timestamp).toDate();
+                                                      } else {
+                                                        createdDate = DateTime.tryParse(data['createdAt']);
+                                                      }
+                                                      if (createdDate != null) {
+                                                        dateStr = DateFormat('yyyy-MM-dd HH:mm').format(createdDate);
+                                                      }
+                                                    }
+
+                                                    final bool isLowConfidence = confidence == 'Low Confidence';
+                                                    final isApproved = adminStatus == 'Approved';
+                                                    final isRejected = adminStatus == 'Rejected';
+
+                                                    return DataRow(
+                                                      cells: [
+                                                        DataCell(Text(dateStr)),
+                                                        DataCell(Text(userEmail)),
+                                                        DataCell(Text('RM ${systemSuggestedAmount.toStringAsFixed(2)}')),
+                                                        DataCell(
+                                                          Text(
+                                                            'RM ${userCorrectedAmount.toStringAsFixed(2)}',
+                                                            style: TextStyle(
+                                                              color: systemSuggestedAmount != userCorrectedAmount
+                                                                  ? Colors.amber
+                                                                  : Colors.green,
+                                                              fontWeight: FontWeight.bold,
+                                                            ),
+                                                          ),
+                                                        ),
+                                                        DataCell(
+                                                          Chip(
+                                                            label: Text(
+                                                              confidence,
+                                                              style: TextStyle(
+                                                                color: isLowConfidence ? Colors.red : Colors.green,
+                                                                fontSize: 11,
+                                                              ),
+                                                            ),
+                                                            backgroundColor: isLowConfidence
+                                                                ? Colors.red.withOpacity(0.1)
+                                                                : Colors.green.withOpacity(0.1),
+                                                            side: BorderSide.none,
+                                                          ),
+                                                        ),
+                                                        DataCell(
+                                                          Text(
+                                                            adminStatus,
+                                                            style: TextStyle(
+                                                              fontWeight: FontWeight.bold,
+                                                              color: isApproved
+                                                                  ? Colors.green
+                                                                  : isRejected
+                                                                      ? Colors.red
+                                                                      : Colors.amber,
+                                                            ),
+                                                          ),
+                                                        ),
+                                                        DataCell(
+                                                          Row(
+                                                            children: [
+                                                              IconButton(
+                                                                icon: const Icon(Icons.text_snippet),
+                                                                tooltip: 'Show Raw OCR text',
+                                                                onPressed: () => _showRawTextDialog(context, rawText),
+                                                              ),
+                                                              if (adminStatus == 'Pending') ...[
+                                                                IconButton(
+                                                                  icon: const Icon(Icons.check, color: Colors.green),
+                                                                  tooltip: 'Approve System Value',
+                                                                  onPressed: () => _updateStatus(
+                                                                    userId,
+                                                                    docId,
+                                                                    'Approved',
+                                                                    systemSuggestedAmount,
+                                                                    userCorrectedAmount,
+                                                                  ),
+                                                                ),
+                                                                IconButton(
+                                                                  icon: const Icon(Icons.close, color: Colors.red),
+                                                                  tooltip: 'Reject Scan',
+                                                                  onPressed: () => _updateStatus(
+                                                                    userId,
+                                                                    docId,
+                                                                    'Rejected',
+                                                                    systemSuggestedAmount,
+                                                                    userCorrectedAmount,
+                                                                  ),
+                                                                ),
+                                                                IconButton(
+                                                                  icon: const Icon(Icons.psychology, color: Colors.blue),
+                                                                  tooltip: 'Correct & Add to Seed Dictionary',
+                                                                  onPressed: () => _showLearnDialog(
+                                                                    context,
+                                                                    userId,
+                                                                    docId,
+                                                                    rawText,
+                                                                  ),
+                                                                ),
+                                                              ],
+                                                            ],
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    );
+                                                  }).toList(),
+                                                ),
+                                              ),
                                             ),
-                                          ),
-                                        ),
-                                ),
+                                  ),
                               ],
                             ),
                           );

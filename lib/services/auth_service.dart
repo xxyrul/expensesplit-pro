@@ -236,6 +236,53 @@ class AuthService {
     }
   }
 
+  // Request a password reset email
+  Future<void> sendPasswordReset(String email) async {
+    try {
+      await _auth.sendPasswordResetEmail(email: email);
+    } on FirebaseAuthException catch (e) {
+      throw e.message ?? e.code;
+    } catch (e) {
+      throw e.toString();
+    }
+  }
+
+  // Link a phone number credential to the current account
+  Future<void> linkPhoneNumber(String verificationId, String smsCode) async {
+    final user = _auth.currentUser;
+    if (user == null) throw 'No authenticated user found.';
+    try {
+      final credential = PhoneAuthProvider.credential(
+        verificationId: verificationId,
+        smsCode: smsCode,
+      );
+      await user.linkWithCredential(credential);
+    } on FirebaseAuthException catch (e) {
+      throw e.message ?? e.code;
+    } catch (e) {
+      throw e.toString();
+    }
+  }
+
+  // Unlink a phone number, ensuring there is another provider so the account is not orphaned
+  Future<void> unlinkPhoneNumber() async {
+    final user = _auth.currentUser;
+    if (user == null) throw 'No authenticated user found.';
+    final hasOtherProvider = user.providerData.any(
+      (p) => p.providerId != 'phone',
+    );
+    if (!hasOtherProvider) {
+      throw 'Please set a password or link Google before unlinking your phone number.';
+    }
+    try {
+      await user.unlink('phone');
+    } on FirebaseAuthException catch (e) {
+      throw e.message ?? e.code;
+    } catch (e) {
+      throw e.toString();
+    }
+  }
+
   Future<void> signOut() async {
     await _auth.signOut();
     if (!kIsWeb) {
