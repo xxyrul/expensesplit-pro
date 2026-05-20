@@ -18,9 +18,8 @@ class AdminLoginScreen extends ConsumerWidget {
         }
         return const _LoginUI();
       },
-      loading: () => const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      ),
+      loading: () =>
+          const Scaffold(body: Center(child: CircularProgressIndicator())),
       error: (e, _) => const _LoginUI(),
     );
   }
@@ -35,10 +34,16 @@ class _LoginUI extends ConsumerStatefulWidget {
 
 class _LoginUIState extends ConsumerState<_LoginUI>
     with SingleTickerProviderStateMixin {
-  bool _isLoading = false;
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  bool _isGoogleLoading = false;
+  bool _isEmailLoading = false;
+  bool _obscurePassword = true;
   late final AnimationController _animController;
   late final Animation<double> _fadeAnim;
   late final Animation<Offset> _slideAnim;
+
+  bool get _isLoading => _isGoogleLoading || _isEmailLoading;
 
   @override
   void initState() {
@@ -57,12 +62,46 @@ class _LoginUIState extends ConsumerState<_LoginUI>
 
   @override
   void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
     _animController.dispose();
     super.dispose();
   }
 
+  Future<void> _signInWithEmail() async {
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
+
+    if (email.isEmpty || password.isEmpty) {
+      ModernBottomToast.show(
+        context,
+        message: 'Enter your admin email and password.',
+        type: ModernToastType.error,
+      );
+      return;
+    }
+
+    setState(() => _isEmailLoading = true);
+    try {
+      await ref
+          .read(authServiceProvider)
+          .signInWithEmailAndPassword(email: email, password: password);
+    } catch (e) {
+      if (mounted) {
+        final msg = e.toString().replaceFirst('Exception: ', '');
+        ModernBottomToast.show(
+          context,
+          message: msg,
+          type: ModernToastType.error,
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isEmailLoading = false);
+    }
+  }
+
   Future<void> _signInWithGoogle() async {
-    setState(() => _isLoading = true);
+    setState(() => _isGoogleLoading = true);
     try {
       await ref.read(authServiceProvider).signInWithGoogle();
     } catch (e) {
@@ -75,7 +114,7 @@ class _LoginUIState extends ConsumerState<_LoginUI>
         );
       }
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) setState(() => _isGoogleLoading = false);
     }
   }
 
@@ -85,158 +124,266 @@ class _LoginUIState extends ConsumerState<_LoginUI>
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF0A0F1E) : const Color(0xFFF1F5F9),
+      backgroundColor: isDark
+          ? const Color(0xFF0A0F1E)
+          : const Color(0xFFF1F5F9),
       body: Stack(
         children: [
           // Decorative radial gradient background
           Positioned.fill(
             child: CustomPaint(painter: _BackgroundPainter(cs, isDark)),
           ),
-          Center(
-            child: FadeTransition(
-              opacity: _fadeAnim,
-              child: SlideTransition(
-                position: _slideAnim,
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 440),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 24),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 40, vertical: 48),
-                      decoration: BoxDecoration(
-                        color: isDark
-                            ? const Color(0xFF111827).withOpacity(0.85)
-                            : Colors.white.withOpacity(0.92),
-                        borderRadius: BorderRadius.circular(28),
-                        border: Border.all(
-                          color: isDark
-                              ? Colors.white.withOpacity(0.07)
-                              : cs.outlineVariant.withOpacity(0.5),
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(isDark ? 0.4 : 0.08),
-                            blurRadius: 40,
-                            offset: const Offset(0, 16),
+          SafeArea(
+            child: Center(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(vertical: 24),
+                child: FadeTransition(
+                  opacity: _fadeAnim,
+                  child: SlideTransition(
+                    position: _slideAnim,
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 440),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 24),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 40,
+                            vertical: 48,
                           ),
-                        ],
-                      ),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          // Logo badge
-                          Container(
-                            width: 72,
-                            height: 72,
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: [
-                                  cs.primary,
-                                  cs.primary.withOpacity(0.6),
-                                ],
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                              ),
-                              borderRadius: BorderRadius.circular(20),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: cs.primary.withOpacity(0.35),
-                                  blurRadius: 20,
-                                  offset: const Offset(0, 8),
+                          decoration: BoxDecoration(
+                            color: isDark
+                                ? const Color(0xFF111827).withOpacity(0.85)
+                                : Colors.white.withOpacity(0.92),
+                            borderRadius: BorderRadius.circular(28),
+                            border: Border.all(
+                              color: isDark
+                                  ? Colors.white.withOpacity(0.07)
+                                  : cs.outlineVariant.withOpacity(0.5),
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(
+                                  isDark ? 0.4 : 0.08,
                                 ),
-                              ],
-                            ),
-                            child: const Icon(
-                              Icons.admin_panel_settings_rounded,
-                              size: 36,
-                              color: Colors.white,
-                            ),
-                          ),
-                          const SizedBox(height: 28),
-
-                          // Title
-                          Text(
-                            'Admin Portal',
-                            style: TextStyle(
-                              fontSize: 26,
-                              fontWeight: FontWeight.bold,
-                              color: isDark ? Colors.white : const Color(0xFF0F172A),
-                              letterSpacing: -0.5,
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            'ExpenseSplit Pro',
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: cs.onSurfaceVariant,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                          const SizedBox(height: 10),
-
-                          // Access notice chip
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 14, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: cs.errorContainer.withOpacity(0.25),
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(
-                                color: cs.error.withOpacity(0.25),
+                                blurRadius: 40,
+                                offset: const Offset(0, 16),
                               ),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(Icons.lock_outline_rounded,
-                                    size: 13, color: cs.error),
-                                const SizedBox(width: 6),
-                                Text(
-                                  'Authorised admins only',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: cs.error,
-                                    fontWeight: FontWeight.w600,
+                            ],
+                          ),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              // Logo badge
+                              Container(
+                                width: 72,
+                                height: 72,
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    colors: [
+                                      cs.primary,
+                                      cs.primary.withOpacity(0.6),
+                                    ],
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                  ),
+                                  borderRadius: BorderRadius.circular(20),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: cs.primary.withOpacity(0.35),
+                                      blurRadius: 20,
+                                      offset: const Offset(0, 8),
+                                    ),
+                                  ],
+                                ),
+                                child: const Icon(
+                                  Icons.admin_panel_settings_rounded,
+                                  size: 36,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              const SizedBox(height: 28),
+
+                              // Title
+                              Text(
+                                'Admin Portal',
+                                style: TextStyle(
+                                  fontSize: 26,
+                                  fontWeight: FontWeight.bold,
+                                  color: isDark
+                                      ? Colors.white
+                                      : const Color(0xFF0F172A),
+                                  letterSpacing: -0.5,
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                'ExpenseSplit Pro',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: cs.onSurfaceVariant,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+
+                              // Access notice chip
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 14,
+                                  vertical: 6,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: cs.errorContainer.withOpacity(0.25),
+                                  borderRadius: BorderRadius.circular(20),
+                                  border: Border.all(
+                                    color: cs.error.withOpacity(0.25),
                                   ),
                                 ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 36),
-
-                          // Google Sign-In button
-                          SizedBox(
-                            width: double.infinity,
-                            height: 52,
-                            child: _isLoading
-                                ? Center(
-                                    child: SizedBox(
-                                      width: 26,
-                                      height: 26,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2.5,
-                                        color: cs.primary,
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.lock_outline_rounded,
+                                      size: 13,
+                                      color: cs.error,
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      'Authorised admins only',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: cs.error,
+                                        fontWeight: FontWeight.w600,
                                       ),
                                     ),
-                                  )
-                                : _GoogleButton(onTap: _signInWithGoogle),
-                          ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 36),
 
-                          const SizedBox(height: 28),
+                              _AdminTextField(
+                                controller: _emailController,
+                                label: 'Admin email',
+                                icon: Icons.mail_outline_rounded,
+                                keyboardType: TextInputType.emailAddress,
+                                textInputAction: TextInputAction.next,
+                                enabled: !_isLoading,
+                              ),
+                              const SizedBox(height: 14),
+                              _AdminTextField(
+                                controller: _passwordController,
+                                label: 'Password',
+                                icon: Icons.lock_outline_rounded,
+                                obscureText: _obscurePassword,
+                                textInputAction: TextInputAction.done,
+                                enabled: !_isLoading,
+                                onSubmitted: (_) {
+                                  if (!_isLoading) _signInWithEmail();
+                                },
+                                suffixIcon: IconButton(
+                                  tooltip: _obscurePassword
+                                      ? 'Show password'
+                                      : 'Hide password',
+                                  onPressed: _isLoading
+                                      ? null
+                                      : () => setState(
+                                          () => _obscurePassword =
+                                              !_obscurePassword,
+                                        ),
+                                  icon: Icon(
+                                    _obscurePassword
+                                        ? Icons.visibility_outlined
+                                        : Icons.visibility_off_outlined,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 18),
+                              SizedBox(
+                                width: double.infinity,
+                                height: 52,
+                                child: FilledButton.icon(
+                                  onPressed: _isLoading
+                                      ? null
+                                      : _signInWithEmail,
+                                  icon: _isEmailLoading
+                                      ? const SizedBox(
+                                          width: 18,
+                                          height: 18,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                          ),
+                                        )
+                                      : const Icon(Icons.login_rounded),
+                                  label: const Text('Sign in with email'),
+                                ),
+                              ),
+                              const SizedBox(height: 22),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Divider(
+                                      color: cs.outlineVariant.withOpacity(0.7),
+                                    ),
+                                  ),
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 14,
+                                    ),
+                                    child: Text(
+                                      'OR',
+                                      style: TextStyle(
+                                        color: cs.onSurfaceVariant,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ),
+                                  Expanded(
+                                    child: Divider(
+                                      color: cs.outlineVariant.withOpacity(0.7),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 22),
 
-                          // Footer note
-                          Text(
-                            'Access is restricted to pre-registered admin\naccounts. Contact your system administrator\nif you need access.',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: cs.onSurfaceVariant.withOpacity(0.6),
-                              height: 1.6,
-                            ),
+                              // Google Sign-In button
+                              SizedBox(
+                                width: double.infinity,
+                                height: 52,
+                                child: _isGoogleLoading
+                                    ? Center(
+                                        child: SizedBox(
+                                          width: 26,
+                                          height: 26,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2.5,
+                                            color: cs.primary,
+                                          ),
+                                        ),
+                                      )
+                                    : _GoogleButton(
+                                        onTap: _isLoading
+                                            ? () {}
+                                            : _signInWithGoogle,
+                                      ),
+                              ),
+
+                              const SizedBox(height: 28),
+
+                              // Footer note
+                              Text(
+                                'Access is restricted to pre-registered admin\naccounts. Contact your system administrator\nif you need access.',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: cs.onSurfaceVariant.withOpacity(0.6),
+                                  height: 1.6,
+                                ),
+                              ),
+                            ],
                           ),
-                        ],
+                        ),
                       ),
                     ),
                   ),
@@ -245,6 +392,74 @@ class _LoginUIState extends ConsumerState<_LoginUI>
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _AdminTextField extends StatelessWidget {
+  final TextEditingController controller;
+  final String label;
+  final IconData icon;
+  final bool obscureText;
+  final bool enabled;
+  final TextInputType keyboardType;
+  final TextInputAction textInputAction;
+  final ValueChanged<String>? onSubmitted;
+  final Widget? suffixIcon;
+
+  const _AdminTextField({
+    required this.controller,
+    required this.label,
+    required this.icon,
+    this.obscureText = false,
+    this.enabled = true,
+    this.keyboardType = TextInputType.text,
+    this.textInputAction = TextInputAction.next,
+    this.onSubmitted,
+    this.suffixIcon,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return TextField(
+      controller: controller,
+      enabled: enabled,
+      obscureText: obscureText,
+      keyboardType: keyboardType,
+      textInputAction: textInputAction,
+      onSubmitted: onSubmitted,
+      style: TextStyle(
+        color: isDark ? Colors.white : const Color(0xFF0F172A),
+        fontSize: 14,
+        fontWeight: FontWeight.w500,
+      ),
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: Icon(icon, size: 20),
+        suffixIcon: suffixIcon,
+        filled: true,
+        fillColor: isDark ? const Color(0xFF161D2E) : const Color(0xFFF8FAFC),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(color: cs.outlineVariant),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(
+            color: isDark
+                ? Colors.white.withOpacity(0.1)
+                : const Color(0xFFDDE1E7),
+            width: 1.4,
+          ),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(color: cs.primary, width: 1.6),
+        ),
       ),
     );
   }
@@ -349,25 +564,37 @@ class _GoogleLogoPainter extends CustomPainter {
     paint.color = const Color(0xFFEA4335);
     canvas.drawArc(
       Rect.fromCircle(center: Offset(cx, cy), radius: r * 0.78),
-      -2.3, 1.6, false, paint,
+      -2.3,
+      1.6,
+      false,
+      paint,
     );
     // Blue (left)
     paint.color = const Color(0xFF4285F4);
     canvas.drawArc(
       Rect.fromCircle(center: Offset(cx, cy), radius: r * 0.78),
-      -0.7, 1.6, false, paint,
+      -0.7,
+      1.6,
+      false,
+      paint,
     );
     // Yellow (bottom)
     paint.color = const Color(0xFFFBBC05);
     canvas.drawArc(
       Rect.fromCircle(center: Offset(cx, cy), radius: r * 0.78),
-      0.9, 1.5, false, paint,
+      0.9,
+      1.5,
+      false,
+      paint,
     );
     // Green (right-top)
     paint.color = const Color(0xFF34A853);
     canvas.drawArc(
       Rect.fromCircle(center: Offset(cx, cy), radius: r * 0.78),
-      2.4, 1.0, false, paint,
+      2.4,
+      1.0,
+      false,
+      paint,
     );
 
     // Draw the horizontal bar of the 'G'
@@ -376,8 +603,12 @@ class _GoogleLogoPainter extends CustomPainter {
       ..style = PaintingStyle.fill;
     canvas.drawRRect(
       RRect.fromRectAndRadius(
-        Rect.fromLTWH(cx - 0.5, cy - size.height * 0.09,
-            r * 0.82, size.height * 0.18),
+        Rect.fromLTWH(
+          cx - 0.5,
+          cy - size.height * 0.09,
+          r * 0.82,
+          size.height * 0.18,
+        ),
         const Radius.circular(2),
       ),
       paint,
@@ -399,25 +630,33 @@ class _BackgroundPainter extends CustomPainter {
     final paint = Paint();
 
     // Top-left glow
-    paint.shader = RadialGradient(
-      colors: [
-        cs.primary.withOpacity(isDark ? 0.18 : 0.10),
-        Colors.transparent,
-      ],
-    ).createShader(Rect.fromCircle(
-        center: Offset(size.width * 0.15, size.height * 0.1),
-        radius: size.width * 0.5));
+    paint.shader =
+        RadialGradient(
+          colors: [
+            cs.primary.withOpacity(isDark ? 0.18 : 0.10),
+            Colors.transparent,
+          ],
+        ).createShader(
+          Rect.fromCircle(
+            center: Offset(size.width * 0.15, size.height * 0.1),
+            radius: size.width * 0.5,
+          ),
+        );
     canvas.drawRect(Offset.zero & size, paint);
 
     // Bottom-right glow
-    paint.shader = RadialGradient(
-      colors: [
-        cs.tertiary.withOpacity(isDark ? 0.12 : 0.07),
-        Colors.transparent,
-      ],
-    ).createShader(Rect.fromCircle(
-        center: Offset(size.width * 0.9, size.height * 0.85),
-        radius: size.width * 0.4));
+    paint.shader =
+        RadialGradient(
+          colors: [
+            cs.tertiary.withOpacity(isDark ? 0.12 : 0.07),
+            Colors.transparent,
+          ],
+        ).createShader(
+          Rect.fromCircle(
+            center: Offset(size.width * 0.9, size.height * 0.85),
+            radius: size.width * 0.4,
+          ),
+        );
     canvas.drawRect(Offset.zero & size, paint);
   }
 

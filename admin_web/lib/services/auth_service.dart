@@ -14,6 +14,32 @@ class AuthService {
     return doc.exists;
   }
 
+  Future<User?> signInWithEmailAndPassword({
+    required String email,
+    required String password,
+  }) async {
+    try {
+      final result = await _auth.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+      final user = result.user;
+
+      if (user != null) {
+        final allowed = await isAdmin(user.uid);
+        if (!allowed) {
+          await signOut();
+          throw 'Access Denied: Your email account is not registered as an admin.';
+        }
+      }
+      return user;
+    } on FirebaseAuthException catch (e) {
+      throw e.message ?? e.code;
+    } catch (e) {
+      rethrow;
+    }
+  }
+
   Future<User?> signInWithGoogle() async {
     try {
       final googleProvider = GoogleAuthProvider()..addScope('email');
