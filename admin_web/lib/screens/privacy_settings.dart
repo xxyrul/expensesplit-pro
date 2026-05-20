@@ -9,66 +9,81 @@ class PrivacySettingsScreen extends ConsumerStatefulWidget {
   const PrivacySettingsScreen({super.key});
 
   @override
-  ConsumerState<PrivacySettingsScreen> createState() => _PrivacySettingsScreenState();
+  ConsumerState<PrivacySettingsScreen> createState() =>
+      _PrivacySettingsScreenState();
 }
 
-class _PrivacySettingsScreenState extends ConsumerState<PrivacySettingsScreen> {
+class _PrivacySettingsScreenState
+    extends ConsumerState<PrivacySettingsScreen> {
+  // ── State variables ──────────────────────────────────────────────────────
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final _retentionController = TextEditingController();
+  final TextEditingController _retentionController = TextEditingController();
 
   bool _maskSensitiveData = false;
   bool _isLoading = true;
 
+  // ── Lifecycle ────────────────────────────────────────────────────────────
   @override
   void initState() {
     super.initState();
     _loadPrivacySettings();
   }
 
+  @override
+  void dispose() {
+    _retentionController.dispose();
+    super.dispose();
+  }
+
+  // ── Data loading ─────────────────────────────────────────────────────────
   Future<void> _loadPrivacySettings() async {
     try {
-      final doc = await _firestore.collection('system_config').doc('privacy_settings').get();
+      final doc = await _firestore
+          .collection('system_config')
+          .doc('privacy_settings')
+          .get();
       if (doc.exists && doc.data() != null) {
         final data = doc.data()!;
         setState(() {
           _maskSensitiveData = data['maskSensitiveData'] ?? false;
-          _retentionController.text = (data['retentionDays'] ?? 365).toString();
+          _retentionController.text =
+              (data['retentionDays'] ?? 365).toString();
           _isLoading = false;
         });
       } else {
-        // Create defaults if not found
         _retentionController.text = '365';
-        setState(() {
-          _isLoading = false;
-        });
+        setState(() => _isLoading = false);
       }
     } catch (e) {
-      print('Error loading privacy settings: $e');
-      setState(() {
-        _isLoading = false;
-      });
+      debugPrint('Error loading privacy settings: $e');
+      setState(() => _isLoading = false);
     }
   }
 
+  // ── Save ─────────────────────────────────────────────────────────────────
   Future<void> _savePrivacySettings() async {
-    final retentionDays = int.tryParse(_retentionController.text.trim()) ?? 365;
+    final retentionDays =
+        int.tryParse(_retentionController.text.trim()) ?? 365;
 
     setState(() => _isLoading = true);
 
     try {
-      await _firestore.collection('system_config').doc('privacy_settings').set({
+      await _firestore
+          .collection('system_config')
+          .doc('privacy_settings')
+          .set({
         'maskSensitiveData': _maskSensitiveData,
         'retentionDays': retentionDays,
         'lastUpdated': FieldValue.serverTimestamp(),
       });
 
-      // Log to system audit trail
       ref.read(auditLogServiceProvider).logAction(
-        action: 'UPDATE_PRIVACY_POLICY',
-        targetId: 'privacy_settings',
-        targetType: 'system_config',
-        detail: 'Updated policy: Mask PII = $_maskSensitiveData, Data Retention = $retentionDays Days.',
-      );
+            action: 'UPDATE_PRIVACY_POLICY',
+            targetId: 'privacy_settings',
+            targetType: 'system_config',
+            detail:
+                'Updated policy: Mask PII = $_maskSensitiveData, Data Retention = $retentionDays Days.',
+          );
 
       if (mounted) {
         ModernBottomToast.show(
@@ -90,16 +105,10 @@ class _PrivacySettingsScreenState extends ConsumerState<PrivacySettingsScreen> {
     }
   }
 
-  @override
-  void dispose() {
-    _retentionController.dispose();
-    super.dispose();
-  }
-
+  // ── Build ─────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
+    final colorScheme = Theme.of(context).colorScheme;
 
     if (_isLoading) {
       return const Scaffold(
@@ -108,78 +117,73 @@ class _PrivacySettingsScreenState extends ConsumerState<PrivacySettingsScreen> {
     }
 
     return Scaffold(
-      body: Padding(
-        padding: const EdgeInsets.all(32.0),
+      body: SafeArea(
         child: SingleChildScrollView(
+          padding: const EdgeInsets.all(32.0),
           child: LayoutBuilder(
             builder: (context, constraints) {
               final isNarrow = constraints.maxWidth < 900;
+              final isMobile = constraints.maxWidth < 600;
 
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Header
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Privacy & Data Governance',
-                        style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Configure personal data masking rules, record retention schedules, and oversee regulatory compliance policies.',
-                        style: TextStyle(color: colorScheme.onSurfaceVariant, fontSize: 16),
-                      ),
-                    ],
+                  // ── Page header ───────────────────────────────────────
+                  Text(
+                    'Privacy & Data Governance',
+                    style: TextStyle(
+                      fontSize: isMobile ? 24 : 32,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Configure personal data masking rules, record retention '
+                    'schedules, and oversee regulatory compliance policies.',
+                    style: TextStyle(
+                      color: colorScheme.onSurfaceVariant,
+                      fontSize: 16,
+                    ),
                   ),
                   const SizedBox(height: 32),
 
-                  // Layout Grid
-                  isNarrow
-                      ? Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                  // ── Layout grid ───────────────────────────────────────
+                  if (isNarrow) ...[
+                    _buildSettingsCard(colorScheme),
+                    const SizedBox(height: 24),
+                    _buildComplianceSummaryCard(colorScheme),
+                    const SizedBox(height: 24),
+                    _buildGovernanceInfoCard(colorScheme),
+                  ] else Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        flex: 3,
+                        child: Column(
                           children: [
                             _buildSettingsCard(colorScheme),
                             const SizedBox(height: 24),
                             _buildComplianceSummaryCard(colorScheme),
-                            const SizedBox(height: 24),
-                            _buildGovernanceInfoCard(colorScheme),
-                          ],
-                        )
-                      : Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // Left panel: Settings Form
-                            Expanded(
-                              flex: 3,
-                              child: Column(
-                                children: [
-                                  _buildSettingsCard(colorScheme),
-                                  const SizedBox(height: 24),
-                                  _buildComplianceSummaryCard(colorScheme),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(width: 32),
-                            // Right panel: Info & Standards
-                            Expanded(
-                              flex: 2,
-                              child: _buildGovernanceInfoCard(colorScheme),
-                            ),
                           ],
                         ),
+                      ),
+                      const SizedBox(width: 32),
+                      Expanded(
+                        flex: 2,
+                        child: _buildGovernanceInfoCard(colorScheme),
+                      ),
+                    ],
+                  ),
                 ],
-              ),
-            );
-          },
+              );
+            },
+          ),
         ),
       ),
     );
-      },
-    );
   }
 
+  // ── Settings card ─────────────────────────────────────────────────────────
   Widget _buildSettingsCard(ColorScheme colorScheme) {
     return Card(
       elevation: 0,
@@ -197,26 +201,31 @@ class _PrivacySettingsScreenState extends ConsumerState<PrivacySettingsScreen> {
               children: [
                 Icon(Icons.settings, color: colorScheme.primary),
                 const SizedBox(width: 12),
-                const Text('Governance Configurations', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                const Text(
+                  'Governance Configurations',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
               ],
             ),
             const SizedBox(height: 24),
 
-            // Mask toggle
+            // PII masking toggle
             SwitchListTile(
-              title: const Text('Mask Sensitive Data (PII)', style: TextStyle(fontWeight: FontWeight.bold)),
-              subtitle: const Text('Mask email addresses (e.g. ex***@domain.com) in all administrative lists to adhere to privacy regulations.'),
+              title: const Text(
+                'Mask Sensitive Data (PII)',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              subtitle: const Text(
+                'Mask email addresses (e.g. ex***@domain.com) in all '
+                'administrative lists to adhere to privacy regulations.',
+              ),
               value: _maskSensitiveData,
               activeColor: colorScheme.primary,
-              onChanged: (val) {
-                setState(() {
-                  _maskSensitiveData = val;
-                });
-              },
+              onChanged: (val) => setState(() => _maskSensitiveData = val),
             ),
             const Divider(height: 32),
 
-            // Retention field
+            // Retention days field
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -224,15 +233,26 @@ class _PrivacySettingsScreenState extends ConsumerState<PrivacySettingsScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('Data Retention Limit', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                      const Text(
+                        'Data Retention Limit',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
                       const SizedBox(height: 6),
                       Text(
-                        'Number of days transaction history is kept before being systematically purged.',
-                        style: TextStyle(color: colorScheme.onSurfaceVariant, fontSize: 13),
+                        'Number of days transaction history is kept before '
+                        'being systematically purged.',
+                        style: TextStyle(
+                          color: colorScheme.onSurfaceVariant,
+                          fontSize: 13,
+                        ),
                       ),
                     ],
                   ),
                 ),
+                const SizedBox(width: 16),
                 SizedBox(
                   width: 150,
                   child: TextField(
@@ -249,7 +269,7 @@ class _PrivacySettingsScreenState extends ConsumerState<PrivacySettingsScreen> {
             ),
             const SizedBox(height: 32),
 
-            // Action button
+            // Save button
             SizedBox(
               width: double.infinity,
               height: 48,
@@ -260,7 +280,9 @@ class _PrivacySettingsScreenState extends ConsumerState<PrivacySettingsScreen> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: colorScheme.primary,
                   foregroundColor: colorScheme.onPrimary,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
               ),
             ),
@@ -270,6 +292,7 @@ class _PrivacySettingsScreenState extends ConsumerState<PrivacySettingsScreen> {
     );
   }
 
+  // ── Compliance summary card ───────────────────────────────────────────────
   Widget _buildComplianceSummaryCard(ColorScheme colorScheme) {
     return Card(
       elevation: 0,
@@ -287,13 +310,28 @@ class _PrivacySettingsScreenState extends ConsumerState<PrivacySettingsScreen> {
               children: [
                 Icon(Icons.shield, color: colorScheme.primary),
                 const SizedBox(width: 12),
-                const Text('Privacy Policy Status', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                const Text(
+                  'Privacy Policy Status',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
               ],
             ),
             const SizedBox(height: 24),
-            _complianceRow('PII Data Masking', _maskSensitiveData ? 'ENFORCED' : 'DISABLED', _maskSensitiveData ? Colors.green : Colors.amber),
-            _complianceRow('Data Retention policy', '${_retentionController.text} Days active', Colors.blue),
-            _complianceRow('Local Storage Logs', 'Encrypted', Colors.green),
+            _complianceRow(
+              'PII Data Masking',
+              _maskSensitiveData ? 'ENFORCED' : 'DISABLED',
+              _maskSensitiveData ? Colors.green : Colors.amber,
+            ),
+            _complianceRow(
+              'Data Retention Policy',
+              '${_retentionController.text} Days active',
+              Colors.blue,
+            ),
+            _complianceRow(
+              'Local Storage Logs',
+              'Encrypted',
+              Colors.green,
+            ),
           ],
         ),
       ),
@@ -308,7 +346,14 @@ class _PrivacySettingsScreenState extends ConsumerState<PrivacySettingsScreen> {
         children: [
           Text(label, style: const TextStyle(color: Colors.grey)),
           Chip(
-            label: Text(value, style: TextStyle(color: statusColor, fontSize: 11, fontWeight: FontWeight.bold)),
+            label: Text(
+              value,
+              style: TextStyle(
+                color: statusColor,
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
             backgroundColor: statusColor.withOpacity(0.1),
             side: BorderSide(color: statusColor.withOpacity(0.2)),
           ),
@@ -317,6 +362,7 @@ class _PrivacySettingsScreenState extends ConsumerState<PrivacySettingsScreen> {
     );
   }
 
+  // ── Governance info card ──────────────────────────────────────────────────
   Widget _buildGovernanceInfoCard(ColorScheme colorScheme) {
     return Card(
       elevation: 0,
@@ -330,16 +376,35 @@ class _PrivacySettingsScreenState extends ConsumerState<PrivacySettingsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Thesis Governance Framework', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const Text(
+              'Thesis Governance Framework',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
             const SizedBox(height: 16),
             const Text(
-              'This admin portal includes active configurations to model personal data protections under standard governance regulations such as GDPR (General Data Protection Regulation) and PDPA (Personal Data Protection Act 2010 of Malaysia).',
+              'This admin portal includes active configurations to model '
+              'personal data protections under standard governance regulations '
+              'such as GDPR (General Data Protection Regulation) and PDPA '
+              '(Personal Data Protection Act 2010 of Malaysia).',
               style: TextStyle(height: 1.5, fontSize: 13),
             ),
             const SizedBox(height: 16),
-            _buildBulletPoint(colorScheme, 'Sensitive PII (Personally Identifiable Information) masking prevents internal developers/system administrators from harvesting user emails without explicit consent.'),
-            _buildBulletPoint(colorScheme, 'Retention Purge schedules limit exposure durations of scanned receipts to reduce data breach impacts.'),
-            _buildBulletPoint(colorScheme, 'Immutable action logging provides verifiable security trails to third-party safety auditors.'),
+            _buildBulletPoint(
+              colorScheme,
+              'Sensitive PII (Personally Identifiable Information) masking '
+              'prevents internal developers/system administrators from '
+              'harvesting user emails without explicit consent.',
+            ),
+            _buildBulletPoint(
+              colorScheme,
+              'Retention Purge schedules limit exposure durations of scanned '
+              'receipts to reduce data breach impacts.',
+            ),
+            _buildBulletPoint(
+              colorScheme,
+              'Immutable action logging provides verifiable security trails '
+              'to third-party safety auditors.',
+            ),
           ],
         ),
       ),
@@ -357,7 +422,11 @@ class _PrivacySettingsScreenState extends ConsumerState<PrivacySettingsScreen> {
           Expanded(
             child: Text(
               text,
-              style: TextStyle(color: colorScheme.onSurfaceVariant, fontSize: 12, height: 1.4),
+              style: TextStyle(
+                color: colorScheme.onSurfaceVariant,
+                fontSize: 12,
+                height: 1.4,
+              ),
             ),
           ),
         ],

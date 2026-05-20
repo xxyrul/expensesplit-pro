@@ -10,9 +10,11 @@ class AuditLogScreen extends StatefulWidget {
 }
 
 class _AuditLogScreenState extends State<AuditLogScreen> {
+  // ── State variables ──────────────────────────────────────────────────────
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   String _selectedActionFilter = 'All';
 
+  // ── Filter logic ─────────────────────────────────────────────────────────
   List<DocumentSnapshot> _applyFilters(List<DocumentSnapshot> docs) {
     if (_selectedActionFilter == 'All') return docs;
     return docs.where((doc) {
@@ -22,21 +24,22 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
     }).toList();
   }
 
+  // ── Action colour mapping ─────────────────────────────────────────────────
   Color _getActionColor(String action) {
     switch (action) {
       case 'DELETE_EXPENSE':
       case 'DEACTIVATE_USER':
-        return Colors.red; // Destructive / Critical Governance Actions
+        return Colors.red;
       case 'EDIT_EXPENSE':
       case 'CHANGE_USER_ROLE':
-        return Colors.orange; // High Impact Configuration Updates
+        return Colors.orange;
       case 'EXPORT_EXPENSES':
       case 'LEARN_OCR_MAPPING':
-        return Colors.blue; // System Optimization & Privacy Operations
+        return Colors.blue;
       case 'OCR_REVIEW':
       case 'ACTIVATE_USER':
       case 'OCR_RESOLVE_ANOMALY':
-        return Colors.green; // Approvals & Standard Maintenance
+        return Colors.green;
       case 'UPDATE_PRIVACY_POLICY':
         return Colors.purple;
       case 'SUSPEND_USER_ANOMALY':
@@ -47,10 +50,10 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
     }
   }
 
+  // ── Build ─────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
+    final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
       body: SafeArea(
@@ -66,199 +69,365 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // ── Page header ─────────────────────────────────
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
-                            'System Security Audit Trail',
-                            style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Immutably logged actions for system accountability, access controls, and policy compliance verification.',
-                            style: TextStyle(color: colorScheme.onSurfaceVariant, fontSize: 16),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: Colors.green.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.green.withOpacity(0.3)),
-                      ),
-                      child: const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.verified_user, color: Colors.green, size: 16),
-                          SizedBox(width: 8),
-                          Text(
-                            'Append-only governance trail',
-                            style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 12),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 28),
-                _buildFilterBar(colorScheme),
-                const SizedBox(height: 24),
-                Expanded(
-                  child: StreamBuilder<QuerySnapshot>(
-                    stream: _firestore
-                        .collection('system_config')
-                        .doc('audit_logs')
-                        .collection('entries')
-                        .orderBy('timestamp', descending: true)
-                        .snapshots(),
-                    builder: (context, snapshot) {
-                      if (snapshot.connectionState == ConnectionState.waiting) {
-                        return const Center(child: CircularProgressIndicator());
-                      }
-                      if (snapshot.hasError) {
-                        return Center(child: Text('Error loading audit log: ${snapshot.error}'));
-                      }
-
-                      final allLogs = snapshot.data?.docs ?? [];
-                      final filteredLogs = _applyFilters(allLogs);
-
-                      return Container(
-                        width: double.infinity,
-                        decoration: BoxDecoration(
-                          color: colorScheme.surfaceContainer,
-                          borderRadius: BorderRadius.circular(18),
-                          border: Border.all(color: colorScheme.outlineVariant),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Padding(
-                              padding: const EdgeInsets.fromLTRB(20, 18, 20, 14),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    'Administrative Entries: ${filteredLogs.length}',
-                                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'System Security Audit Trail',
+                                  style: TextStyle(
+                                    fontSize: 32,
+                                    fontWeight: FontWeight.bold,
                                   ),
-                                  Text(
-                                    'Showing newest first',
-                                    style: TextStyle(fontSize: 12, color: colorScheme.onSurfaceVariant),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  'Immutably logged actions for system '
+                                  'accountability, access controls, and '
+                                  'policy compliance verification.',
+                                  style: TextStyle(
+                                    color: colorScheme.onSurfaceVariant,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 6,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.green.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: Colors.green.withOpacity(0.3),
+                              ),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.verified_user,
+                                  color: Colors.green,
+                                  size: 16,
+                                ),
+                                SizedBox(width: 8),
+                                Text(
+                                  'Append-only governance trail',
+                                  style: TextStyle(
+                                    color: Colors.green,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 28),
+
+                      // ── Filter bar ──────────────────────────────────
+                      _buildFilterBar(colorScheme),
+                      const SizedBox(height: 24),
+
+                      // ── Data table ──────────────────────────────────
+                      Expanded(
+                        child: StreamBuilder<QuerySnapshot>(
+                          stream: _firestore
+                              .collection('system_config')
+                              .doc('audit_logs')
+                              .collection('entries')
+                              .orderBy('timestamp', descending: true)
+                              .snapshots(),
+                          builder: (context, snapshot) {
+                            if (snapshot.connectionState ==
+                                ConnectionState.waiting) {
+                              return const Center(
+                                child: CircularProgressIndicator(),
+                              );
+                            }
+                            if (snapshot.hasError) {
+                              return Center(
+                                child: Text(
+                                  'Error loading audit log: ${snapshot.error}',
+                                ),
+                              );
+                            }
+
+                            final allLogs = snapshot.data?.docs ?? [];
+                            final filteredLogs = _applyFilters(allLogs);
+
+                            return Container(
+                              width: double.infinity,
+                              decoration: BoxDecoration(
+                                color: colorScheme.surfaceContainer,
+                                borderRadius: BorderRadius.circular(18),
+                                border: Border.all(
+                                  color: colorScheme.outlineVariant,
+                                ),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  // Table header bar
+                                  Padding(
+                                    padding: const EdgeInsets.fromLTRB(
+                                        20, 18, 20, 14),
+                                    child: Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Text(
+                                          'Administrative Entries: '
+                                          '${filteredLogs.length}',
+                                          style: const TextStyle(
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                        Text(
+                                          'Showing newest first',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color:
+                                                colorScheme.onSurfaceVariant,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const Divider(height: 1),
+
+                                  // Table body
+                                  Expanded(
+                                    child: filteredLogs.isEmpty
+                                        ? const Center(
+                                            child: Text(
+                                              'No security events logged '
+                                              'under current filter.',
+                                              style: TextStyle(
+                                                fontSize: 16,
+                                                color: Colors.grey,
+                                              ),
+                                            ),
+                                          )
+                                        : LayoutBuilder(
+                                            builder: (ctx, tableConstraints) {
+                                              final tableWidth =
+                                                  tableConstraints.maxWidth >
+                                                          1280
+                                                      ? tableConstraints
+                                                          .maxWidth
+                                                      : 1280.0;
+                                              final detailsColWidth =
+                                                  tableWidth - 750.0;
+
+                                              return Scrollbar(
+                                                child: SingleChildScrollView(
+                                                  scrollDirection:
+                                                      Axis.horizontal,
+                                                  child: SizedBox(
+                                                    width: tableWidth,
+                                                    child: DataTable(
+                                                      columnSpacing: 24,
+                                                      horizontalMargin: 20,
+                                                      headingRowColor:
+                                                          WidgetStateProperty
+                                                              .all(
+                                                        colorScheme
+                                                            .surfaceContainerHighest,
+                                                      ),
+                                                      columns: const [
+                                                        DataColumn(
+                                                          label:
+                                                              Text('Timestamp'),
+                                                        ),
+                                                        DataColumn(
+                                                          label:
+                                                              Text('Operator'),
+                                                        ),
+                                                        DataColumn(
+                                                          label: Text(
+                                                              'Event Action'),
+                                                        ),
+                                                        DataColumn(
+                                                          label: Text(
+                                                              'Target Info'),
+                                                        ),
+                                                        DataColumn(
+                                                          label: Text(
+                                                              'Event Details'),
+                                                        ),
+                                                      ],
+                                                      rows:
+                                                          filteredLogs.map(
+                                                        (doc) {
+                                                          final data = doc
+                                                              .data() as Map<
+                                                                  String,
+                                                                  dynamic>;
+                                                          final adminEmail =
+                                                              data['adminEmail'] ??
+                                                                  'Unknown Admin';
+                                                          final action =
+                                                              data['action'] ??
+                                                                  'Unknown Action';
+                                                          final targetType =
+                                                              data['targetType'] ??
+                                                                  'System';
+                                                          final targetId =
+                                                              data['targetId'] ??
+                                                                  '';
+                                                          final detail =
+                                                              data['detail'] ??
+                                                                  '';
+
+                                                          String timestampStr =
+                                                              'N/A';
+                                                          if (data['timestamp'] !=
+                                                                  null &&
+                                                              data['timestamp']
+                                                                  is Timestamp) {
+                                                            final date = (data[
+                                                                        'timestamp']
+                                                                    as Timestamp)
+                                                                .toDate();
+                                                            timestampStr =
+                                                                DateFormat(
+                                                                        'yyyy-MM-dd HH:mm:ss')
+                                                                    .format(
+                                                                        date);
+                                                          }
+
+                                                          final actionColor =
+                                                              _getActionColor(
+                                                                  action);
+
+                                                          return DataRow(
+                                                            cells: [
+                                                              DataCell(
+                                                                Text(
+                                                                  timestampStr,
+                                                                  style: const TextStyle(
+                                                                    fontFamily:
+                                                                        'monospace',
+                                                                    fontSize:
+                                                                        13,
+                                                                  ),
+                                                                ),
+                                                              ),
+                                                              DataCell(
+                                                                SizedBox(
+                                                                  width: 180,
+                                                                  child: Text(
+                                                                    adminEmail,
+                                                                    maxLines: 1,
+                                                                    overflow:
+                                                                        TextOverflow
+                                                                            .ellipsis,
+                                                                  ),
+                                                                ),
+                                                              ),
+                                                              DataCell(
+                                                                Chip(
+                                                                  label: Text(
+                                                                    action,
+                                                                    style:
+                                                                        TextStyle(
+                                                                      color:
+                                                                          actionColor,
+                                                                      fontSize:
+                                                                          10,
+                                                                      fontWeight:
+                                                                          FontWeight
+                                                                              .bold,
+                                                                    ),
+                                                                  ),
+                                                                  backgroundColor:
+                                                                      actionColor
+                                                                          .withOpacity(
+                                                                              0.1),
+                                                                  side: BorderSide(
+                                                                    color: actionColor
+                                                                        .withOpacity(
+                                                                            0.2),
+                                                                  ),
+                                                                ),
+                                                              ),
+                                                              DataCell(
+                                                                SizedBox(
+                                                                  width: 220,
+                                                                  child: Text(
+                                                                    '$targetType ($targetId)',
+                                                                    maxLines: 1,
+                                                                    overflow:
+                                                                        TextOverflow
+                                                                            .ellipsis,
+                                                                    style: const TextStyle(
+                                                                        fontSize:
+                                                                            12),
+                                                                  ),
+                                                                ),
+                                                              ),
+                                                              DataCell(
+                                                                SizedBox(
+                                                                  width:
+                                                                      detailsColWidth,
+                                                                  child:
+                                                                      Tooltip(
+                                                                    message:
+                                                                        detail,
+                                                                    child: Text(
+                                                                      detail,
+                                                                      maxLines:
+                                                                          1,
+                                                                      overflow:
+                                                                          TextOverflow
+                                                                              .ellipsis,
+                                                                      style: const TextStyle(
+                                                                          fontSize:
+                                                                              13),
+                                                                    ),
+                                                                  ),
+                                                                ),
+                                                              ),
+                                                            ],
+                                                          );
+                                                        },
+                                                      ).toList(),
+                                                    ),
+                                                  ),
+                                                ),
+                                              );
+                                            },
+                                          ),
                                   ),
                                 ],
                               ),
-                            ),
-                            const Divider(height: 1),
-                            Expanded(
-                              child: filteredLogs.isEmpty
-                                  ? const Center(
-                                      child: Text(
-                                        'No security events logged under current filter.',
-                                        style: TextStyle(fontSize: 16, color: Colors.grey),
-                                      ),
-                                    )
-                                  : LayoutBuilder(
-                                      builder: (context, constraints) {
-                                        final tableWidth = constraints.maxWidth > 1280 ? constraints.maxWidth : 1280.0;
-                                        final detailsColumnWidth = tableWidth - 750.0;
-
-                                        return Scrollbar(
-                                          child: SingleChildScrollView(
-                                            scrollDirection: Axis.horizontal,
-                                            child: SizedBox(
-                                              width: tableWidth,
-                                              child: DataTable(
-                                                columnSpacing: 24,
-                                                horizontalMargin: 20,
-                                                headingRowColor: WidgetStateProperty.all(
-                                                  colorScheme.surfaceContainerHighest,
-                                                ),
-                                                columns: const [
-                                                  DataColumn(label: Text('Timestamp')),
-                                                  DataColumn(label: Text('Operator')),
-                                                  DataColumn(label: Text('Event Action')),
-                                                  DataColumn(label: Text('Target Info')),
-                                                  DataColumn(label: Text('Event Details')),
-                                                ],
-                                                rows: filteredLogs.map((doc) {
-                                                  final data = doc.data() as Map<String, dynamic>;
-                                                  final adminEmail = data['adminEmail'] ?? 'Unknown Admin';
-                                                  final action = data['action'] ?? 'Unknown Action';
-                                                  final targetType = data['targetType'] ?? 'System';
-                                                  final targetId = data['targetId'] ?? '';
-                                                  final detail = data['detail'] ?? '';
-
-                                                  String timestampStr = 'N/A';
-                                                  if (data['timestamp'] != null && data['timestamp'] is Timestamp) {
-                                                    final date = (data['timestamp'] as Timestamp).toDate();
-                                                    timestampStr = DateFormat('yyyy-MM-dd HH:mm:ss').format(date);
-                                                  }
-
-                                                  final actionColor = _getActionColor(action);
-
-                                                  return DataRow(cells: [
-                                                    DataCell(Text(timestampStr, style: const TextStyle(fontFamily: 'monospace', fontSize: 13))),
-                                                    DataCell(SizedBox(
-                                                      width: 180,
-                                                      child: Text(adminEmail, maxLines: 1, overflow: TextOverflow.ellipsis),
-                                                    )),
-                                                    DataCell(Chip(
-                                                      label: Text(
-                                                        action,
-                                                        style: TextStyle(color: actionColor, fontSize: 10, fontWeight: FontWeight.bold),
-                                                      ),
-                                                      backgroundColor: actionColor.withOpacity(0.1),
-                                                      side: BorderSide(color: actionColor.withOpacity(0.2)),
-                                                    )),
-                                                    DataCell(SizedBox(
-                                                      width: 220,
-                                                      child: Text('$targetType ($targetId)', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12)),
-                                                    )),
-                                                    DataCell(SizedBox(
-                                                      width: detailsColumnWidth,
-                                                      child: Tooltip(
-                                                        message: detail,
-                                                        child: Text(
-                                                          detail,
-                                                          maxLines: 1,
-                                                          overflow: TextOverflow.ellipsis,
-                                                          style: const TextStyle(fontSize: 13),
-                                                        ),
-                                                      ),
-                                                    )),
-                                                  ]);
-                                                }).toList(),
-                                              ),
-                                            ),
-                                          ),
-                                        );
-                                      },
-                                    ),
-                            ),
-                          ],
+                            );
+                          },
                         ),
-                      );
-                    },
+                      ),
+                    ],
                   ),
                 ),
-              ],
-            ),
-          ),
+              ),
+            );
+          },
         ),
-      );
-    },
-  ),
-),
-);
+      ),
+    );
   }
 
+  // ── Filter bar ────────────────────────────────────────────────────────────
   Widget _buildFilterBar(ColorScheme colorScheme) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
@@ -273,42 +442,84 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
         runSpacing: 12,
         children: [
           Icon(Icons.filter_list, color: colorScheme.primary),
-          const SizedBox(width: 12),
-          const Text('Filter by Event Type:', style: TextStyle(fontWeight: FontWeight.bold)),
-          const SizedBox(width: 24),
+          const Text(
+            'Filter by Event Type:',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
             decoration: BoxDecoration(
               color: colorScheme.surfaceContainerHighest.withOpacity(0.5),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: colorScheme.outlineVariant, width: 1.5),
+              border: Border.all(
+                color: colorScheme.outlineVariant,
+                width: 1.5,
+              ),
             ),
             child: DropdownButtonHideUnderline(
               child: DropdownButton<String>(
                 value: _selectedActionFilter,
                 dropdownColor: colorScheme.surfaceContainerHigh,
                 borderRadius: BorderRadius.circular(12),
-                icon: Icon(Icons.keyboard_arrow_down, color: colorScheme.primary),
+                icon: Icon(
+                  Icons.keyboard_arrow_down,
+                  color: colorScheme.primary,
+                ),
                 items: const [
                   DropdownMenuItem(value: 'All', child: Text('All Events')),
-                  DropdownMenuItem(value: 'DELETE_EXPENSE', child: Text('DELETE_EXPENSE')),
-                  DropdownMenuItem(value: 'EDIT_EXPENSE', child: Text('EDIT_EXPENSE')),
-                  DropdownMenuItem(value: 'OCR_REVIEW', child: Text('OCR_REVIEW')),
-                  DropdownMenuItem(value: 'ACTIVATE_USER', child: Text('ACTIVATE_USER')),
-                  DropdownMenuItem(value: 'DEACTIVATE_USER', child: Text('DEACTIVATE_USER')),
-                  DropdownMenuItem(value: 'CHANGE_USER_ROLE', child: Text('CHANGE_USER_ROLE')),
-                  DropdownMenuItem(value: 'EXPORT_EXPENSES', child: Text('EXPORT_EXPENSES')),
-                  DropdownMenuItem(value: 'LEARN_OCR_MAPPING', child: Text('LEARN_OCR_MAPPING')),
-                  DropdownMenuItem(value: 'UPDATE_PRIVACY_POLICY', child: Text('UPDATE_PRIVACY_POLICY')),
-                  DropdownMenuItem(value: 'OCR_RESOLVE_ANOMALY', child: Text('OCR_RESOLVE_ANOMALY')),
-                  DropdownMenuItem(value: 'SUSPEND_USER_ANOMALY', child: Text('SUSPEND_USER_ANOMALY')),
-                  DropdownMenuItem(value: 'DELETE_VENDOR_MAPPING', child: Text('DELETE_VENDOR_MAPPING')),
+                  DropdownMenuItem(
+                    value: 'DELETE_EXPENSE',
+                    child: Text('DELETE_EXPENSE'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'EDIT_EXPENSE',
+                    child: Text('EDIT_EXPENSE'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'OCR_REVIEW',
+                    child: Text('OCR_REVIEW'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'ACTIVATE_USER',
+                    child: Text('ACTIVATE_USER'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'DEACTIVATE_USER',
+                    child: Text('DEACTIVATE_USER'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'CHANGE_USER_ROLE',
+                    child: Text('CHANGE_USER_ROLE'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'EXPORT_EXPENSES',
+                    child: Text('EXPORT_EXPENSES'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'LEARN_OCR_MAPPING',
+                    child: Text('LEARN_OCR_MAPPING'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'UPDATE_PRIVACY_POLICY',
+                    child: Text('UPDATE_PRIVACY_POLICY'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'OCR_RESOLVE_ANOMALY',
+                    child: Text('OCR_RESOLVE_ANOMALY'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'SUSPEND_USER_ANOMALY',
+                    child: Text('SUSPEND_USER_ANOMALY'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'DELETE_VENDOR_MAPPING',
+                    child: Text('DELETE_VENDOR_MAPPING'),
+                  ),
                 ],
-                onChanged: (val) {
-                  setState(() {
-                    _selectedActionFilter = val ?? 'All';
-                  });
-                },
+                onChanged: (val) => setState(
+                  () => _selectedActionFilter = val ?? 'All',
+                ),
               ),
             ),
           ),
