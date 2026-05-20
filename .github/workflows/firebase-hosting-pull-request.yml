@@ -27,9 +27,12 @@ jobs:
       - working-directory: admin_web
         run: flutter build web
       
-      # Step 4: Deploy a Preview URL to Firebase
-      - uses: FirebaseExtended/action-hosting-deploy@v0
-        with:
-          repoToken: ${{ secrets.GITHUB_TOKEN }}
-          firebaseToken: ${{ secrets.FIREBASE_TOKEN }}
-          projectId: expensesplit-pro-9e1c8
+      # Step 4: Deploy a Preview URL to Firebase using the Firebase CLI and a CI token
+      - name: Install Firebase CLI
+        run: npm install -g firebase-tools
+
+      - name: Deploy preview to Firebase Hosting
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+        run: |
+          firebase hosting:channel:deploy pr-${{ github.event.number }} --project expensesplit-pro-9e1c8
