@@ -10,6 +10,87 @@ import 'audit_log_screen.dart';
 import 'privacy_settings.dart';
 import 'vendor_intelligence_hub.dart';
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Nav item data model
+// ─────────────────────────────────────────────────────────────────────────────
+class _NavItem {
+  final int index;
+  final IconData icon;
+  final IconData activeIcon;
+  final String label;
+  final String section;
+
+  const _NavItem({
+    required this.index,
+    required this.icon,
+    required this.activeIcon,
+    required this.label,
+    required this.section,
+  });
+}
+
+const List<_NavItem> _kNavItems = [
+  _NavItem(
+    index: 0,
+    icon: Icons.dashboard_outlined,
+    activeIcon: Icons.dashboard,
+    label: 'Dashboard',
+    section: 'Overview',
+  ),
+  _NavItem(
+    index: 1,
+    icon: Icons.receipt_long_outlined,
+    activeIcon: Icons.receipt_long,
+    label: 'Expenses',
+    section: 'Operations',
+  ),
+  _NavItem(
+    index: 2,
+    icon: Icons.remove_red_eye_outlined,
+    activeIcon: Icons.remove_red_eye,
+    label: 'OCR Review',
+    section: 'Operations',
+  ),
+  _NavItem(
+    index: 3,
+    icon: Icons.hub_outlined,
+    activeIcon: Icons.hub,
+    label: 'Vendor Hub',
+    section: 'Operations',
+  ),
+  _NavItem(
+    index: 4,
+    icon: Icons.notifications_active_outlined,
+    activeIcon: Icons.notifications_active,
+    label: 'Alerts',
+    section: 'Operations',
+  ),
+  _NavItem(
+    index: 5,
+    icon: Icons.people_outline,
+    activeIcon: Icons.people,
+    label: 'User Management',
+    section: 'Governance',
+  ),
+  _NavItem(
+    index: 6,
+    icon: Icons.history_edu_outlined,
+    activeIcon: Icons.history_edu,
+    label: 'Audit Log',
+    section: 'Governance',
+  ),
+  _NavItem(
+    index: 7,
+    icon: Icons.security_outlined,
+    activeIcon: Icons.security,
+    label: 'Privacy Settings',
+    section: 'Governance',
+  ),
+];
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DashboardLayout
+// ─────────────────────────────────────────────────────────────────────────────
 class DashboardLayout extends ConsumerStatefulWidget {
   const DashboardLayout({super.key});
 
@@ -18,416 +99,19 @@ class DashboardLayout extends ConsumerStatefulWidget {
 }
 
 class _DashboardLayoutState extends ConsumerState<DashboardLayout> {
+  // ── State variables ────────────────────────────────────────────────────────
   int _selectedIndex = 0;
-  bool _isCollapsed = false;
+  bool _isExpanded = true;
 
-  static const double _mobileBreakpoint = 768;
-  static const double _compactDesktopBreakpoint = 1200;
-  static const double _contentMaxWidth = 1600;
+  // ── Layout constants ───────────────────────────────────────────────────────
+  static const double _mobileBreakpoint = 600;
+  static const double _expandedWidth = 260;
+  static const double _collapsedWidth = 70;
+  static const Duration _animDuration = Duration(milliseconds: 220);
 
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-    final isMobile = MediaQuery.of(context).size.width < _mobileBreakpoint;
-
-    return Scaffold(
-      appBar: isMobile
-          ? AppBar(
-              title: const Text('Admin Portal'),
-              centerTitle: false,
-            )
-          : null,
-      drawer: isMobile
-          ? Drawer(
-              width: 340,
-              child: SafeArea(
-                bottom: false,
-                child: _buildSidebar(
-                  context: context,
-                  colorScheme: colorScheme,
-                  isMobile: true,
-                ),
-              ),
-            )
-          : null,
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          final useMobileLayout = constraints.maxWidth < _mobileBreakpoint;
-          final useCompactDesktopLayout = constraints.maxWidth >= _mobileBreakpoint && constraints.maxWidth < _compactDesktopBreakpoint;
-
-          if (useMobileLayout) {
-            return SafeArea(
-              top: false,
-              child: SizedBox.expand(
-                child: _buildContentArea(),
-              ),
-            );
-          }
-
-          final forceCollapsed = useCompactDesktopLayout;
-          final effectiveCollapsed = forceCollapsed || _isCollapsed;
-          final canToggle = !forceCollapsed;
-
-          // The sidebar pixel width (not counting the 1px divider).
-          final sidebarWidth = effectiveCollapsed ? 76.0 : 300.0;
-
-          return Stack(
-            children: [
-              Row(
-                children: [
-                  _buildSidebar(
-                    context: context,
-                    colorScheme: colorScheme,
-                    isMobile: false,
-                    forceCollapsed: forceCollapsed,
-                  ),
-                  const VerticalDivider(thickness: 1, width: 1),
-                  Expanded(
-                    child: Center(
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: _contentMaxWidth),
-                        child: SizedBox.expand(
-                          child: _buildContentArea(),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-
-              // ── Floating sidebar toggle ─────────────────────────────────
-              // Sits exactly on the divider line between sidebar & content,
-              // vertically centred in the top header band — just like the
-              // Firebase Console toggle button.
-              if (canToggle)
-                Positioned(
-                  // +1 for the VerticalDivider width; -16 centres the 32px button
-                  left: sidebarWidth + 1 - 16,
-                  top: 24,   // vertically centred inside the 80px header
-                  child: _SidebarHeaderToggleButton(
-                    icon: effectiveCollapsed
-                        ? Icons.chevron_right
-                        : Icons.chevron_left,
-                    tooltip: effectiveCollapsed
-                        ? 'Expand sidebar'
-                        : 'Collapse sidebar',
-                    onTap: () => setState(() => _isCollapsed = !_isCollapsed),
-                    colorScheme: colorScheme,
-                  ),
-                ),
-            ],
-          );
-        },
-      ),
-    );
-  }
-
-
-  Widget _buildSidebar({
-    required BuildContext context,
-    required ColorScheme colorScheme,
-    required bool isMobile,
-    bool forceCollapsed = false,
-  }) {
-    final effectiveCollapsed = !isMobile && (forceCollapsed || _isCollapsed);
-    final sidebarWidth = effectiveCollapsed ? 76.0 : 300.0;
-    final canToggle = !isMobile && !forceCollapsed;
-
-    final sidebar = AnimatedContainer(
-      duration: const Duration(milliseconds: 200),
-      width: isMobile ? double.infinity : sidebarWidth,
-      color: colorScheme.surfaceContainer,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SafeArea(
-            bottom: false,
-            child: effectiveCollapsed
-                ? _CollapsedSidebarHeader(colorScheme: colorScheme)
-                : _ExpandedSidebarHeader(colorScheme: colorScheme),
-          ),
-
-          const Divider(height: 1, thickness: 1),
-
-          Expanded(
-            child: ListView(
-              padding: EdgeInsets.symmetric(
-                horizontal: 12,
-                vertical: effectiveCollapsed && !isMobile ? 12 : 16,
-              ),
-              children: [
-                _buildSectionHeader('Overview', collapsed: effectiveCollapsed && !isMobile),
-                _buildNavItem(
-                  index: 0,
-                  icon: Icons.dashboard_outlined,
-                  activeIcon: Icons.dashboard,
-                  label: 'Dashboard',
-                  collapsed: effectiveCollapsed && !isMobile,
-                ),
-                const SizedBox(height: 16),
-                _buildSectionHeader('Operations', collapsed: effectiveCollapsed && !isMobile),
-                _buildNavItem(
-                  index: 1,
-                  icon: Icons.receipt_long_outlined,
-                  activeIcon: Icons.receipt_long,
-                  label: 'Expenses',
-                  collapsed: effectiveCollapsed && !isMobile,
-                ),
-                _buildNavItem(
-                  index: 2,
-                  icon: Icons.remove_red_eye_outlined,
-                  activeIcon: Icons.remove_red_eye,
-                  label: 'OCR Review',
-                  collapsed: effectiveCollapsed && !isMobile,
-                ),
-                _buildNavItem(
-                  index: 3,
-                  icon: Icons.hub_outlined,
-                  activeIcon: Icons.hub,
-                  label: 'Vendor Hub',
-                  collapsed: effectiveCollapsed && !isMobile,
-                ),
-                _buildNavItem(
-                  index: 4,
-                  icon: Icons.notifications_active_outlined,
-                  activeIcon: Icons.notifications_active,
-                  label: 'Alerts',
-                  collapsed: effectiveCollapsed && !isMobile,
-                ),
-                const SizedBox(height: 16),
-                _buildSectionHeader('Access & Governance', collapsed: effectiveCollapsed && !isMobile),
-                _buildNavItem(
-                  index: 5,
-                  icon: Icons.people_outline,
-                  activeIcon: Icons.people,
-                  label: 'User Management',
-                  collapsed: effectiveCollapsed && !isMobile,
-                ),
-                _buildNavItem(
-                  index: 6,
-                  icon: Icons.history_edu_outlined,
-                  activeIcon: Icons.history_edu,
-                  label: 'Audit Log',
-                  collapsed: effectiveCollapsed && !isMobile,
-                ),
-                _buildNavItem(
-                  index: 7,
-                  icon: Icons.security_outlined,
-                  activeIcon: Icons.security,
-                  label: 'Privacy Settings',
-                  collapsed: effectiveCollapsed && !isMobile,
-                ),
-              ],
-            ),
-          ),
-
-          const Divider(height: 1, thickness: 1),
-
-          Padding(
-            padding: const EdgeInsets.all(12.0),
-            child: InkWell(
-              onTap: () async {
-                final confirm = await showDialog<bool>(
-                  context: context,
-                  builder: (ctx) => AlertDialog(
-                    title: const Text('Sign out?'),
-                    content: const Text('Leave the admin dashboard?'),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(ctx, false),
-                        child: const Text('Cancel'),
-                      ),
-                      FilledButton(
-                        onPressed: () => Navigator.pop(ctx, true),
-                        child: const Text('Sign out'),
-                      ),
-                    ],
-                  ),
-                );
-
-                if (confirm == true && context.mounted) {
-                  ref.read(authServiceProvider).signOut();
-                }
-              },
-              borderRadius: BorderRadius.circular(12),
-              child: Container(
-                padding: EdgeInsets.symmetric(
-                  vertical: 12,
-                  horizontal: effectiveCollapsed && !isMobile ? 0 : 16,
-                ),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: effectiveCollapsed && !isMobile
-                    ? Center(
-                        child: Icon(
-                          Icons.logout,
-                          color: colorScheme.error,
-                          size: 20,
-                        ),
-                      )
-                    : Row(
-                        children: [
-                          Icon(
-                            Icons.logout,
-                            color: colorScheme.error,
-                            size: 20,
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Text(
-                              'Logout',
-                              style: TextStyle(
-                                color: colorScheme.error,
-                                fontWeight: FontWeight.w600,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
-                      ),
-              ),
-            ),
-          ),
-            const SizedBox(height: 16),
-        ],
-      ),
-    );
-
-    return sidebar;
-  }
-
-  Widget _buildContentArea() {
-    return SizedBox.expand(
-      child: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 220),
-        switchInCurve: Curves.easeInOut,
-        switchOutCurve: Curves.easeInOut,
-        layoutBuilder: (currentChild, previousChildren) {
-          return Stack(
-            fit: StackFit.expand,
-            children: [
-              ...previousChildren,
-              if (currentChild != null) currentChild,
-            ],
-          );
-        },
-        transitionBuilder: (Widget child, Animation<double> animation) {
-          return FadeTransition(
-            opacity: animation,
-            child: SlideTransition(
-              position: Tween<Offset>(
-                begin: const Offset(0.01, 0.0),
-                end: Offset.zero,
-              ).animate(animation),
-              child: child,
-            ),
-          );
-        },
-        child: KeyedSubtree(
-          key: ValueKey<int>(_selectedIndex),
-          child: _buildContent(_selectedIndex),
-        ),
-      ),
-    );
-  }
-
-
-  Widget _buildSectionHeader(String title, {required bool collapsed}) {
-    return AnimatedCrossFade(
-      duration: const Duration(milliseconds: 200),
-      firstCurve: Curves.easeInOut,
-      secondCurve: Curves.easeInOut,
-      crossFadeState: collapsed ? CrossFadeState.showSecond : CrossFadeState.showFirst,
-      firstChild: Padding(
-        padding: const EdgeInsets.only(left: 16.0, top: 8.0, bottom: 8.0),
-        child: SizedBox(
-          width: double.infinity,
-          child: Text(
-            title.toUpperCase(),
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.bold,
-              color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.6),
-              letterSpacing: 1.2,
-            ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ),
-      ),
-      secondChild: const Padding(
-        padding: EdgeInsets.symmetric(vertical: 8.0),
-        child: Divider(indent: 8, endIndent: 8),
-      ),
-    );
-  }
-
-  Widget _buildNavItem({
-    required int index,
-    required IconData icon,
-    required IconData activeIcon,
-    required String label,
-    required bool collapsed,
-  }) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-    final isSelected = _selectedIndex == index;
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4.0),
-      child: InkWell(
-        onTap: () {
-          setState(() {
-            _selectedIndex = index;
-          });
-        },
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          padding: EdgeInsets.symmetric(vertical: 12, horizontal: collapsed ? 0 : 16),
-          decoration: BoxDecoration(
-            color: isSelected ? colorScheme.primary.withOpacity(0.08) : Colors.transparent,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: collapsed
-              ? Center(
-                  child: Icon(
-                    isSelected ? activeIcon : icon,
-                    color: isSelected ? colorScheme.primary : colorScheme.onSurfaceVariant,
-                    size: 20,
-                  ),
-                )
-              : Row(
-                  children: [
-                    Icon(
-                      isSelected ? activeIcon : icon,
-                      color: isSelected ? colorScheme.primary : colorScheme.onSurfaceVariant,
-                      size: 20,
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Text(
-                        label,
-                        style: TextStyle(
-                          color: isSelected ? colorScheme.primary : colorScheme.onSurface,
-                          fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                          fontSize: 14,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildContent(int index) {
-    switch (index) {
+  // ── Screen router ──────────────────────────────────────────────────────────
+  Widget get _activeScreen {
+    switch (_selectedIndex) {
       case 0:
         return const GlobalAnalyticsScreen();
       case 1:
@@ -448,197 +132,489 @@ class _DashboardLayoutState extends ConsumerState<DashboardLayout> {
         return const SizedBox.shrink();
     }
   }
-}
 
-class _SidebarHeaderToggleButton extends StatelessWidget {
-  final IconData icon;
-  final String tooltip;
-  final VoidCallback onTap;
-  final ColorScheme colorScheme;
-
-  const _SidebarHeaderToggleButton({
-    required this.icon,
-    required this.tooltip,
-    required this.onTap,
-    required this.colorScheme,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Tooltip(
-      message: tooltip,
-      child: Material(
-        type: MaterialType.circle,
-        color: colorScheme.surfaceContainerHighest,
-        elevation: 2,
-        shadowColor: Colors.black.withOpacity(0.4),
-        child: InkWell(
-          onTap: onTap,
-          customBorder: const CircleBorder(),
-          child: Container(
-            width: 32,
-            height: 32,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: colorScheme.outlineVariant.withOpacity(0.8),
-                width: 1,
-              ),
-            ),
-            child: Center(
-              child: Icon(
-                icon,
-                color: colorScheme.onSurfaceVariant,
-                size: 18,
-              ),
-            ),
+  // ── Logout confirmation ────────────────────────────────────────────────────
+  Future<void> _confirmLogout() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Sign out?'),
+        content: const Text('Leave the admin dashboard?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
           ),
-        ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Sign out'),
+          ),
+        ],
       ),
     );
+    if (ok == true && mounted) {
+      ref.read(authServiceProvider).signOut();
+    }
   }
-}
 
-class _CollapsedSidebarHeader extends StatelessWidget {
-  final ColorScheme colorScheme;
-
-  const _CollapsedSidebarHeader({required this.colorScheme});
-
+  // ── Root build ─────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 80,
-      alignment: Alignment.center,
-      child: Container(
-        width: 40,
-        height: 40,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: colorScheme.primary.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Icon(
-          Icons.admin_panel_settings,
-          color: colorScheme.primary,
-          size: 24,
-        ),
-      ),
-    );
+    final isMobile =
+        MediaQuery.of(context).size.width < _mobileBreakpoint;
+    final cs = Theme.of(context).colorScheme;
+    return isMobile ? _buildMobileLayout(cs) : _buildDesktopLayout(cs);
   }
-}
 
-class _ExpandedSidebarHeader extends StatelessWidget {
-  final ColorScheme colorScheme;
-
-  const _ExpandedSidebarHeader({required this.colorScheme});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 80,
-      padding: const EdgeInsets.symmetric(horizontal: 20.0),
-      alignment: Alignment.center,
-      child: Row(
+  // ─────────────────────────────────────────────────────────────────────────
+  // DESKTOP LAYOUT
+  // ─────────────────────────────────────────────────────────────────────────
+  Widget _buildDesktopLayout(ColorScheme cs) {
+    return Scaffold(
+      body: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Container(
-            width: 40,
-            height: 40,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: colorScheme.primary.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(
-              Icons.admin_panel_settings,
-              color: colorScheme.primary,
-              size: 24,
+          // ── Zone A + B + C: Sidebar ──────────────────────────────────────
+          AnimatedContainer(
+            duration: _animDuration,
+            curve: Curves.easeInOut,
+            width: _isExpanded ? _expandedWidth : _collapsedWidth,
+            color: cs.surfaceContainer,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // ── Zone A: Header (fixed) ─────────────────────────────
+                SafeArea(
+                  bottom: false,
+                  child: _buildHeader(cs, isMobile: false),
+                ),
+                Divider(height: 1, thickness: 1, color: cs.outlineVariant),
+
+                // ── Zone B: Navigation (scrollable) ───────────────────
+                Expanded(
+                  child: ListView(
+                    padding: const EdgeInsets.symmetric(
+                        vertical: 8, horizontal: 0),
+                    children: _buildNavItems(cs, isMobile: false),
+                  ),
+                ),
+
+                Divider(height: 1, thickness: 1, color: cs.outlineVariant),
+                // ── Zone C: Footer (fixed) ─────────────────────────────
+                _buildDesktopFooter(cs),
+              ],
             ),
           ),
-          const SizedBox(width: 14),
+
+          // ── Vertical divider ──────────────────────────────────────────
+          VerticalDivider(
+            thickness: 1,
+            width: 1,
+            color: cs.outlineVariant,
+          ),
+
+          // ── Main content ──────────────────────────────────────────────
           Expanded(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'ExpenseSplit Pro',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                    letterSpacing: 0.15,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  'Admin Portal',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: colorScheme.onSurfaceVariant.withOpacity(0.8),
-                    fontWeight: FontWeight.w500,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
+            child: AnimatedSwitcher(
+              duration: _animDuration,
+              switchInCurve: Curves.easeOut,
+              switchOutCurve: Curves.easeIn,
+              transitionBuilder: (child, animation) => FadeTransition(
+                opacity: animation,
+                child: child,
+              ),
+              child: KeyedSubtree(
+                key: ValueKey<int>(_selectedIndex),
+                child: _activeScreen,
+              ),
             ),
           ),
         ],
       ),
     );
   }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // MOBILE LAYOUT
+  // ─────────────────────────────────────────────────────────────────────────
+  Widget _buildMobileLayout(ColorScheme cs) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text(
+          'ExpenseSplit Pro',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        centerTitle: false,
+        leading: Builder(
+          builder: (ctx) => IconButton(
+            icon: const Icon(Icons.menu_rounded),
+            tooltip: 'Open menu',
+            onPressed: () => Scaffold.of(ctx).openDrawer(),
+          ),
+        ),
+      ),
+      // ── Slide-out drawer (full nav) ──────────────────────────────────
+      drawer: Drawer(
+        width: 280,
+        child: SafeArea(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _buildHeader(cs, isMobile: true),
+              Divider(height: 1, thickness: 1, color: cs.outlineVariant),
+              Expanded(
+                child: ListView(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  children: _buildNavItems(cs, isMobile: true),
+                ),
+              ),
+              Divider(height: 1, thickness: 1, color: cs.outlineVariant),
+              Padding(
+                padding: const EdgeInsets.all(10),
+                child: _logoutTile(cs, expanded: true),
+              ),
+            ],
+          ),
+        ),
+      ),
+      // ── Screen content ───────────────────────────────────────────────
+      body: AnimatedSwitcher(
+        duration: _animDuration,
+        child: KeyedSubtree(
+          key: ValueKey<int>(_selectedIndex),
+          child: _activeScreen,
+        ),
+      ),
+      // ── Bottom navigation bar (first 5 items) ────────────────────────
+      bottomNavigationBar: BottomNavigationBar(
+        type: BottomNavigationBarType.fixed,
+        currentIndex: _selectedIndex.clamp(0, 4),
+        selectedItemColor: cs.primary,
+        unselectedItemColor: cs.onSurfaceVariant,
+        onTap: (i) => setState(() => _selectedIndex = i),
+        items: _kNavItems.take(5).map(
+          (item) => BottomNavigationBarItem(
+            icon: Icon(item.icon),
+            activeIcon: Icon(item.activeIcon),
+            label: item.label,
+          ),
+        ).toList(),
+      ),
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Zone A: Header
+  // ─────────────────────────────────────────────────────────────────────────
+  Widget _buildHeader(ColorScheme cs, {required bool isMobile}) {
+    final showFull = isMobile || _isExpanded;
+    return AnimatedContainer(
+      duration: _animDuration,
+      curve: Curves.easeInOut,
+      height: 72,
+      padding: EdgeInsets.symmetric(horizontal: showFull ? 16 : 0),
+      alignment: showFull ? Alignment.centerLeft : Alignment.center,
+      child: showFull
+          ? Row(
+              children: [
+                _LogoBadge(cs: cs),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'ExpenseSplit Pro',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                          color: cs.onSurface,
+                          letterSpacing: 0.1,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 1),
+                      Text(
+                        'Admin',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: cs.onSurfaceVariant,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            )
+          : _LogoBadge(cs: cs),
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Zone B: Nav item widgets
+  // ─────────────────────────────────────────────────────────────────────────
+  List<Widget> _buildNavItems(ColorScheme cs, {required bool isMobile}) {
+    final showLabels = isMobile || _isExpanded;
+    final widgets = <Widget>[];
+    String? lastSection;
+
+    for (final item in _kNavItems) {
+      final sectionChanged = item.section != lastSection;
+
+      if (sectionChanged) {
+        if (lastSection != null) {
+          widgets.add(const SizedBox(height: 4));
+        }
+        if (showLabels) {
+          widgets.add(
+            Padding(
+              padding: const EdgeInsets.only(
+                  left: 20, top: 10, bottom: 4, right: 8),
+              child: Text(
+                item.section.toUpperCase(),
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  color: cs.onSurfaceVariant.withOpacity(0.5),
+                  letterSpacing: 1.3,
+                ),
+              ),
+            ),
+          );
+        } else {
+          if (lastSection != null) {
+            widgets.add(
+              Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                child: Divider(
+                    height: 1,
+                    color: cs.outlineVariant.withOpacity(0.5)),
+              ),
+            );
+          }
+        }
+        lastSection = item.section;
+      }
+
+      widgets.add(
+        _NavTile(
+          item: item,
+          isSelected: _selectedIndex == item.index,
+          showLabel: showLabels,
+          cs: cs,
+          onTap: () {
+            setState(() => _selectedIndex = item.index);
+            if (isMobile) Navigator.of(context).pop();
+          },
+        ),
+      );
+    }
+
+    return widgets;
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Zone C: Desktop footer (logout + toggle)
+  // ─────────────────────────────────────────────────────────────────────────
+  Widget _buildDesktopFooter(ColorScheme cs) {
+    return Padding(
+      padding: const EdgeInsets.all(8),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Logout
+          _logoutTile(cs, expanded: _isExpanded),
+          const SizedBox(height: 4),
+          // Collapse / expand toggle
+          Tooltip(
+            message: _isExpanded ? 'Collapse sidebar' : 'Expand sidebar',
+            child: InkWell(
+              onTap: () => setState(() => _isExpanded = !_isExpanded),
+              borderRadius: BorderRadius.circular(10),
+              child: Container(
+                height: 36,
+                decoration: BoxDecoration(
+                  color: cs.onSurface.withOpacity(0.05),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Center(
+                  child: AnimatedRotation(
+                    duration: _animDuration,
+                    // chevron_left (points left) when expanded;
+                    // rotated 180° (points right) when collapsed.
+                    turns: _isExpanded ? 0.0 : 0.5,
+                    child: Icon(
+                      Icons.chevron_left_rounded,
+                      color: cs.onSurfaceVariant,
+                      size: 22,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Shared logout tile
+  Widget _logoutTile(ColorScheme cs, {required bool expanded}) {
+    return Tooltip(
+      message: 'Sign out',
+      child: InkWell(
+        onTap: _confirmLogout,
+        borderRadius: BorderRadius.circular(10),
+        child: Container(
+          height: 44,
+          padding: EdgeInsets.symmetric(horizontal: expanded ? 12 : 0),
+          child: expanded
+              ? Row(
+                  children: [
+                    Icon(Icons.logout_rounded, color: cs.error, size: 20),
+                    const SizedBox(width: 12),
+                    Text(
+                      'Logout',
+                      style: TextStyle(
+                        color: cs.error,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                )
+              : Center(
+                  child: Icon(Icons.logout_rounded,
+                      color: cs.error, size: 20),
+                ),
+        ),
+      ),
+    );
+  }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// _NavTile — individual navigation row
+// ─────────────────────────────────────────────────────────────────────────────
+class _NavTile extends StatelessWidget {
+  final _NavItem item;
+  final bool isSelected;
+  final bool showLabel;
+  final ColorScheme cs;
+  final VoidCallback onTap;
+
+  const _NavTile({
+    required this.item,
+    required this.isSelected,
+    required this.showLabel,
+    required this.cs,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(10),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          padding: EdgeInsets.symmetric(
+            vertical: 10,
+            horizontal: showLabel ? 12 : 0,
+          ),
+          decoration: BoxDecoration(
+            color: isSelected
+                ? cs.primary.withOpacity(0.1)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: showLabel
+              ? Row(
+                  children: [
+                    Icon(
+                      isSelected ? item.activeIcon : item.icon,
+                      color: isSelected ? cs.primary : cs.onSurfaceVariant,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Text(
+                        item.label,
+                        style: TextStyle(
+                          color: isSelected ? cs.primary : cs.onSurface,
+                          fontWeight: isSelected
+                              ? FontWeight.w700
+                              : FontWeight.w500,
+                          fontSize: 13.5,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    if (isSelected)
+                      Container(
+                        width: 5,
+                        height: 5,
+                        decoration: BoxDecoration(
+                          color: cs.primary,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                  ],
+                )
+              : Center(
+                  child: Icon(
+                    isSelected ? item.activeIcon : item.icon,
+                    color: isSelected ? cs.primary : cs.onSurfaceVariant,
+                    size: 20,
+                  ),
+                ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// _LogoBadge — gradient admin icon
+// ─────────────────────────────────────────────────────────────────────────────
+class _LogoBadge extends StatelessWidget {
+  final ColorScheme cs;
+  const _LogoBadge({required this.cs});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 80,
-      padding: const EdgeInsets.only(left: 20.0, right: 16.0),
-      alignment: Alignment.center,
-      child: Row(
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: colorScheme.primary.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(
-              Icons.admin_panel_settings,
-              color: colorScheme.primary,
-              size: 24,
-            ),
+      width: 38,
+      height: 38,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [cs.primary, cs.primary.withOpacity(0.65)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(10),
+        boxShadow: [
+          BoxShadow(
+            color: cs.primary.withOpacity(0.25),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
           ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'ExpenseSplit Pro',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                    letterSpacing: 0.15,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  'Admin Portal',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: colorScheme.onSurfaceVariant.withOpacity(0.8),
-                    fontWeight: FontWeight.w500,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          ),
+        ],
+      ),
+      child: const Icon(
+        Icons.admin_panel_settings_rounded,
+        color: Colors.white,
+        size: 22,
+      ),
+    );
+  }
+}
