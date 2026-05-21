@@ -55,6 +55,7 @@ class DefaultFirebaseOptions {
     messagingSenderId: '539814694384',
     projectId: 'expensesplit-pro-9e1c8',
     storageBucket: 'expensesplit-pro-9e1c8.firebasestorage.app',
+    androidClientId: '539814694384-bnrhnh5jf8pam73ml50hb7q02gpug61g.apps.googleusercontent.com',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(

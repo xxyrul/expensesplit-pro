@@ -81,7 +81,9 @@ class AuthService {
         googleProvider.setCustomParameters({'prompt': 'select_account'});
         await user.linkWithPopup(googleProvider);
       } else {
-        final GoogleSignIn googleSignIn = GoogleSignIn();
+        final GoogleSignIn googleSignIn = GoogleSignIn(
+          serverClientId: '539814694384-qk0h5n3ovco79qhukieb5c019l8p3l3n.apps.googleusercontent.com',
+        );
         try {
           await googleSignIn.disconnect();
         } catch (_) {}
@@ -198,7 +200,9 @@ class AuthService {
         googleProvider.setCustomParameters({'prompt': 'select_account'});
         result = await _auth.signInWithPopup(googleProvider);
       } else {
-        final GoogleSignIn googleSignIn = GoogleSignIn();
+        final GoogleSignIn googleSignIn = GoogleSignIn(
+          serverClientId: '539814694384-qk0h5n3ovco79qhukieb5c019l8p3l3n.apps.googleusercontent.com',
+        );
         try {
           await googleSignIn.disconnect();
         } catch (_) {}
@@ -296,7 +300,9 @@ class AuthService {
     await _auth.signOut();
     if (!kIsWeb) {
       try {
-        await GoogleSignIn().disconnect();
+        await GoogleSignIn(
+          serverClientId: '539814694384-qk0h5n3ovco79qhukieb5c019l8p3l3n.apps.googleusercontent.com',
+        ).disconnect();
       } catch (e) {
         // Ignore if not signed in with Google
       }

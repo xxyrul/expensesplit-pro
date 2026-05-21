@@ -1,0 +1,46 @@
+name: Build and deploy admin_web to Firebase Hosting
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'admin_web/**'
+      - 'firebase.json'
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 'stable'
+
+      - name: Install Node.js (for Firebase CLI)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install Firebase CLI
+        run: npm install -g firebase-tools
+
+      - name: Install Flutter dependencies (admin_web)
+        run: |
+          cd admin_web
+          flutter pub get
+
+      - name: Build Flutter web (admin_web)
+        run: |
+          cd admin_web
+          flutter build web --release --web-renderer html
+
+      - name: Deploy to Firebase Hosting
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+        run: |
+          # deploy uses the firebase.json at repository root which points
+          # hosting.public to admin_web/build/web
+          firebase deploy --only hosting --token "$FIREBASE_TOKEN"
