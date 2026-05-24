@@ -973,7 +973,7 @@ class _ExpenseManagementScreenState extends ConsumerState<ExpenseManagementScree
   ) {
     showDialog(
       context: context,
-      builder: (context) {
+      builder: (dialogContext) {
         return AlertDialog(
           title: const Text('Expense Details'),
           content: Column(
@@ -991,7 +991,7 @@ class _ExpenseManagementScreenState extends ConsumerState<ExpenseManagementScree
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => Navigator.pop(dialogContext),
               child: const Text('Close'),
             )
           ],
@@ -1038,7 +1038,7 @@ class _ExpenseManagementScreenState extends ConsumerState<ExpenseManagementScree
 
     showDialog(
       context: context,
-      builder: (context) {
+      builder: (dialogContext) {
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
@@ -1102,7 +1102,7 @@ class _ExpenseManagementScreenState extends ConsumerState<ExpenseManagementScree
               ),
               actions: [
                 TextButton(
-                  onPressed: () => Navigator.pop(context),
+                  onPressed: () => Navigator.pop(dialogContext),
                   child: const Text('Cancel'),
                 ),
                 ElevatedButton(
@@ -1132,7 +1132,7 @@ class _ExpenseManagementScreenState extends ConsumerState<ExpenseManagementScree
                       detail: 'Updated expense amount to RM ${amount.toStringAsFixed(2)} for vendor "$vendor".',
                     );
 
-                    if (context.mounted) Navigator.pop(context);
+                    if (dialogContext.mounted) Navigator.pop(dialogContext);
                   },
                   child: const Text('Save Changes'),
                 ),
@@ -1153,13 +1153,13 @@ class _ExpenseManagementScreenState extends ConsumerState<ExpenseManagementScree
   ) {
     showDialog(
       context: context,
-      builder: (context) {
+      builder: (dialogContext) {
         return AlertDialog(
           title: const Text('Delete Expense Record?'),
           content: Text('Are you sure you want to delete this expense record for "$vendor" (RM ${amount.toStringAsFixed(2)})? This action is permanent and will be logged in the audit log.'),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => Navigator.pop(dialogContext),
               child: const Text('Cancel'),
             ),
             ElevatedButton(
@@ -1180,7 +1180,7 @@ class _ExpenseManagementScreenState extends ConsumerState<ExpenseManagementScree
                   detail: 'Deleted expense of RM ${amount.toStringAsFixed(2)} for vendor "$vendor".',
                 );
 
-                if (context.mounted) Navigator.pop(context);
+                if (dialogContext.mounted) Navigator.pop(dialogContext);
               },
               child: const Text('Delete'),
             ),

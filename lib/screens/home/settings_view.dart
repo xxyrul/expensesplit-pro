@@ -537,7 +537,7 @@ class _SettingsViewState extends ConsumerState<SettingsView>
     final controller = TextEditingController(text: user.email ?? '');
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: const Text('Change Email'),
         content: TextField(
           controller: controller,
@@ -546,11 +546,11 @@ class _SettingsViewState extends ConsumerState<SettingsView>
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
+            onPressed: () => Navigator.pop(dialogContext, false),
             child: const Text('Cancel'),
           ),
           ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
+            onPressed: () => Navigator.pop(dialogContext, true),
             child: const Text('Update'),
           ),
         ],
@@ -583,19 +583,19 @@ class _SettingsViewState extends ConsumerState<SettingsView>
   Future<void> _deleteAccount() async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: const Text('Delete Account'),
         content: const Text(
           'This will permanently delete your account and ALL your expense data. This cannot be undone.\n\nAre you absolutely sure?',
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
+            onPressed: () => Navigator.pop(dialogContext, false),
             child: const Text('Cancel'),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            onPressed: () => Navigator.pop(ctx, true),
+            onPressed: () => Navigator.pop(dialogContext, true),
             child: const Text('Delete', style: TextStyle(color: Colors.white)),
           ),
         ],
@@ -1063,7 +1063,7 @@ class _SettingsViewState extends ConsumerState<SettingsView>
   void _showPrivacyPolicyDialog() {
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Row(
           children: [
@@ -1094,7 +1094,7 @@ class _SettingsViewState extends ConsumerState<SettingsView>
         ),
         actions: [
           FilledButton(
-            onPressed: () => Navigator.pop(ctx),
+            onPressed: () => Navigator.pop(dialogContext),
             child: const Text('Close'),
           ),
         ],
@@ -1105,7 +1105,7 @@ class _SettingsViewState extends ConsumerState<SettingsView>
   void _showTermsDialog() {
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Row(
           children: [
@@ -1138,7 +1138,7 @@ class _SettingsViewState extends ConsumerState<SettingsView>
         ),
         actions: [
           FilledButton(
-            onPressed: () => Navigator.pop(ctx),
+            onPressed: () => Navigator.pop(dialogContext),
             child: const Text('Dismiss'),
           ),
         ],

@@ -117,7 +117,7 @@ class _AnomalyAlertsScreenState extends ConsumerState<AnomalyAlertsScreen> {
   void _showRulesReference() {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: const Text('Explainable integrity rules'),
         content: SingleChildScrollView(
           child: Column(
@@ -142,7 +142,7 @@ class _AnomalyAlertsScreenState extends ConsumerState<AnomalyAlertsScreen> {
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close')),
+          TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Close')),
         ],
       ),
     );
@@ -491,7 +491,7 @@ class _AnomalyAlertsScreenState extends ConsumerState<AnomalyAlertsScreen> {
 
       showDialog(
         context: context,
-        builder: (context) => AlertDialog(
+        builder: (dialogContext) => AlertDialog(
           title: const Text('Flagged expense inspection'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
@@ -506,7 +506,7 @@ class _AnomalyAlertsScreenState extends ConsumerState<AnomalyAlertsScreen> {
             ],
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close')),
+            TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Close')),
           ],
         ),
       );
@@ -547,13 +547,13 @@ class _AnomalyAlertsScreenState extends ConsumerState<AnomalyAlertsScreen> {
   void _flagAccount(String userId, String userEmail) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: const Text('Suspend user account?'),
         content: Text(
           'Deactivate "$userEmail" after governance review? This blocks mobile sign-in until reactivated.',
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Cancel')),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
             onPressed: () async {
@@ -565,10 +565,10 @@ class _AnomalyAlertsScreenState extends ConsumerState<AnomalyAlertsScreen> {
                       targetType: 'user',
                       detail: 'Suspended user "$userEmail" from anomaly monitor.',
                     );
-                if (context.mounted) Navigator.pop(context);
+                if (dialogContext.mounted) Navigator.pop(dialogContext);
               } catch (e) {
-                if (context.mounted) {
-                  ModernBottomToast.show(context, message: 'Suspend failed: $e', type: ModernToastType.error);
+                if (mounted) {
+                  ModernBottomToast.show(this.context, message: 'Suspend failed: $e', type: ModernToastType.error);
                 }
               }
             },

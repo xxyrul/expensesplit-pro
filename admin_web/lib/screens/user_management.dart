@@ -421,7 +421,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
 
     showDialog(
       context: context,
-      builder: (context) {
+      builder: (dialogContext) {
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
@@ -451,7 +451,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
               ),
               actions: [
                 TextButton(
-                  onPressed: () => Navigator.pop(context),
+                  onPressed: () => Navigator.pop(dialogContext),
                   child: const Text('Cancel'),
                 ),
                 ElevatedButton(
@@ -477,7 +477,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                       detail: 'Changed security role of "$name" from "$currentRole" to "$selectedRole".',
                     );
 
-                    if (context.mounted) Navigator.pop(context);
+                    if (dialogContext.mounted) Navigator.pop(dialogContext);
                   },
                   child: const Text('Confirm Privileges'),
                 ),
@@ -492,7 +492,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
   void _showStatsDialog(BuildContext context, String userId, String name) {
     showDialog(
       context: context,
-      builder: (context) {
+      builder: (dialogContext) {
         return AlertDialog(
           title: Text('Activity Dashboard: $name'),
           content: SizedBox(
@@ -544,7 +544,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => Navigator.pop(dialogContext),
               child: const Text('Close'),
             )
           ],

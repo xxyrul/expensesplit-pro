@@ -48,16 +48,16 @@ class _FinancialGoalsViewState extends ConsumerState<FinancialGoalsView>
   Future<void> _confirmDeleteGoal(GoalModel goal) async {
     final bool? confirm = await showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: const Text("Delete Goal"),
         content: Text("Are you sure you want to delete '${goal.name}'?"),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context, false),
+            onPressed: () => Navigator.pop(dialogContext, false),
             child: const Text("Cancel"),
           ),
           TextButton(
-            onPressed: () => Navigator.pop(context, true),
+            onPressed: () => Navigator.pop(dialogContext, true),
             child: const Text("Delete", style: TextStyle(color: Colors.red)),
           ),
         ],

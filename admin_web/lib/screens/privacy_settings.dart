@@ -110,7 +110,7 @@ class _PrivacySettingsScreenState
   void _showPrivacyPolicyDialog() {
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Row(
           children: [
@@ -147,7 +147,7 @@ class _PrivacySettingsScreenState
             child: const Text('Open Full Page'),
           ),
           FilledButton(
-            onPressed: () => Navigator.pop(ctx),
+            onPressed: () => Navigator.pop(dialogContext),
             child: const Text('Close'),
           ),
         ],
@@ -158,7 +158,7 @@ class _PrivacySettingsScreenState
   void _showTermsDialog() {
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Row(
           children: [
@@ -195,7 +195,7 @@ class _PrivacySettingsScreenState
             child: const Text('Open Full Page'),
           ),
           FilledButton(
-            onPressed: () => Navigator.pop(ctx),
+            onPressed: () => Navigator.pop(dialogContext),
             child: const Text('Close'),
           ),
         ],

@@ -111,18 +111,18 @@ class _ExpensesViewState extends ConsumerState<ExpensesView> {
   Future<void> _deleteExpense(ExpenseModel expense) async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: const Text('Delete Expense'),
         content: Text(
             'Delete "${expense.vendor}" for RM ${expense.amount.toStringAsFixed(2)}?'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
+            onPressed: () => Navigator.pop(dialogContext, false),
             child: const Text('Cancel'),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            onPressed: () => Navigator.pop(ctx, true),
+            onPressed: () => Navigator.pop(dialogContext, true),
             child:
                 const Text('Delete', style: TextStyle(color: Colors.white)),
           ),
@@ -577,19 +577,19 @@ class _ExpensesViewState extends ConsumerState<ExpensesView> {
       confirmDismiss: (_) async {
         return await showDialog<bool>(
           context: context,
-          builder: (ctx) => AlertDialog(
+          builder: (dialogContext) => AlertDialog(
             title: const Text('Delete Expense'),
             content: Text(
                 'Delete "${expense.vendor}" for RM ${expense.amount.toStringAsFixed(2)}?'),
             actions: [
               TextButton(
-                onPressed: () => Navigator.pop(ctx, false),
+                onPressed: () => Navigator.pop(dialogContext, false),
                 child: const Text('Cancel'),
               ),
               ElevatedButton(
                 style:
                     ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                onPressed: () => Navigator.pop(ctx, true),
+                onPressed: () => Navigator.pop(dialogContext, true),
                 child: const Text('Delete',
                     style: TextStyle(color: Colors.white)),
               ),

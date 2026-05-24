@@ -641,7 +641,7 @@ class _OcrReviewQueueScreenState extends ConsumerState<OcrReviewQueueScreen> {
   void _showRawTextDialog(BuildContext context, String rawText) {
     showDialog(
       context: context,
-      builder: (context) {
+      builder: (dialogContext) {
         return AlertDialog(
           title: const Text('Raw OCR Transcription Output'),
           content: SizedBox(
@@ -666,7 +666,7 @@ class _OcrReviewQueueScreenState extends ConsumerState<OcrReviewQueueScreen> {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => Navigator.pop(dialogContext),
               child: const Text('Close'),
             ),
           ],

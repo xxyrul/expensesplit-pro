@@ -132,19 +132,19 @@ class _EditProfileScreenState extends State<EditProfileScreen>
   Future<void> _confirmUnlinkPhone() async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: const Text('Unlink Phone Number'),
         content: const Text(
           'Are you sure you want to remove your linked phone number?',
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
+            onPressed: () => Navigator.pop(dialogContext, false),
             child: const Text('Cancel'),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            onPressed: () => Navigator.pop(ctx, true),
+            onPressed: () => Navigator.pop(dialogContext, true),
             child: const Text('Unlink', style: TextStyle(color: Colors.white)),
           ),
         ],

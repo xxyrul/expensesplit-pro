@@ -25,7 +25,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
     await showDialog(
       context: context,
-      builder: (context) {
+      builder: (dialogContext) {
         return StatefulBuilder(
           builder: (context, setState) {
             return AlertDialog(
@@ -63,7 +63,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               ),
               actions: [
                 TextButton(
-                  onPressed: dialogLoading ? null : () => Navigator.pop(context),
+                  onPressed: dialogLoading ? null : () => Navigator.pop(dialogContext),
                   child: const Text("Cancel"),
                 ),
                 ElevatedButton(
@@ -81,9 +81,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           });
                           try {
                             await ref.read(authServiceProvider).sendPasswordReset(email);
-                            if (context.mounted) {
-                              Navigator.pop(context);
-                              ScaffoldMessenger.of(context).showSnackBar(
+                            if (dialogContext.mounted) {
+                              Navigator.pop(dialogContext);
+                              ScaffoldMessenger.of(this.context).showSnackBar(
                                 SnackBar(
                                   content: Text("Password reset email sent to $email"),
                                   backgroundColor: const Color(0xFF0D9488),
@@ -353,7 +353,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Future<void> _showGoogleTroubleshootDialog() async {
     await showDialog(
       context: context,
-      builder: (context) {
+      builder: (dialogContext) {
         return AlertDialog(
           title: const Text('Google Sign-In Troubleshooting'),
           content: SingleChildScrollView(
@@ -380,7 +380,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close')),
+            TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Close')),
           ],
         );
       },

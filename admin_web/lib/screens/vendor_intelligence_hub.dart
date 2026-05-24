@@ -77,7 +77,7 @@ class _VendorIntelligenceHubState extends ConsumerState<VendorIntelligenceHub> {
     if (!mounted) return;
     await showDialog(
       context: context,
-      builder: (ctx) => StatefulBuilder(
+      builder: (dialogContext) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
           title: Text('Edit "$vendor"'),
           content: Column(
@@ -101,8 +101,8 @@ class _VendorIntelligenceHubState extends ConsumerState<VendorIntelligenceHub> {
               ),
             ],
           ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+            actions: [
+            TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Cancel')),
             FilledButton(
               onPressed: () async {
                 await dictionary.upsertMapping(
@@ -118,7 +118,7 @@ class _VendorIntelligenceHubState extends ConsumerState<VendorIntelligenceHub> {
                       targetType: 'ocr_learning',
                       detail: 'Updated mapping for "$vendor" → $category.',
                     );
-                if (ctx.mounted) Navigator.pop(ctx);
+                if (dialogContext.mounted) Navigator.pop(dialogContext);
               },
               child: const Text('Save'),
             ),
@@ -131,16 +131,16 @@ class _VendorIntelligenceHubState extends ConsumerState<VendorIntelligenceHub> {
   Future<void> _confirmDelete(String docId, String vendor) async {
     final ok = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: const Text('Remove dictionary entry?'),
         content: Text('Delete "$vendor" from the global seed list?'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancel')),
           FilledButton(
             style: FilledButton.styleFrom(
-              backgroundColor: Theme.of(ctx).colorScheme.error,
+              backgroundColor: Theme.of(dialogContext).colorScheme.error,
             ),
-            onPressed: () => Navigator.pop(ctx, true),
+            onPressed: () => Navigator.pop(dialogContext, true),
             child: const Text('Delete'),
           ),
         ],
@@ -326,14 +326,14 @@ class _VendorIntelligenceHubState extends ConsumerState<VendorIntelligenceHub> {
                 onTap: () {
                   showDialog(
                     context: context,
-                    builder: (ctx) => AlertDialog(
+                    builder: (dialogContext) => AlertDialog(
                       title: const Text('OCR raw text'),
                       content: SingleChildScrollView(child: Text(raw)),
                       actions: [
-                        TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Close')),
+                        TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Close')),
                         FilledButton(
                           onPressed: () {
-                            Navigator.pop(ctx);
+                            Navigator.pop(dialogContext);
                             _promoteOcrLog(doc);
                           },
                           child: const Text('Add to dictionary'),

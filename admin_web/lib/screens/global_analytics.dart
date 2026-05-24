@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 // ignore: avoid_web_libraries_in_flutter
 import 'dart:html' as html;
 import '../widgets/modern_bottom_toast.dart';
+import '../services/fcm_service.dart';
 
 class GlobalAnalyticsScreen extends ConsumerStatefulWidget {
   const GlobalAnalyticsScreen({super.key});
@@ -80,25 +81,26 @@ class _GlobalAnalyticsScreenState
 
     setState(() => _isBroadcasting = true);
     try {
-      await _firestore.collection('system_config').doc('broadcast').set({
-        'message': msg,
-        'timestamp': FieldValue.serverTimestamp(),
-        'active': true,
-      });
+      final fcmService = FcmService();
+      await fcmService.sendBroadcast(
+        title: 'System Broadcast',
+        body: msg,
+      );
       _broadcastController.clear();
 
       if (mounted) {
         ModernBottomToast.show(
           context,
-          message: 'Broadcast Pushed Live to App!',
+          message: 'Broadcast Pushed Successfully via FCM!',
           type: ModernToastType.success,
         );
       }
     } catch (e) {
       if (mounted) {
+        final errorMessage = e.toString().replaceFirst('Exception: ', '');
         ModernBottomToast.show(
           context,
-          message: 'Broadcast Failed: $e',
+          message: 'FCM Push Failed: $errorMessage',
           type: ModernToastType.error,
         );
       }

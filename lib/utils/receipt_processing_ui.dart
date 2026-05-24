@@ -11,13 +11,13 @@ class ReceiptProcessingUI {
     if (kIsWeb) {
       showDialog(
         context: context,
-        builder: (ctx) => AlertDialog(
+        builder: (dialogContext) => AlertDialog(
           title: const Text('Mobile Only Feature'),
           content: const Text(
               'The AI receipt scanner is only available on mobile devices.'),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(ctx),
+              onPressed: () => Navigator.pop(dialogContext),
               child: const Text('OK'),
             ),
           ],

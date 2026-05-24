@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/budget_alert_provider.dart';
 import '../../services/expense_service.dart';
 import '../../services/budget_service.dart';
-import '../../theme/brand_theme.dart';
 
 class NotificationsSheet extends ConsumerStatefulWidget {
   const NotificationsSheet({super.key});
@@ -24,72 +22,23 @@ class NotificationsSheet extends ConsumerStatefulWidget {
 }
 
 class _NotificationsSheetState extends ConsumerState<NotificationsSheet> {
-  String? _broadcastMsg;
-  int _broadcastTs = 0;
-  bool _broadcastActive = false;
-  bool _broadcastDismissed = false;
   bool _clearingAll = false;
 
   @override
   void initState() {
     super.initState();
-    _loadBroadcastAndDismissedState();
-  }
-
-  Future<void> _loadBroadcastAndDismissedState() async {
-    final prefs = await SharedPreferences.getInstance();
-    
-    // Listen to Firebase system config for broadcasts
-    FirebaseFirestore.instance
-        .collection('system_config')
-        .doc('broadcast')
-        .get()
-        .then((doc) {
-      if (doc.exists && doc.data() != null && mounted) {
-        final data = doc.data()!;
-        final bool active = data['active'] ?? false;
-        final String msg = data['message'] ?? '';
-        final Timestamp? ts = data['timestamp'] as Timestamp?;
-        final int currentTs = ts?.millisecondsSinceEpoch ?? 0;
-
-        final String lastDismissedMsg = prefs.getString('last_dismissed_broadcast_msg') ?? '';
-        final int lastDismissed = prefs.getInt('last_dismissed_broadcast') ?? 0;
-        final bool alreadyDismissed = (currentTs <= lastDismissed) || (msg == lastDismissedMsg);
-
-        setState(() {
-          _broadcastMsg = msg;
-          _broadcastTs = currentTs;
-          _broadcastActive = active && msg.isNotEmpty;
-          _broadcastDismissed = alreadyDismissed;
-        });
-      }
-    });
-  }
-
-  Future<void> _dismissBroadcast() async {
-    final prefs = await SharedPreferences.getInstance();
-    if (_broadcastMsg != null) {
-      await prefs.setInt('last_dismissed_broadcast', _broadcastTs);
-      await prefs.setString('last_dismissed_broadcast_msg', _broadcastMsg!);
-    }
-    setState(() {
-      _broadcastDismissed = true;
-    });
   }
 
   Future<void> _clearAllNotifications() async {
     setState(() => _clearingAll = true);
 
     final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('last_dismissed_broadcast');
-    await prefs.remove('last_dismissed_broadcast_msg');
     await prefs.remove('budget_alert_sent_month');
     await prefs.remove('budget_category_alert_sent_keys');
     await resetBudgetAlertCache();
 
     if (!mounted) return;
     setState(() {
-      _broadcastDismissed = false;
       _clearingAll = false;
     });
   }
@@ -182,24 +131,7 @@ class _NotificationsSheetState extends ConsumerState<NotificationsSheet> {
 
                         final List<Widget> alertWidgets = [];
 
-                        if (_broadcastActive) {
-                          alertWidgets.add(
-                            _buildAlertCard(
-                              context: context,
-                              title: 'SYSTEM ANNOUNCEMENT',
-                              subtitle: _broadcastMsg ?? '',
-                              icon: Icons.campaign_rounded,
-                              color: theme.colorScheme.primary,
-                              isDismissed: _broadcastDismissed,
-                              action: _broadcastDismissed
-                                  ? null
-                                  : TextButton(
-                                      onPressed: _dismissBroadcast,
-                                      child: const Text('Mark read'),
-                                    ),
-                            ),
-                          );
-                        }
+
 
                         if (totalLimit > 0) {
                           final progress = totalSpent / totalLimit;

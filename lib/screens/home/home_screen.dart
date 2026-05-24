@@ -24,48 +24,14 @@ class HomeScreen extends ConsumerStatefulWidget {
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   int _selectedIndex = 0;
   String? _focusExpenseId;
-  StreamSubscription? _broadcastSub;
-  String? _activeBroadcastMsg;
-  int _currentBroadcastTs = 0;
 
   @override
   void initState() {
     super.initState();
-    _listenForBroadcasts();
-  }
-
-  void _listenForBroadcasts() async {
-    final prefs = await SharedPreferences.getInstance();
-    _broadcastSub = FirebaseFirestore.instance.collection('system_config').doc('broadcast').snapshots().listen((doc) {
-      if (doc.exists && doc.data() != null) {
-        final data = doc.data()!;
-        final bool active = data['active'] ?? false;
-        final String msg = data['message'] ?? '';
-        final Timestamp? ts = data['timestamp'] as Timestamp?;
-        
-        final String lastDismissedMsg = prefs.getString('last_dismissed_broadcast_msg') ?? '';
-        final int lastDismissed = prefs.getInt('last_dismissed_broadcast') ?? 0;
-        final int currentTs = ts?.millisecondsSinceEpoch ?? 0;
-
-        final bool alreadyDismissed = (currentTs <= lastDismissed) || (msg == lastDismissedMsg);
-
-        if (active && msg.isNotEmpty && !alreadyDismissed && mounted) {
-          setState(() {
-            _activeBroadcastMsg = msg;
-            _currentBroadcastTs = currentTs;
-          });
-        } else if (mounted) {
-          setState(() {
-            _activeBroadcastMsg = null;
-          });
-        }
-      }
-    });
   }
 
   @override
   void dispose() {
-    _broadcastSub?.cancel();
     super.dispose();
   }
 
@@ -179,97 +145,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ),
             ),
           ),
-          if (_activeBroadcastMsg != null)
-            Positioned(
-              top: MediaQuery.of(context).padding.top + 8,
-              left: 16,
-              right: 16,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.95),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: Theme.of(context).colorScheme.primary.withOpacity(0.35),
-                    width: 1.5,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.25),
-                      blurRadius: 18,
-                      offset: const Offset(0, 6),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.primary.withOpacity(0.12),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(
-                        Icons.campaign_rounded,
-                        color: Theme.of(context).colorScheme.primary,
-                        size: 20,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            'SYSTEM ANNOUNCEMENT',
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w800,
-                              color: Theme.of(context).colorScheme.primary,
-                              letterSpacing: 0.8,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            _activeBroadcastMsg!,
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: Theme.of(context).colorScheme.onSurface,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    TextButton(
-                      style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        minimumSize: Size.zero,
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      ),
-                      onPressed: () async {
-                        final prefs = await SharedPreferences.getInstance();
-                        await prefs.setInt('last_dismissed_broadcast', _currentBroadcastTs);
-                        await prefs.setString('last_dismissed_broadcast_msg', _activeBroadcastMsg ?? '');
-                        if (mounted) {
-                          setState(() => _activeBroadcastMsg = null);
-                        }
-                      },
-                      child: Text(
-                        'DISMISS',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          color: Theme.of(context).colorScheme.primary,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
         ],
       ),
 
