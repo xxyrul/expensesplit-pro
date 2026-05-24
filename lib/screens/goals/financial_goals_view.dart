@@ -32,7 +32,14 @@ class _FinancialGoalsViewState extends ConsumerState<FinancialGoalsView>
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => const AddGoalSheet(),
+      builder: (context) => Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewInsets.bottom,
+        ),
+        child: const SingleChildScrollView(
+          child: AddGoalSheet(),
+        ),
+      ),
     );
   }
 
@@ -41,7 +48,14 @@ class _FinancialGoalsViewState extends ConsumerState<FinancialGoalsView>
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => AddSavingsSheet(goal: goal),
+      builder: (context) => Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewInsets.bottom,
+        ),
+        child: SingleChildScrollView(
+          child: AddSavingsSheet(goal: goal),
+        ),
+      ),
     );
   }
 
