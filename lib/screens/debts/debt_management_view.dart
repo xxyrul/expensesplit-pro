@@ -29,7 +29,14 @@ class _DebtManagementViewState extends ConsumerState<DebtManagementView> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => const AddDebtSheet(),
+      builder: (context) => Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewInsets.bottom,
+        ),
+        child: const SingleChildScrollView(
+          child: AddDebtSheet(),
+        ),
+      ),
     );
   }
 
@@ -38,7 +45,14 @@ class _DebtManagementViewState extends ConsumerState<DebtManagementView> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => UpdateDebtSheet(debt: debt),
+      builder: (context) => Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewInsets.bottom,
+        ),
+        child: SingleChildScrollView(
+          child: UpdateDebtSheet(debt: debt),
+        ),
+      ),
     );
   }
 
