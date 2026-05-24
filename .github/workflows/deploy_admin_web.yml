@@ -39,8 +39,8 @@ jobs:
 
       - name: Deploy to Firebase Hosting
         env:
-          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
         run: |
           # deploy uses the firebase.json at repository root which points
           # hosting.public to admin_web/build/web
-          firebase deploy --only hosting --token "$FIREBASE_TOKEN"
+          firebase deploy --only hosting
