@@ -397,6 +397,17 @@ class _OcrReviewQueueScreenState extends ConsumerState<OcrReviewQueueScreen> {
                                                                   rawText,
                                                                 ),
                                                               ),
+                                                              const SizedBox(width: 8),
+                                                              IconButton.filledTonal(
+                                                                icon: const Icon(Icons.edit, color: Colors.amber, size: 20),
+                                                                tooltip: 'Review & Correct',
+                                                                onPressed: () => _showOcrReviewDialog(
+                                                                  context,
+                                                                  userId,
+                                                                  docId,
+                                                                  data,
+                                                                ),
+                                                              ),
                                                             ],
                                                           ],
                                                         )
@@ -501,16 +512,14 @@ class _OcrReviewQueueScreenState extends ConsumerState<OcrReviewQueueScreen> {
                                                           ),
                                                         ),
                                                         DataCell(
-                                                          _buildDataTableActions(
-                                                            context,
-                                                            userId,
-                                                            docId,
-                                                            systemSuggestedAmount,
-                                                            userCorrectedAmount,
-                                                            rawText,
-                                                            adminStatus,
-                                                          ),
-                                                        ),
+                                                           _buildDataTableActions(
+                                                             context,
+                                                             userId,
+                                                             docId,
+                                                             data,
+                                                             adminStatus,
+                                                           ),
+                                                         ),
                                                       ],
                                                     );
                                                   }).toList(),
@@ -539,11 +548,13 @@ class _OcrReviewQueueScreenState extends ConsumerState<OcrReviewQueueScreen> {
     BuildContext context,
     String userId,
     String docId,
-    double systemSuggestedAmount,
-    double userCorrectedAmount,
-    String rawText,
+    Map<String, dynamic> data,
     String adminStatus,
   ) {
+    final rawText = data['rawText']?.toString() ?? '';
+    final systemSuggestedAmount = (data['systemSuggestedAmount'] as num?)?.toDouble() ?? 0.0;
+    final userCorrectedAmount = (data['userCorrectedAmount'] as num?)?.toDouble() ?? 0.0;
+
     // If not pending, only show the raw text viewer
     if (adminStatus != 'Pending') {
       return IconButton(
@@ -560,6 +571,9 @@ class _OcrReviewQueueScreenState extends ConsumerState<OcrReviewQueueScreen> {
           case 'show':
             _showRawTextDialog(context, rawText);
             break;
+          case 'review':
+            _showOcrReviewDialog(context, userId, docId, data);
+            break;
           case 'approve':
             _updateStatus(userId, docId, 'Approved', systemSuggestedAmount, userCorrectedAmount);
             break;
@@ -573,6 +587,7 @@ class _OcrReviewQueueScreenState extends ConsumerState<OcrReviewQueueScreen> {
       },
       itemBuilder: (context) => [
         const PopupMenuItem(value: 'show', child: Text('Show Raw OCR text')),
+        const PopupMenuItem(value: 'review', child: Text('Review & Correct')),
         const PopupMenuItem(value: 'approve', child: Text('Approve System Value')),
         const PopupMenuItem(value: 'reject', child: Text('Reject Scan')),
         const PopupMenuItem(value: 'learn', child: Text('Correct & Add to Seed Dictionary')),
@@ -726,6 +741,142 @@ class _OcrReviewQueueScreenState extends ConsumerState<OcrReviewQueueScreen> {
       ocrLogUserId: userId,
       ocrLogDocId: docId,
       onOcrApproved: () => _updateStatus(userId, docId, 'Approved', 0.0, 0.0),
+    );
+  }
+
+  void _showOcrReviewDialog(
+    BuildContext context,
+    String userId,
+    String docId,
+    Map<String, dynamic> data,
+  ) {
+    final vendorController = TextEditingController(text: data['vendor']?.toString() ?? '');
+    final amountController = TextEditingController(
+      text: (data['userCorrectedAmount'] ?? data['systemSuggestedAmount'] ?? 0.0).toString(),
+    );
+    final String rawText = data['rawText']?.toString() ?? '';
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            final colorScheme = Theme.of(context).colorScheme;
+
+            return AlertDialog(
+              title: const Text('OCR Review & Correction'),
+              content: SizedBox(
+                width: 500,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Review and correct the parsed receipt data. Saving will update the database and mark the record as Approved.',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      TextField(
+                        controller: vendorController,
+                        decoration: const InputDecoration(
+                          labelText: 'Vendor Name',
+                          border: OutlineInputBorder(),
+                          prefixIcon: Icon(Icons.store),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      TextField(
+                        controller: amountController,
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        decoration: const InputDecoration(
+                          labelText: 'User Corrected Amount (RM)',
+                          border: OutlineInputBorder(),
+                          prefixIcon: Icon(Icons.attach_money),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      Text(
+                        'Raw OCR Reference Text',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: colorScheme.onSurface,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Container(
+                        width: double.infinity,
+                        height: 150,
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.black,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: colorScheme.outlineVariant),
+                        ),
+                        child: SingleChildScrollView(
+                          child: Text(
+                            rawText,
+                            style: const TextStyle(
+                              fontFamily: 'monospace',
+                              fontSize: 12,
+                              color: Colors.greenAccent,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogContext),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: () async {
+                    final newVendor = vendorController.text.trim();
+                    final double? newAmount = double.tryParse(amountController.text.trim());
+
+                    if (newAmount == null || newAmount < 0) {
+                      ScaffoldMessenger.of(dialogContext).showSnackBar(
+                        const SnackBar(content: Text('Please enter a valid amount.')),
+                      );
+                      return;
+                    }
+
+                    await _firestore
+                        .collection('users')
+                        .doc(userId)
+                        .collection('ocr_logs')
+                        .doc(docId)
+                        .update({
+                      'vendor': newVendor,
+                      'userCorrectedAmount': newAmount,
+                      'adminStatus': 'Approved',
+                    });
+
+                    // Log Audit Event
+                    ref.read(auditLogServiceProvider).logAction(
+                      action: 'OCR_REVIEW_CORRECTION',
+                      targetId: docId,
+                      targetType: 'ocr_log',
+                      detail: 'Corrected and Approved OCR log. Vendor: "$newVendor", Amount: RM ${newAmount.toStringAsFixed(2)}.',
+                    );
+
+                    if (dialogContext.mounted) Navigator.pop(dialogContext);
+                  },
+                  child: const Text('Save Changes'),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 }

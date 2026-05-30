@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -29,62 +30,51 @@ class _ExpenseManagementScreenState extends ConsumerState<ExpenseManagementScree
 
   // Cache of user profiles to map userId -> email/displayName
   Map<String, Map<String, String>> _userCache = {};
+  StreamSubscription<QuerySnapshot>? _userCacheSubscription;
+
+  final ScrollController _horizontalScrollController = ScrollController();
+  final ScrollController _verticalScrollController = ScrollController();
 
   @override
   void initState() {
     super.initState();
-    _loadUserCache();
+    _subscribeToUserCache();
+  }
+
+  @override
+  void dispose() {
+    _userCacheSubscription?.cancel();
+    _horizontalScrollController.dispose();
+    _verticalScrollController.dispose();
+    super.dispose();
+  }
+
+  void _subscribeToUserCache() {
+    _userCacheSubscription?.cancel();
+    _userCacheSubscription = _firestore.collection('users').snapshots().listen(
+      (snap) {
+        final Map<String, Map<String, String>> tempCache = {};
+        for (var doc in snap.docs) {
+          final data = doc.data() as Map<String, dynamic>;
+          tempCache[doc.id] = {
+            'email': data['email'] ?? 'Unknown Email',
+            'displayName': data['displayName'] ?? data['name'] ?? 'Unknown User',
+          };
+        }
+        if (mounted) {
+          setState(() {
+            _userCache = tempCache;
+          });
+        }
+      },
+      onError: (e) {
+        print('Error listening to user cache: $e');
+      },
+    );
   }
 
   Future<void> _loadUserCache() async {
-    try {
-      final snap = await _firestore.collection('users').get();
-      final Map<String, Map<String, String>> tempCache = {};
-      for (var doc in snap.docs) {
-        final data = doc.data();
-        tempCache[doc.id] = {
-          'email': data['email'] ?? 'Unknown Email',
-          'displayName': data['displayName'] ?? data['name'] ?? 'Unknown User',
-        };
-      }
-      if (mounted) {
-        setState(() {
-          _userCache = tempCache;
-        });
-      }
-    } catch (e) {
-      print('Error loading user cache: $e');
-    }
-  }
-
-  Future<void> forceDataFetch() async {
-    print("--- FORCED FETCH START ---");
-    try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) {
-        print("DEBUG: User not signed in!");
-        return;
-      }
-
-      print("DEBUG: Current User UID: ${user.uid}");
-      
-      final adminDoc = await _firestore.collection('admins').doc(user.uid).get();
-      if (!adminDoc.exists) {
-        print("DEBUG: Access Denied. UID ${user.uid} is not in the 'admins' collection.");
-        return; 
-      }
-      
-      print("DEBUG: Admin status verified. Proceeding with query...");
-
-      final snapshot = await _firestore.collectionGroup('expenses').get();
-      print("DEBUG: Found ${snapshot.docs.length} documents.");
-      for (var doc in snapshot.docs) {
-        print("DEBUG: Doc ID: ${doc.id} | Data: ${doc.data()}");
-      }
-      print("--- FORCED FETCH END ---");
-    } catch (e) {
-      print("DEBUG: FETCH FAILED. ERROR: $e");
-    }
+    _subscribeToUserCache();
   }
 
   // Check if masking is active
@@ -244,16 +234,6 @@ class _ExpenseManagementScreenState extends ConsumerState<ExpenseManagementScree
                                       foregroundColor: colorScheme.onPrimaryContainer,
                                     ),
                                   ),
-                                  const SizedBox(width: 8),
-                                  ElevatedButton.icon(
-                                    onPressed: forceDataFetch,
-                                    icon: const Icon(Icons.bug_report),
-                                    label: const Text('Debug Fetch'),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors.orange,
-                                      foregroundColor: Colors.white,
-                                    ),
-                                  ),
                                 ],
                               ),
                             ],
@@ -289,16 +269,6 @@ class _ExpenseManagementScreenState extends ConsumerState<ExpenseManagementScree
                                       foregroundColor: colorScheme.onPrimaryContainer,
                                     ),
                                   ),
-                                  const SizedBox(width: 8),
-                                  ElevatedButton.icon(
-                                    onPressed: forceDataFetch,
-                                    icon: const Icon(Icons.bug_report),
-                                    label: const Text('Debug Fetch'),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors.orange,
-                                      foregroundColor: Colors.white,
-                                    ),
-                                  ),
                                 ],
                               )
                             ],
@@ -313,7 +283,7 @@ class _ExpenseManagementScreenState extends ConsumerState<ExpenseManagementScree
                     // Table and Data view
                     Expanded(
                       child: StreamBuilder<QuerySnapshot>(
-                    stream: _firestore.collectionGroup('expenses').orderBy('timestamp', descending: true).snapshots(),
+                    stream: _firestore.collectionGroup('expenses').orderBy('date', descending: true).snapshots(),
                     builder: (context, snapshot) {
                       if (snapshot.connectionState == ConnectionState.waiting) {
                         return const Center(child: CircularProgressIndicator());
@@ -529,99 +499,142 @@ class _ExpenseManagementScreenState extends ConsumerState<ExpenseManagementScree
                                             );
                                           },
                                         )
-                                      : SingleChildScrollView(
-                                          scrollDirection: Axis.vertical,
+                                      : Scrollbar(
+                                          controller: _verticalScrollController,
+                                          thumbVisibility: true,
                                           child: SingleChildScrollView(
-                                            scrollDirection: Axis.horizontal,
-                                            child: DataTable(
-                                              headingRowColor: WidgetStateProperty.all(
-                                                colorScheme.surfaceContainerHighest,
-                                              ),
-                                              columns: const [
-                                                DataColumn(label: Text('Date')),
-                                                DataColumn(label: Text('User')),
-                                                DataColumn(label: Text('Vendor')),
-                                                DataColumn(label: Text('Category')),
-                                                DataColumn(label: Text('Amount')),
-                                                DataColumn(label: Text('Actions')),
-                                              ],
-                                              rows: filteredDocs.map((doc) {
-                                                final data = doc.data() as Map<String, dynamic>;
-                                                final userId = doc.reference.parent.parent?.id ?? '';
-                                                final expenseId = doc.id;
-
-                                                final user = _userCache[userId];
-                                                final userEmail = _maskEmail(user?['email'] ?? 'Unknown', isMasked);
-                                                final userName = user?['displayName'] ?? 'User';
-
-                                                final vendor = data['vendor'] ?? 'N/A';
-                                                final category = data['category'] ?? 'General';
-                                                final amount = (data['amount'] as num?)?.toDouble() ?? 0.0;
-
-                                                String dateStr = '';
-                                                if (data['date'] != null) {
-                                                  final parsedDate = DateTime.tryParse(data['date']);
-                                                  if (parsedDate != null) {
-                                                    dateStr = DateFormat('yyyy-MM-dd').format(parsedDate);
-                                                  }
-                                                }
-
-                                                return DataRow(cells: [
-                                                  DataCell(Text(dateStr)),
-                                                  DataCell(Column(
-                                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                                    mainAxisAlignment: MainAxisAlignment.center,
-                                                    children: [
-                                                      Text(userName, style: const TextStyle(fontWeight: FontWeight.bold)),
-                                                      Text(userEmail, style: TextStyle(fontSize: 11, color: colorScheme.onSurfaceVariant)),
-                                                    ],
-                                                  )),
-                                                  DataCell(Text(vendor)),
-                                                  DataCell(Chip(
-                                                    label: Text(category, style: const TextStyle(fontSize: 11)),
-                                                    backgroundColor: colorScheme.surfaceContainerHighest,
-                                                    side: BorderSide.none,
-                                                  )),
-                                                  DataCell(Text('RM ${amount.toStringAsFixed(2)}')),
-                                                  DataCell(Row(
-                                                    children: [
-                                                      IconButton(
-                                                        icon: const Icon(Icons.visibility),
-                                                        tooltip: 'View Details',
-                                                        onPressed: () => _viewDetailsDialog(
-                                                          context,
-                                                          data,
-                                                          userName,
-                                                          userEmail,
-                                                          dateStr,
+                                            controller: _verticalScrollController,
+                                            scrollDirection: Axis.vertical,
+                                            child: Scrollbar(
+                                              controller: _horizontalScrollController,
+                                              thumbVisibility: true,
+                                              trackVisibility: true,
+                                              child: SingleChildScrollView(
+                                                controller: _horizontalScrollController,
+                                                scrollDirection: Axis.horizontal,
+                                                child: DataTable(
+                                                  headingRowColor: WidgetStateProperty.all(
+                                                    colorScheme.surfaceContainerHighest,
+                                                  ),
+                                                  columns: [
+                                                    const DataColumn(label: Text('Date')),
+                                                    const DataColumn(label: Text('User')),
+                                                    const DataColumn(label: Text('Vendor')),
+                                                    const DataColumn(label: Text('Category')),
+                                                    const DataColumn(label: Text('Amount')),
+                                                    DataColumn(
+                                                      label: SizedBox(
+                                                        width: 150,
+                                                        child: Text(
+                                                          'Actions',
+                                                          style: TextStyle(
+                                                            color: colorScheme.onSurface,
+                                                            fontWeight: FontWeight.bold,
+                                                          ),
                                                         ),
                                                       ),
-                                                      IconButton(
-                                                        icon: const Icon(Icons.edit),
-                                                        tooltip: 'Edit Record',
-                                                        onPressed: () => _editExpenseDialog(
-                                                          context,
-                                                          doc,
-                                                          data,
-                                                          userId,
-                                                          expenseId,
+                                                    ),
+                                                  ],
+                                                  rows: filteredDocs.map((doc) {
+                                                    final data = doc.data() as Map<String, dynamic>;
+                                                    final userId = doc.reference.parent.parent?.id ?? '';
+                                                    final expenseId = doc.id;
+
+                                                    final user = _userCache[userId];
+                                                    final userEmail = _maskEmail(user?['email'] ?? 'Unknown', isMasked);
+                                                    final userName = user?['displayName'] ?? 'User';
+
+                                                    final vendor = data['vendor'] ?? 'N/A';
+                                                    final category = data['category'] ?? 'General';
+                                                    final amount = (data['amount'] as num?)?.toDouble() ?? 0.0;
+
+                                                    String dateStr = '';
+                                                    if (data['date'] != null) {
+                                                      final parsedDate = DateTime.tryParse(data['date']);
+                                                      if (parsedDate != null) {
+                                                        dateStr = DateFormat('yyyy-MM-dd').format(parsedDate);
+                                                      }
+                                                    }
+
+                                                    return DataRow(cells: [
+                                                      DataCell(Text(dateStr)),
+                                                      DataCell(ConstrainedBox(
+                                                        constraints: const BoxConstraints(maxWidth: 200),
+                                                        child: Column(
+                                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                                          mainAxisAlignment: MainAxisAlignment.center,
+                                                          children: [
+                                                            Text(
+                                                              userName,
+                                                              style: const TextStyle(fontWeight: FontWeight.bold),
+                                                              overflow: TextOverflow.ellipsis,
+                                                            ),
+                                                            Text(
+                                                              userEmail,
+                                                              style: TextStyle(fontSize: 11, color: colorScheme.onSurfaceVariant),
+                                                              overflow: TextOverflow.ellipsis,
+                                                            ),
+                                                          ],
                                                         ),
-                                                      ),
-                                                      IconButton(
-                                                        icon: const Icon(Icons.delete, color: Colors.red),
-                                                        tooltip: 'Delete Record',
-                                                        onPressed: () => _confirmDelete(
-                                                          context,
-                                                          userId,
-                                                          expenseId,
+                                                      )),
+                                                      DataCell(ConstrainedBox(
+                                                        constraints: const BoxConstraints(maxWidth: 200),
+                                                        child: Text(
                                                           vendor,
-                                                          amount,
+                                                          overflow: TextOverflow.ellipsis,
                                                         ),
-                                                      ),
-                                                    ],
-                                                  )),
-                                                ]);
-                                              }).toList(),
+                                                      )),
+                                                      DataCell(Chip(
+                                                        label: Text(category, style: const TextStyle(fontSize: 11)),
+                                                        backgroundColor: colorScheme.surfaceContainerHighest,
+                                                        side: BorderSide.none,
+                                                      )),
+                                                      DataCell(Text('RM ${amount.toStringAsFixed(2)}')),
+                                                      DataCell(SizedBox(
+                                                        width: 150,
+                                                        child: Row(
+                                                          mainAxisSize: MainAxisSize.min,
+                                                          children: [
+                                                            IconButton(
+                                                              icon: const Icon(Icons.visibility),
+                                                              tooltip: 'View Details',
+                                                              onPressed: () => _viewDetailsDialog(
+                                                                context,
+                                                                data,
+                                                                userName,
+                                                                userEmail,
+                                                                dateStr,
+                                                              ),
+                                                            ),
+                                                            IconButton(
+                                                              icon: const Icon(Icons.edit),
+                                                              tooltip: 'Edit Record',
+                                                              onPressed: () => _editExpenseDialog(
+                                                                context,
+                                                                doc,
+                                                                data,
+                                                                userId,
+                                                                expenseId,
+                                                              ),
+                                                            ),
+                                                            IconButton(
+                                                              icon: const Icon(Icons.delete, color: Colors.red),
+                                                              tooltip: 'Delete Record',
+                                                              onPressed: () => _confirmDelete(
+                                                                context,
+                                                                userId,
+                                                                expenseId,
+                                                                vendor,
+                                                                amount,
+                                                              ),
+                                                            ),
+                                                          ],
+                                                        ),
+                                                      )),
+                                                    ]);
+                                                  }).toList(),
+                                                ),
+                                              ),
                                             ),
                                           ),
                                         ),

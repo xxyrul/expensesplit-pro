@@ -2,29 +2,16 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../services/auth_service.dart';
-import '../dashboard_layout.dart';
 import '../../widgets/modern_bottom_toast.dart';
 // ignore: avoid_web_libraries_in_flutter
 import 'dart:html' as html;
 
-class AdminLoginScreen extends ConsumerWidget {
+class AdminLoginScreen extends StatelessWidget {
   const AdminLoginScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final adminState = ref.watch(verifiedAdminProvider);
-
-    return adminState.when(
-      data: (state) {
-        if (state == AdminAuthState.admin) {
-          return const DashboardLayout();
-        }
-        return const _LoginUI();
-      },
-      loading: () =>
-          const Scaffold(body: Center(child: CircularProgressIndicator())),
-      error: (e, _) => const _LoginUI(),
-    );
+  Widget build(BuildContext context) {
+    return const _LoginUI();
   }
 }
 

@@ -9,9 +9,24 @@ class AuthService {
   Stream<User?> get authStateChanges => _auth.authStateChanges();
 
   /// Returns true if the given uid exists in the `admins` Firestore collection.
+  /// Retries up to 3 times with a delay on transient permission-denied errors.
   Future<bool> isAdmin(String uid) async {
-    final doc = await _firestore.collection('admins').doc(uid).get();
-    return doc.exists;
+    int attempts = 3;
+    while (attempts > 0) {
+      try {
+        final doc = await _firestore.collection('admins').doc(uid).get();
+        return doc.exists;
+      } catch (e) {
+        attempts--;
+        if (attempts > 0 && e is FirebaseException && e.code == 'permission-denied') {
+          print('isAdmin: Permission denied, retrying in 500ms... ($attempts attempts remaining)');
+          await Future.delayed(const Duration(milliseconds: 500));
+        } else {
+          rethrow;
+        }
+      }
+    }
+    return false;
   }
 
   Future<User?> signInWithEmailAndPassword({
@@ -91,12 +106,19 @@ final verifiedAdminProvider = StreamProvider<AdminAuthState>((ref) async* {
       continue;
     }
 
-    // Always re-validate against Firestore, even on session restore.
-    final allowed = await authService.isAdmin(user.uid);
-    if (allowed) {
-      yield AdminAuthState.admin;
-    } else {
-      // Kick out any signed-in user not in the admins collection.
+    try {
+      // Always re-validate against Firestore, even on session restore.
+      final allowed = await authService.isAdmin(user.uid);
+      if (allowed) {
+        yield AdminAuthState.admin;
+      } else {
+        // Kick out any signed-in user not in the admins collection.
+        await authService.signOut();
+        yield AdminAuthState.unauthorized;
+      }
+    } catch (e) {
+      print("Error verifying admin status: $e");
+      // Safely kick out the user and yield unauthorized to keep the stream alive
       await authService.signOut();
       yield AdminAuthState.unauthorized;
     }

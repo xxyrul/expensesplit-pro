@@ -239,6 +239,17 @@ class _GlobalAnalyticsScreenState
                   StreamBuilder<QuerySnapshot>(
                     stream: _firestore.collectionGroup('expenses').snapshots(),
                     builder: (context, snap) {
+                      if (snap.hasError) {
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 24),
+                          child: Center(
+                            child: Text(
+                              'Failed to load charts: ${snap.error}',
+                              style: TextStyle(color: colorScheme.error),
+                            ),
+                          ),
+                        );
+                      }
                       final docs = snap.data?.docs ?? [];
                       final loading = !snap.hasData;
                       if (isNarrow) {
@@ -370,6 +381,15 @@ class _GlobalAnalyticsScreenState
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
                 return const Center(child: CircularProgressIndicator());
+              }
+              if (snapshot.hasError) {
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  child: Text(
+                    'Failed to load governance events: ${snapshot.error}',
+                    style: TextStyle(color: cs.error),
+                  ),
+                );
               }
               final logs = snapshot.data?.docs ?? [];
               if (logs.isEmpty) {
