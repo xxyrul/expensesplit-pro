@@ -420,7 +420,7 @@ class _OcrReviewQueueScreenState extends ConsumerState<OcrReviewQueueScreen> {
                                           : SingleChildScrollView(
                                               scrollDirection: Axis.vertical,
                                               child: SingleChildScrollView(
-                                                scrollDirection: Axis.horizontal,
+                                                 scrollDirection: Axis.horizontal,
                                                 child: DataTable(
                                                   headingRowColor: WidgetStateProperty.all(
                                                     colorScheme.surfaceContainerHighest,
@@ -428,6 +428,7 @@ class _OcrReviewQueueScreenState extends ConsumerState<OcrReviewQueueScreen> {
                                                   columns: const [
                                                     DataColumn(label: Text('Timestamp')),
                                                     DataColumn(label: Text('User')),
+                                                    DataColumn(label: Text('Vendor')),
                                                     DataColumn(label: Text('System Suggested Amount')),
                                                     DataColumn(label: Text('User Corrected Amount')),
                                                     DataColumn(label: Text('Confidence')),
@@ -441,6 +442,7 @@ class _OcrReviewQueueScreenState extends ConsumerState<OcrReviewQueueScreen> {
 
                                                     final user = _userCache[userId];
                                                     final userEmail = _maskEmail(user?['email'] ?? 'Unknown', isMasked);
+                                                    final vendor = data['vendor']?.toString() ?? '';
 
                                                     final systemSuggestedAmount =
                                                         (data['systemSuggestedAmount'] as num?)?.toDouble() ?? 0.0;
@@ -448,7 +450,6 @@ class _OcrReviewQueueScreenState extends ConsumerState<OcrReviewQueueScreen> {
                                                         (data['userCorrectedAmount'] as num?)?.toDouble() ?? 0.0;
                                                     final confidence = data['confidenceLabel'] ?? 'Unknown';
                                                     final adminStatus = data['adminStatus'] ?? 'Pending';
-                                                    final rawText = data['rawText'] ?? '';
 
                                                     String dateStr = '';
                                                     if (data['createdAt'] != null) {
@@ -471,6 +472,7 @@ class _OcrReviewQueueScreenState extends ConsumerState<OcrReviewQueueScreen> {
                                                       cells: [
                                                         DataCell(Text(dateStr)),
                                                         DataCell(Text(userEmail)),
+                                                        DataCell(Text(vendor.isEmpty ? 'N/A' : vendor)),
                                                         DataCell(Text('RM ${systemSuggestedAmount.toStringAsFixed(2)}')),
                                                         DataCell(
                                                           Text(
