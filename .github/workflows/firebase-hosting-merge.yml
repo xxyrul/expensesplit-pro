@@ -33,6 +33,9 @@ jobs:
 
       - name: Deploy to Firebase Hosting
         env:
-          GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
         run: |
+          echo "$FIREBASE_SERVICE_ACCOUNT" > serviceAccount.json
+          export GOOGLE_APPLICATION_CREDENTIALS="$(pwd)/serviceAccount.json"
           firebase deploy --only hosting --project expensesplit-pro-9e1c8
+          rm -f serviceAccount.json
