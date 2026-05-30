@@ -56,6 +56,20 @@ class _ExpenseManagementScreenState extends ConsumerState<ExpenseManagementScree
     }
   }
 
+  Future<void> forceDataFetch() async {
+    print("--- FORCED FETCH START ---");
+    try {
+      final snapshot = await FirebaseFirestore.instance.collectionGroup('expenses').get();
+      print("DEBUG: Found ${snapshot.docs.length} documents.");
+      for (var doc in snapshot.docs) {
+        print("DEBUG: Doc ID: ${doc.id} | Data: ${doc.data()}");
+      }
+      print("--- FORCED FETCH END ---");
+    } catch (e) {
+      print("DEBUG: FETCH FAILED. ERROR: $e");
+    }
+  }
+
   // Check if masking is active
   Future<bool> _isMaskingActive() async {
     try {
@@ -202,14 +216,28 @@ class _ExpenseManagementScreenState extends ConsumerState<ExpenseManagementScree
                                 style: TextStyle(color: colorScheme.onSurfaceVariant, fontSize: 16),
                               ),
                               const SizedBox(height: 16),
-                              ElevatedButton.icon(
-                                onPressed: () => _loadUserCache(),
-                                icon: const Icon(Icons.refresh),
-                                label: const Text('Sync Cache'),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: colorScheme.primaryContainer,
-                                  foregroundColor: colorScheme.onPrimaryContainer,
-                                ),
+                              Row(
+                                children: [
+                                  ElevatedButton.icon(
+                                    onPressed: () => _loadUserCache(),
+                                    icon: const Icon(Icons.refresh),
+                                    label: const Text('Sync Cache'),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: colorScheme.primaryContainer,
+                                      foregroundColor: colorScheme.onPrimaryContainer,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  ElevatedButton.icon(
+                                    onPressed: forceDataFetch,
+                                    icon: const Icon(Icons.bug_report),
+                                    label: const Text('Debug Fetch'),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.orange,
+                                      foregroundColor: Colors.white,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ],
                           )
@@ -233,14 +261,28 @@ class _ExpenseManagementScreenState extends ConsumerState<ExpenseManagementScree
                                   ),
                                 ],
                               ),
-                              ElevatedButton.icon(
-                                onPressed: () => _loadUserCache(),
-                                icon: const Icon(Icons.refresh),
-                                label: const Text('Sync Cache'),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: colorScheme.primaryContainer,
-                                  foregroundColor: colorScheme.onPrimaryContainer,
-                                ),
+                              Row(
+                                children: [
+                                  ElevatedButton.icon(
+                                    onPressed: () => _loadUserCache(),
+                                    icon: const Icon(Icons.refresh),
+                                    label: const Text('Sync Cache'),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: colorScheme.primaryContainer,
+                                      foregroundColor: colorScheme.onPrimaryContainer,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  ElevatedButton.icon(
+                                    onPressed: forceDataFetch,
+                                    icon: const Icon(Icons.bug_report),
+                                    label: const Text('Debug Fetch'),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.orange,
+                                      foregroundColor: Colors.white,
+                                    ),
+                                  ),
+                                ],
                               )
                             ],
                           ),
