@@ -1,15 +1,27 @@
 {
-  "indexes": [
+  "indexes": [],
+  "fieldOverrides": [
     {
       "collectionGroup": "expenses",
-      "queryScope": "COLLECTION_GROUP",
-      "fields": [
+      "fieldPath": "timestamp",
+      "indexes": [
         {
-          "fieldPath": "timestamp",
-          "order": "DESCENDING"
+          "order": "ASCENDING",
+          "queryScope": "COLLECTION"
+        },
+        {
+          "order": "DESCENDING",
+          "queryScope": "COLLECTION"
+        },
+        {
+          "order": "DESCENDING",
+          "queryScope": "COLLECTION_GROUP"
+        },
+        {
+          "order": "ASCENDING",
+          "queryScope": "COLLECTION_GROUP"
         }
       ]
     }
-  ],
-  "fieldOverrides": []
+  ]
 }
