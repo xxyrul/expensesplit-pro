@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../services/expense_service.dart';
+import '../../services/auth_service.dart';
 import '../../models/expense_model.dart';
 import '../../services/budget_service.dart';
 import '../../theme/brand_theme.dart';
@@ -43,12 +44,6 @@ class _ExpensesViewState extends ConsumerState<ExpensesView> {
     super.initState();
     _highlightedExpenseId = widget.focusExpenseId;
     _pendingFocusScroll = widget.focusExpenseId != null;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref
-          .read(expenseServiceProvider)
-          .backfillMissingExpenseTimestamps()
-          .catchError((_) {});
-    });
   }
 
   @override
@@ -121,7 +116,8 @@ class _ExpensesViewState extends ConsumerState<ExpensesView> {
       builder: (dialogContext) => AlertDialog(
         title: const Text('Delete Expense'),
         content: Text(
-            'Delete "${expense.vendor}" for RM ${expense.amount.toStringAsFixed(2)}?'),
+          'Delete "${expense.vendor}" for RM ${expense.amount.toStringAsFixed(2)}?',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
@@ -130,8 +126,7 @@ class _ExpensesViewState extends ConsumerState<ExpensesView> {
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () => Navigator.pop(dialogContext, true),
-            child:
-                const Text('Delete', style: TextStyle(color: Colors.white)),
+            child: const Text('Delete', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -189,93 +184,114 @@ class _ExpensesViewState extends ConsumerState<ExpensesView> {
 
   @override
   Widget build(BuildContext context) {
+    final authAsync = ref.watch(authStateChangesProvider);
     final budgetsAsync = ref.watch(budgetsStreamProvider);
-    final expensesStream =
-        ref.watch(expenseServiceProvider).getExpensesSnapshotStream();
 
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.surface,
-      body: budgetsAsync.when(
-        data: (budgetLimits) {
-          return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-            stream: expensesStream,
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
-              }
+      body: authAsync.when(
+        data: (user) {
+          if (user == null) {
+            return const Center(child: CircularProgressIndicator());
+          }
 
-              if (snapshot.hasError) {
-                return Center(child: Text("Error: ${snapshot.error}"));
-              }
+          final expensesStream = ref
+              .read(expenseServiceProvider)
+              .getExpensesSnapshotStreamForUserWithBackfill(user.uid);
 
-              if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                return Column(
-                  children: [
-                    _buildHeader(context, 0, 0, budgetLimits['Total'] ?? 0.0, 0),
-                    if (_showSearch) _buildSearchBar(),
-                    _buildCategoryFilter(),
-                    Expanded(child: _buildTransactionList(const [])),
-                  ],
-                );
-              }
+          return budgetsAsync.when(
+            data: (budgetLimits) {
+              return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                stream: expensesStream,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
 
-              final expenses = _mapExpenseDocs(snapshot.data!.docs);
-              final now = DateTime.now();
-              var allMonthExpenses = expenses.where((e) {
-                return e.date.year == now.year && e.date.month == now.month;
-              }).toList();
+                  if (snapshot.hasError) {
+                    return Center(child: Text("Error: ${snapshot.error}"));
+                  }
 
-              final globalTotalSpent = allMonthExpenses.fold(
-                0.0,
-                (sum, e) => sum + e.amount,
-              );
-              final globalLimit = budgetLimits['Total'] ?? 0.0;
+                  if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                    return Column(
+                      children: [
+                        _buildHeader(
+                          context,
+                          0,
+                          0,
+                          budgetLimits['Total'] ?? 0.0,
+                          0,
+                        ),
+                        if (_showSearch) _buildSearchBar(),
+                        _buildCategoryFilter(),
+                        Expanded(child: _buildTransactionList(const [])),
+                      ],
+                    );
+                  }
 
-              var filteredExpenses = allMonthExpenses;
+                  final expenses = _mapExpenseDocs(snapshot.data!.docs);
+                  final now = DateTime.now();
+                  var allMonthExpenses = expenses.where((e) {
+                    return e.date.year == now.year && e.date.month == now.month;
+                  }).toList();
 
-              if (_selectedCategory != 'All') {
-                filteredExpenses = filteredExpenses
-                    .where((e) => e.category == _selectedCategory)
-                    .toList();
-              }
+                  final globalTotalSpent = allMonthExpenses.fold(
+                    0.0,
+                    (sum, e) => sum + e.amount,
+                  );
+                  final globalLimit = budgetLimits['Total'] ?? 0.0;
 
-              if (_searchQuery.isNotEmpty) {
-                final q = _searchQuery.toLowerCase();
-                filteredExpenses = filteredExpenses
-                    .where((e) =>
-                        e.vendor.toLowerCase().contains(q) ||
-                        e.category.toLowerCase().contains(q))
-                    .toList();
-              }
+                  var filteredExpenses = allMonthExpenses;
 
-              filteredExpenses.sort((a, b) => b.date.compareTo(a.date));
-              _scrollToFocusedExpense(filteredExpenses);
+                  if (_selectedCategory != 'All') {
+                    filteredExpenses = filteredExpenses
+                        .where((e) => e.category == _selectedCategory)
+                        .toList();
+                  }
 
-              final filteredTotalSpent = filteredExpenses.fold(
-                0.0,
-                (sum, e) => sum + e.amount,
-              );
+                  if (_searchQuery.isNotEmpty) {
+                    final q = _searchQuery.toLowerCase();
+                    filteredExpenses = filteredExpenses
+                        .where(
+                          (e) =>
+                              e.vendor.toLowerCase().contains(q) ||
+                              e.category.toLowerCase().contains(q),
+                        )
+                        .toList();
+                  }
 
-              return Column(
-                children: [
-                  _buildHeader(
-                    context,
-                    filteredTotalSpent,
-                    filteredExpenses.length,
-                    globalLimit,
-                    globalTotalSpent,
-                  ),
-                  if (_showSearch) _buildSearchBar(),
-                  _buildCategoryFilter(),
-                  Expanded(child: _buildTransactionList(filteredExpenses)),
-                ],
+                  filteredExpenses.sort((a, b) => b.date.compareTo(a.date));
+                  _scrollToFocusedExpense(filteredExpenses);
+
+                  final filteredTotalSpent = filteredExpenses.fold(
+                    0.0,
+                    (sum, e) => sum + e.amount,
+                  );
+
+                  return Column(
+                    children: [
+                      _buildHeader(
+                        context,
+                        filteredTotalSpent,
+                        filteredExpenses.length,
+                        globalLimit,
+                        globalTotalSpent,
+                      ),
+                      if (_showSearch) _buildSearchBar(),
+                      _buildCategoryFilter(),
+                      Expanded(child: _buildTransactionList(filteredExpenses)),
+                    ],
+                  );
+                },
               );
             },
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (err, stack) =>
+                const Center(child: Text("Error loading budgets")),
           );
         },
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, stack) =>
-            const Center(child: Text("Error loading budgets")),
+        error: (err, stack) => Center(child: Text("Error: $err")),
       ),
     );
   }
@@ -348,45 +364,45 @@ class _ExpensesViewState extends ConsumerState<ExpensesView> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-              children: [
-                const SizedBox(width: 48),
-                const Expanded(
-                  child: Text(
-                    "Expense Tracking",
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
+            children: [
+              const SizedBox(width: 48),
+              const Expanded(
+                child: Text(
+                  "Expense Tracking",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
-                Container(
-                  decoration: BoxDecoration(
-                    color: _showSearch
-                        ? Colors.white.withOpacity(0.35)
-                        : Colors.white.withOpacity(0.16),
-                    border: Border.all(color: Colors.white.withOpacity(0.24)),
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: IconButton(
-                    icon: Icon(
-                      _showSearch ? Icons.search_off : Icons.search,
-                      color: Colors.white,
-                    ),
-                    onPressed: () {
-                      setState(() {
-                        _showSearch = !_showSearch;
-                        if (!_showSearch) {
-                          _searchQuery = '';
-                          _searchController.clear();
-                        }
-                      });
-                    },
-                  ),
+              ),
+              Container(
+                decoration: BoxDecoration(
+                  color: _showSearch
+                      ? Colors.white.withOpacity(0.35)
+                      : Colors.white.withOpacity(0.16),
+                  border: Border.all(color: Colors.white.withOpacity(0.24)),
+                  borderRadius: BorderRadius.circular(14),
                 ),
-              ],
-            ),
+                child: IconButton(
+                  icon: Icon(
+                    _showSearch ? Icons.search_off : Icons.search,
+                    color: Colors.white,
+                  ),
+                  onPressed: () {
+                    setState(() {
+                      _showSearch = !_showSearch;
+                      if (!_showSearch) {
+                        _searchQuery = '';
+                        _searchController.clear();
+                      }
+                    });
+                  },
+                ),
+              ),
+            ],
+          ),
           const SizedBox(height: 30),
           Container(
             width: double.infinity,
@@ -484,7 +500,10 @@ class _ExpensesViewState extends ConsumerState<ExpensesView> {
                 color: isSelected ? null : colorScheme.surfaceContainer,
                 gradient: isSelected
                     ? LinearGradient(
-                        colors: [colorScheme.primary, colorScheme.primary.withOpacity(0.85)],
+                        colors: [
+                          colorScheme.primary,
+                          colorScheme.primary.withOpacity(0.85),
+                        ],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       )
@@ -514,9 +533,10 @@ class _ExpensesViewState extends ConsumerState<ExpensesView> {
               child: Text(
                 category,
                 style: TextStyle(
-                  color: isSelected ? Colors.white : colorScheme.onSurfaceVariant,
-                  fontWeight:
-                      isSelected ? FontWeight.bold : FontWeight.w500,
+                  color: isSelected
+                      ? Colors.white
+                      : colorScheme.onSurfaceVariant,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
                   fontSize: 15,
                 ),
               ),
@@ -551,8 +571,8 @@ class _ExpensesViewState extends ConsumerState<ExpensesView> {
               _searchQuery.isNotEmpty
                   ? 'No results for "$_searchQuery"'
                   : _selectedCategory != 'All'
-                      ? 'No $_selectedCategory expenses this month'
-                      : 'No expenses yet this month',
+                  ? 'No $_selectedCategory expenses this month'
+                  : 'No expenses yet this month',
               style: const TextStyle(
                 color: Color(0xFF64748B),
                 fontSize: 16,
@@ -586,7 +606,8 @@ class _ExpensesViewState extends ConsumerState<ExpensesView> {
     final style = getCategoryStyle(expense.category);
     final dateStr = DateFormat('dd MMM yyyy').format(expense.date);
     final colorScheme = Theme.of(context).colorScheme;
-    final isHighlighted = expense.id != null && expense.id == _highlightedExpenseId;
+    final isHighlighted =
+        expense.id != null && expense.id == _highlightedExpenseId;
     final itemKey = expense.id != null
         ? _expenseItemKeys.putIfAbsent(expense.id!, () => GlobalKey())
         : null;
@@ -607,11 +628,14 @@ class _ExpensesViewState extends ConsumerState<ExpensesView> {
           children: [
             Icon(Icons.delete_outline, color: Colors.white, size: 28),
             SizedBox(height: 4),
-            Text('Delete',
-                style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold)),
+            Text(
+              'Delete',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ],
         ),
       ),
@@ -621,18 +645,20 @@ class _ExpensesViewState extends ConsumerState<ExpensesView> {
           builder: (dialogContext) => AlertDialog(
             title: const Text('Delete Expense'),
             content: Text(
-                'Delete "${expense.vendor}" for RM ${expense.amount.toStringAsFixed(2)}?'),
+              'Delete "${expense.vendor}" for RM ${expense.amount.toStringAsFixed(2)}?',
+            ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(dialogContext, false),
                 child: const Text('Cancel'),
               ),
               ElevatedButton(
-                style:
-                    ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
                 onPressed: () => Navigator.pop(dialogContext, true),
-                child: const Text('Delete',
-                    style: TextStyle(color: Colors.white)),
+                child: const Text(
+                  'Delete',
+                  style: TextStyle(color: Colors.white),
+                ),
               ),
             ],
           ),
@@ -640,13 +666,12 @@ class _ExpensesViewState extends ConsumerState<ExpensesView> {
       },
       onDismissed: (_) async {
         try {
-          await ref
-              .read(expenseServiceProvider)
-              .deleteExpense(expense.id!);
+          await ref.read(expenseServiceProvider).deleteExpense(expense.id!);
         } catch (e) {
           if (mounted) {
-            ScaffoldMessenger.of(context)
-                .showSnackBar(SnackBar(content: Text('Error: $e')));
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(SnackBar(content: Text('Error: $e')));
           }
         }
       },
@@ -711,7 +736,11 @@ class _ExpensesViewState extends ConsumerState<ExpensesView> {
                           child: Text(
                             expense.category,
                             style: TextStyle(
-                              color: Theme.of(context).brightness == Brightness.dark ? Colors.grey[400] : Colors.grey[600],
+                              color:
+                                  Theme.of(context).brightness ==
+                                      Brightness.dark
+                                  ? Colors.grey[400]
+                                  : Colors.grey[600],
                               fontSize: 13,
                               fontWeight: FontWeight.w500,
                             ),
@@ -719,18 +748,21 @@ class _ExpensesViewState extends ConsumerState<ExpensesView> {
                           ),
                         ),
                         Padding(
-                          padding:
-                              const EdgeInsets.symmetric(horizontal: 6),
+                          padding: const EdgeInsets.symmetric(horizontal: 6),
                           child: Text(
                             "•",
                             style: TextStyle(
-                                color: Colors.grey[400], fontSize: 12),
+                              color: Colors.grey[400],
+                              fontSize: 12,
+                            ),
                           ),
                         ),
                         Text(
                           dateStr,
                           style: TextStyle(
-                              color: Colors.grey[500], fontSize: 13),
+                            color: Colors.grey[500],
+                            fontSize: 13,
+                          ),
                         ),
                       ],
                     ),
@@ -749,8 +781,7 @@ class _ExpensesViewState extends ConsumerState<ExpensesView> {
                     ),
                   ),
                   const SizedBox(height: 4),
-                  const Icon(Icons.chevron_right,
-                      color: Colors.grey, size: 16),
+                  const Icon(Icons.chevron_right, color: Colors.grey, size: 16),
                 ],
               ),
             ],

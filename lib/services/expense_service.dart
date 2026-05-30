@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/expense_model.dart';
+import 'auth_service.dart';
 
 class ExpenseService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
@@ -11,14 +12,10 @@ class ExpenseService {
     final uid = _auth.currentUser?.uid;
     if (uid == null) return;
 
-    await _db
-        .collection('users')
-        .doc(uid)
-        .collection('expenses')
-        .add({
-          ...expense.toMap(),
-          'timestamp': FieldValue.serverTimestamp(),
-        });
+    await _db.collection('users').doc(uid).collection('expenses').add({
+      ...expense.toMap(),
+      'timestamp': FieldValue.serverTimestamp(),
+    });
   }
 
   Future<void> deleteExpense(String expenseId) async {
@@ -49,7 +46,10 @@ class ExpenseService {
   Future<void> backfillMissingExpenseTimestamps() async {
     final uid = _auth.currentUser?.uid;
     if (uid == null) return;
+    await backfillMissingExpenseTimestampsForUser(uid);
+  }
 
+  Future<void> backfillMissingExpenseTimestampsForUser(String uid) async {
     final snapshot = await _db
         .collection('users')
         .doc(uid)
@@ -94,7 +94,7 @@ class ExpenseService {
     final uid = _auth.currentUser?.uid;
     if (uid == null) return Stream.value([]);
 
-    return getExpensesSnapshotStream().map(
+    return getExpensesSnapshotStreamForUser(uid).map(
       (snapshot) => snapshot.docs
           .map((doc) => ExpenseModel.fromMap(doc.id, doc.data()))
           .toList(),
@@ -104,7 +104,12 @@ class ExpenseService {
   Stream<QuerySnapshot<Map<String, dynamic>>> getExpensesSnapshotStream() {
     final uid = _auth.currentUser?.uid;
     if (uid == null) return const Stream.empty();
+    return getExpensesSnapshotStreamForUser(uid);
+  }
 
+  Stream<QuerySnapshot<Map<String, dynamic>>> getExpensesSnapshotStreamForUser(
+    String uid,
+  ) {
     return _db
         .collection('users')
         .doc(uid)
@@ -112,14 +117,49 @@ class ExpenseService {
         .orderBy('timestamp', descending: true)
         .snapshots();
   }
+
+  Stream<QuerySnapshot<Map<String, dynamic>>>
+  getExpensesSnapshotStreamForUserWithBackfill(String uid) async* {
+    await backfillMissingExpenseTimestampsForUser(uid);
+    yield* getExpensesSnapshotStreamForUser(uid);
+  }
 }
 
 final expenseServiceProvider = Provider((ref) => ExpenseService());
 
-// Updated with autoDispose to handle account switching correctly
+final expensesSnapshotStreamProvider =
+    StreamProvider.autoDispose<QuerySnapshot<Map<String, dynamic>>>((ref) {
+      final authState = ref.watch(authStateChangesProvider);
+      final service = ref.watch(expenseServiceProvider);
+
+      return authState.when(
+        data: (user) {
+          if (user == null) return const Stream.empty();
+          return service.getExpensesSnapshotStreamForUserWithBackfill(user.uid);
+        },
+        loading: () => const Stream.empty(),
+        error: (_, __) => const Stream.empty(),
+      );
+    });
+
 final expensesStreamProvider = StreamProvider.autoDispose<List<ExpenseModel>>((
   ref,
 ) {
+  final authState = ref.watch(authStateChangesProvider);
   final service = ref.watch(expenseServiceProvider);
-  return service.getExpenses();
+
+  return authState.when(
+    data: (user) {
+      if (user == null) return Stream.value([]);
+      return service
+          .getExpensesSnapshotStreamForUserWithBackfill(user.uid)
+          .map(
+            (snapshot) => snapshot.docs
+                .map((doc) => ExpenseModel.fromMap(doc.id, doc.data()))
+                .toList(),
+          );
+    },
+    loading: () => Stream.value([]),
+    error: (_, __) => Stream.value([]),
+  );
 });
