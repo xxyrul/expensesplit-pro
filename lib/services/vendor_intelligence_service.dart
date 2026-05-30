@@ -208,6 +208,9 @@ class VendorIntelligenceService {
         userCorrectedAmount: userCorrectedAmount,
         confidenceLabel: confidenceLabel,
         createdAt: DateTime.now(),
+        vendor: (userCorrectedVendor != null && userCorrectedVendor.isNotEmpty)
+            ? userCorrectedVendor
+            : systemSuggestedVendor,
       );
       await _db
           .collection('users')

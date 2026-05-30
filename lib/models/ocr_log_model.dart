@@ -5,6 +5,7 @@ class OcrLogModel {
   final double userCorrectedAmount;
   final String confidenceLabel;
   final DateTime createdAt;
+  final String? vendor;
 
   OcrLogModel({
     this.id,
@@ -13,6 +14,7 @@ class OcrLogModel {
     required this.userCorrectedAmount,
     required this.confidenceLabel,
     required this.createdAt,
+    this.vendor,
   });
 
   Map<String, dynamic> toMap() {
@@ -22,6 +24,7 @@ class OcrLogModel {
       'userCorrectedAmount': userCorrectedAmount,
       'confidenceLabel': confidenceLabel,
       'createdAt': createdAt.toUtc().toIso8601String(),
+      if (vendor != null && vendor!.isNotEmpty) 'vendor': vendor,
     };
   }
 
@@ -32,6 +35,7 @@ class OcrLogModel {
       systemSuggestedAmount: (map['systemSuggestedAmount'] as num?)?.toDouble() ?? 0.0,
       userCorrectedAmount: (map['userCorrectedAmount'] as num?)?.toDouble() ?? 0.0,
       confidenceLabel: map['confidenceLabel'] ?? '',
+      vendor: map['vendor']?.toString(),
       createdAt: map['createdAt'] != null
           ? DateTime.parse(map['createdAt']).toLocal()
           : DateTime.now(),
