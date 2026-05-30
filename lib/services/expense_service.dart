@@ -15,7 +15,10 @@ class ExpenseService {
         .collection('users')
         .doc(uid)
         .collection('expenses')
-        .add(expense.toMap());
+        .add({
+          ...expense.toMap(),
+          'timestamp': FieldValue.serverTimestamp(),
+        });
   }
 
   Future<void> deleteExpense(String expenseId) async {
@@ -44,17 +47,23 @@ class ExpenseService {
     final uid = _auth.currentUser?.uid;
     if (uid == null) return Stream.value([]);
 
+    return getExpensesSnapshotStream().map(
+      (snapshot) => snapshot.docs
+          .map((doc) => ExpenseModel.fromMap(doc.id, doc.data()))
+          .toList(),
+    );
+  }
+
+  Stream<QuerySnapshot<Map<String, dynamic>>> getExpensesSnapshotStream() {
+    final uid = _auth.currentUser?.uid;
+    if (uid == null) return const Stream.empty();
+
     return _db
         .collection('users')
         .doc(uid)
         .collection('expenses')
-        .orderBy('date', descending: true)
-        .snapshots()
-        .map(
-          (snapshot) => snapshot.docs
-              .map((doc) => ExpenseModel.fromMap(doc.id, doc.data()))
-              .toList(),
-        );
+        .orderBy('timestamp', descending: true)
+        .snapshots();
   }
 }
 

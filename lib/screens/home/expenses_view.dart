@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../services/expense_service.dart';
 import '../../models/expense_model.dart';
 import '../../services/budget_service.dart';
@@ -166,17 +167,53 @@ class _ExpensesViewState extends ConsumerState<ExpensesView> {
     );
   }
 
+  List<ExpenseModel> _mapExpenseDocs(
+    List<QueryDocumentSnapshot<Map<String, dynamic>>> docs,
+  ) {
+    final expenses = <ExpenseModel>[];
+    for (final doc in docs) {
+      try {
+        expenses.add(ExpenseModel.fromMap(doc.id, doc.data()));
+      } catch (_) {
+        // Skip malformed expense documents so one bad record does not break the list.
+      }
+    }
+    return expenses;
+  }
+
   @override
   Widget build(BuildContext context) {
-    final expensesAsync = ref.watch(expensesStreamProvider);
     final budgetsAsync = ref.watch(budgetsStreamProvider);
+    final expensesStream =
+        ref.watch(expenseServiceProvider).getExpensesSnapshotStream();
 
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.surface,
       body: budgetsAsync.when(
         data: (budgetLimits) {
-          return expensesAsync.when(
-            data: (expenses) {
+          return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+            stream: expensesStream,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+
+              if (snapshot.hasError) {
+                return Center(child: Text("Error: ${snapshot.error}"));
+              }
+
+              if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                return Column(
+                  children: [
+                    _buildHeader(context, 0, 0, budgetLimits['Total'] ?? 0.0, 0),
+                    if (_showSearch) _buildSearchBar(),
+                    _buildCategoryFilter(),
+                    Expanded(child: _buildTransactionList(const [])),
+                  ],
+                );
+              }
+
+              final expenses = _mapExpenseDocs(snapshot.data!.docs);
               final now = DateTime.now();
               var allMonthExpenses = expenses.where((e) {
                 return e.date.year == now.year && e.date.month == now.month;
@@ -228,8 +265,6 @@ class _ExpensesViewState extends ConsumerState<ExpensesView> {
                 ],
               );
             },
-            loading: () => const Center(child: CircularProgressIndicator()),
-            error: (err, stack) => Center(child: Text("Error: $err")),
           );
         },
         loading: () => const Center(child: CircularProgressIndicator()),
