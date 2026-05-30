@@ -35,7 +35,7 @@ jobs:
       - name: Build Flutter web (admin_web)
         run: |
           cd admin_web
-          flutter build web --release --web-renderer html
+          flutter build web --release
 
       - name: Deploy to Firebase Hosting
         env:
