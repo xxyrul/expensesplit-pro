@@ -212,6 +212,7 @@ class _OcrReviewQueueScreenState extends ConsumerState<OcrReviewQueueScreen> {
 
                                                 final user = _userCache[userId];
                                                 final userEmail = _maskEmail(user?['email'] ?? 'Unknown', isMasked);
+                                                final vendor = data['vendor']?.toString() ?? '';
 
                                                 final systemSuggestedAmount =
                                                     (data['systemSuggestedAmount'] as num?)?.toDouble() ?? 0.0;
@@ -273,6 +274,15 @@ class _OcrReviewQueueScreenState extends ConsumerState<OcrReviewQueueScreen> {
                                                               ),
                                                             ),
                                                           ],
+                                                        ),
+                                                        const SizedBox(height: 8),
+                                                        Text(
+                                                          'Vendor: ${vendor.isEmpty ? 'N/A' : vendor}',
+                                                          style: TextStyle(
+                                                            fontSize: 13,
+                                                            fontWeight: FontWeight.w500,
+                                                            color: colorScheme.onSurfaceVariant,
+                                                          ),
                                                         ),
                                                         const SizedBox(height: 12),
                                                         Row(
