@@ -152,6 +152,13 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
       return;
     }
 
+    // Basic validation: vendor should contain at least one letter to avoid numeric-only values
+    final hasLetter = RegExp(r'[A-Za-z]').hasMatch(enteredVendor);
+    if (!hasLetter) {
+      _showSnackBar("Please enter a valid merchant name (letters required)");
+      return;
+    }
+
     final newExpense = ExpenseModel(
       amount: enteredAmount,
       vendor: enteredVendor,

@@ -1,0 +1,25 @@
+@startuml
+left to right direction
+actor User
+actor Admin
+
+User --> (Login)
+User --> (Register)
+User --> (Scan receipt / OCR)
+User --> (Add expense)
+User --> (Edit expense)
+User --> (Delete expense)
+User --> (Set budget)
+User --> (View reports)
+
+Admin --> (Review OCR correction queue)
+Admin --> (Manage Global Vendor Catalog)
+Admin --> (View anomaly alerts)
+Admin --> (Manage users)
+
+(Scan receipt / OCR) .> (Add expense) : prefill
+(Add expense) .> (Auto-Categorize Vendor)
+(Auto-Categorize Vendor) .> (Manage Global Vendor Catalog) : learn
+
+note right: This PlantUML is a simplified representation
+@enduml

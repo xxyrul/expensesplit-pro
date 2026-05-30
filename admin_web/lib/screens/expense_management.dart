@@ -605,10 +605,7 @@ class _ExpenseManagementScreenState extends ConsumerState<ExpenseManagementScree
           const SizedBox(height: 16),
           LayoutBuilder(
             builder: (context, constraints) {
-              final isMobile = constraints.maxWidth < 600;
-              final isNarrow = constraints.maxWidth < 950;
-              
-              if (isMobile) {
+              if (constraints.maxWidth <= 600) {
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
@@ -698,129 +695,11 @@ class _ExpenseManagementScreenState extends ConsumerState<ExpenseManagementScree
                         icon: const Icon(Icons.clear),
                         label: const Text('Reset Filters'),
                         onPressed: _resetFilters,
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 20),
+                        ),
                       ),
                     ],
-                  ],
-                );
-              }
-
-              if (isNarrow) {
-                return Column(
-                  children: [
-                    Row(
-                      children: [
-                        // Search vendor
-                        Expanded(
-                          child: TextField(
-                            decoration: const InputDecoration(
-                              labelText: 'Search Vendor',
-                              prefixIcon: Icon(Icons.search),
-                              border: OutlineInputBorder(),
-                            ),
-                            onChanged: (val) {
-                              setState(() {
-                                _searchQuery = val;
-                              });
-                            },
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        // Category dropdown
-                        Expanded(
-                          child: DropdownButtonFormField<String>(
-                            value: _selectedCategory,
-                            decoration: const InputDecoration(
-                              labelText: 'Category',
-                              border: OutlineInputBorder(),
-                            ),
-                            items: const [
-                              DropdownMenuItem(value: 'All', child: Text('All Categories')),
-                              DropdownMenuItem(value: 'Food', child: Text('Food')),
-                              DropdownMenuItem(value: 'Groceries', child: Text('Groceries')),
-                              DropdownMenuItem(value: 'Transport', child: Text('Transport')),
-                              DropdownMenuItem(value: 'Shopping', child: Text('Shopping')),
-                              DropdownMenuItem(value: 'Health', child: Text('Health')),
-                              DropdownMenuItem(value: 'Entertainment', child: Text('Entertainment')),
-                              DropdownMenuItem(value: 'Utilities', child: Text('Utilities')),
-                              DropdownMenuItem(value: 'Education', child: Text('Education')),
-                              DropdownMenuItem(value: 'General', child: Text('General')),
-                            ],
-                            onChanged: (val) {
-                              setState(() {
-                                _selectedCategory = val ?? 'All';
-                              });
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    Row(
-                      children: [
-                        // Min Amount
-                        Expanded(
-                          child: TextField(
-                            keyboardType: TextInputType.number,
-                            decoration: const InputDecoration(
-                              labelText: 'Min Amount (RM)',
-                              border: OutlineInputBorder(),
-                            ),
-                            onChanged: (val) {
-                              setState(() {
-                                _minAmount = double.tryParse(val);
-                              });
-                            },
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        // Max Amount
-                        Expanded(
-                          child: TextField(
-                            keyboardType: TextInputType.number,
-                            decoration: const InputDecoration(
-                              labelText: 'Max Amount (RM)',
-                              border: OutlineInputBorder(),
-                            ),
-                            onChanged: (val) {
-                              setState(() {
-                                _maxAmount = double.tryParse(val);
-                              });
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: ElevatedButton.icon(
-                            onPressed: _pickDateRange,
-                            icon: const Icon(Icons.date_range),
-                            label: Text(
-                              _selectedDateRange == null
-                                  ? 'Pick Date Range'
-                                  : '${DateFormat('MM/dd').format(_selectedDateRange!.start)} - ${DateFormat('MM/dd').format(_selectedDateRange!.end)}',
-                            ),
-                            style: ElevatedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(vertical: 20),
-                            ),
-                          ),
-                        ),
-                        if (_selectedDateRange != null ||
-                            _searchQuery.isNotEmpty ||
-                            _selectedCategory != 'All' ||
-                            _minAmount != null ||
-                            _maxAmount != null) ...[
-                          const SizedBox(width: 12),
-                          IconButton(
-                            icon: const Icon(Icons.clear),
-                            tooltip: 'Reset Filters',
-                            onPressed: _resetFilters,
-                          ),
-                        ],
-                      ],
-                    ),
                   ],
                 );
               }

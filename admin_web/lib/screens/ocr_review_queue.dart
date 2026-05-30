@@ -81,7 +81,7 @@ class _OcrReviewQueueScreenState extends ConsumerState<OcrReviewQueueScreen> {
       return true;
     }).toList();
   }
-
+  
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
@@ -501,48 +501,14 @@ class _OcrReviewQueueScreenState extends ConsumerState<OcrReviewQueueScreen> {
                                                           ),
                                                         ),
                                                         DataCell(
-                                                          Row(
-                                                            children: [
-                                                              IconButton(
-                                                                icon: const Icon(Icons.text_snippet),
-                                                                tooltip: 'Show Raw OCR text',
-                                                                onPressed: () => _showRawTextDialog(context, rawText),
-                                                              ),
-                                                              if (adminStatus == 'Pending') ...[
-                                                                IconButton(
-                                                                  icon: const Icon(Icons.check, color: Colors.green),
-                                                                  tooltip: 'Approve System Value',
-                                                                  onPressed: () => _updateStatus(
-                                                                    userId,
-                                                                    docId,
-                                                                    'Approved',
-                                                                    systemSuggestedAmount,
-                                                                    userCorrectedAmount,
-                                                                  ),
-                                                                ),
-                                                                IconButton(
-                                                                  icon: const Icon(Icons.close, color: Colors.red),
-                                                                  tooltip: 'Reject Scan',
-                                                                  onPressed: () => _updateStatus(
-                                                                    userId,
-                                                                    docId,
-                                                                    'Rejected',
-                                                                    systemSuggestedAmount,
-                                                                    userCorrectedAmount,
-                                                                  ),
-                                                                ),
-                                                                IconButton(
-                                                                  icon: const Icon(Icons.psychology, color: Colors.blue),
-                                                                  tooltip: 'Correct & Add to Seed Dictionary',
-                                                                  onPressed: () => _showLearnDialog(
-                                                                    context,
-                                                                    userId,
-                                                                    docId,
-                                                                    rawText,
-                                                                  ),
-                                                                ),
-                                                              ],
-                                                            ],
+                                                          _buildDataTableActions(
+                                                            context,
+                                                            userId,
+                                                            docId,
+                                                            systemSuggestedAmount,
+                                                            userCorrectedAmount,
+                                                            rawText,
+                                                            adminStatus,
                                                           ),
                                                         ),
                                                       ],
@@ -568,6 +534,57 @@ class _OcrReviewQueueScreenState extends ConsumerState<OcrReviewQueueScreen> {
     },
   );
 }
+
+  Widget _buildDataTableActions(
+    BuildContext context,
+    String userId,
+    String docId,
+    double systemSuggestedAmount,
+    double userCorrectedAmount,
+    String rawText,
+    String adminStatus,
+  ) {
+    // If not pending, only show the raw text viewer
+    if (adminStatus != 'Pending') {
+      return IconButton(
+        icon: const Icon(Icons.text_snippet),
+        tooltip: 'Show Raw OCR text',
+        onPressed: () => _showRawTextDialog(context, rawText),
+      );
+    }
+
+    return PopupMenuButton<String>(
+      tooltip: 'Actions',
+      onSelected: (value) {
+        switch (value) {
+          case 'show':
+            _showRawTextDialog(context, rawText);
+            break;
+          case 'approve':
+            _updateStatus(userId, docId, 'Approved', systemSuggestedAmount, userCorrectedAmount);
+            break;
+          case 'reject':
+            _updateStatus(userId, docId, 'Rejected', systemSuggestedAmount, userCorrectedAmount);
+            break;
+          case 'learn':
+            _showLearnDialog(context, userId, docId, rawText);
+            break;
+        }
+      },
+      itemBuilder: (context) => [
+        const PopupMenuItem(value: 'show', child: Text('Show Raw OCR text')),
+        const PopupMenuItem(value: 'approve', child: Text('Approve System Value')),
+        const PopupMenuItem(value: 'reject', child: Text('Reject Scan')),
+        const PopupMenuItem(value: 'learn', child: Text('Correct & Add to Seed Dictionary')),
+      ],
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: const [
+          Icon(Icons.more_vert),
+        ],
+      ),
+    );
+  }
 
   Widget _buildFilterBar(ColorScheme colorScheme) {
     return LayoutBuilder(

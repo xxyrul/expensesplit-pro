@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
+import 'env/firebase_config.dart';
 import 'screens/auth/admin_login_screen.dart';
 import 'services/auth_service.dart';
 import 'screens/dashboard_layout.dart';
@@ -10,7 +11,7 @@ import 'theme/expressive_theme.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
+    options: getAdminFirebaseOptions(),
   );
   runApp(const ProviderScope(child: AdminWebApp()));
 }
