@@ -43,6 +43,12 @@ class _ExpensesViewState extends ConsumerState<ExpensesView> {
     super.initState();
     _highlightedExpenseId = widget.focusExpenseId;
     _pendingFocusScroll = widget.focusExpenseId != null;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref
+          .read(expenseServiceProvider)
+          .backfillMissingExpenseTimestamps()
+          .catchError((_) {});
+    });
   }
 
   @override

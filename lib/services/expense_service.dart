@@ -40,7 +40,54 @@ class ExpenseService {
         .doc(uid)
         .collection('expenses')
         .doc(expenseId)
-        .update(expense.toMap());
+        .update({
+          ...expense.toMap(),
+          'timestamp': Timestamp.fromDate(expense.date),
+        });
+  }
+
+  Future<void> backfillMissingExpenseTimestamps() async {
+    final uid = _auth.currentUser?.uid;
+    if (uid == null) return;
+
+    final snapshot = await _db
+        .collection('users')
+        .doc(uid)
+        .collection('expenses')
+        .get();
+
+    WriteBatch batch = _db.batch();
+    var pendingWrites = 0;
+
+    Future<void> commitBatchIfNeeded({bool force = false}) async {
+      if (pendingWrites == 0 || (!force && pendingWrites < 450)) return;
+      await batch.commit();
+      batch = _db.batch();
+      pendingWrites = 0;
+    }
+
+    for (final doc in snapshot.docs) {
+      final data = doc.data();
+      if (data['timestamp'] != null) continue;
+
+      final rawDate = data['date'];
+      DateTime? parsedDate;
+      if (rawDate is Timestamp) {
+        parsedDate = rawDate.toDate();
+      } else if (rawDate is String) {
+        parsedDate = DateTime.tryParse(rawDate);
+      }
+
+      batch.update(doc.reference, {
+        'timestamp': parsedDate != null
+            ? Timestamp.fromDate(parsedDate)
+            : FieldValue.serverTimestamp(),
+      });
+      pendingWrites += 1;
+      await commitBatchIfNeeded();
+    }
+
+    await commitBatchIfNeeded(force: true);
   }
 
   Stream<List<ExpenseModel>> getExpenses() {
