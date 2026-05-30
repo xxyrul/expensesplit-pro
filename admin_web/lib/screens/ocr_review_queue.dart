@@ -173,12 +173,17 @@ class _OcrReviewQueueScreenState extends ConsumerState<OcrReviewQueueScreen> {
 
                           final allDocs = snapshot.data?.docs ?? [];
                           final filteredDocs = _applyFilters(allDocs);
-                          final vendorColumnWidth = isMobile
-                              ? 96.0
-                              : (constraints.maxWidth * 0.14).clamp(110.0, 180.0);
-                            final actionsColumnWidth = isMobile ? 84.0 : 108.0;
-                          final tableColumnSpacing = constraints.maxWidth < 1200 ? 20.0 : 28.0;
-                          final tableHorizontalMargin = constraints.maxWidth < 1200 ? 12.0 : 20.0;
+                                final tableWidth = constraints.maxWidth;
+                                final vendorColumnWidth = isMobile
+                                  ? 120.0
+                                  : (tableWidth * 0.16).clamp(140.0, 220.0);
+                                final amountColumnWidth = isMobile
+                                  ? 112.0
+                                  : (tableWidth * 0.13).clamp(120.0, 180.0);
+                                const actionsColumnWidth = 120.0;
+                                final tableMinWidth = isMobile ? 800.0 : 980.0;
+                                final tableColumnSpacing = (tableWidth * 0.02).clamp(16.0, 28.0);
+                                final tableHorizontalMargin = (tableWidth * 0.015).clamp(12.0, 20.0);
 
                           return Container(
                             decoration: BoxDecoration(
@@ -437,41 +442,53 @@ class _OcrReviewQueueScreenState extends ConsumerState<OcrReviewQueueScreen> {
                                               scrollDirection: Axis.vertical,
                                               child: SingleChildScrollView(
                                                 scrollDirection: Axis.horizontal,
-                                                child: DataTable(
-                                                  columnSpacing: tableColumnSpacing,
-                                                  horizontalMargin: tableHorizontalMargin,
-                                                  headingRowColor: WidgetStateProperty.all(
-                                                    colorScheme.surfaceContainerHighest,
-                                                  ),
-                                                  columns: [
-                                                    const DataColumn(label: Text('Timestamp')),
-                                                    const DataColumn(label: Text('User')),
-                                                    DataColumn(
-                                                      label: SizedBox(
-                                                        width: vendorColumnWidth,
-                                                        child: Text('Vendor'),
-                                                      ),
+                                                child: ConstrainedBox(
+                                                  constraints: BoxConstraints(minWidth: tableMinWidth),
+                                                  child: DataTable(
+                                                    columnSpacing: tableColumnSpacing,
+                                                    horizontalMargin: tableHorizontalMargin,
+                                                    headingRowColor: WidgetStateProperty.all(
+                                                      colorScheme.surfaceContainerHighest,
                                                     ),
-                                                    const DataColumn(label: Text('System Suggested Amount')),
-                                                    const DataColumn(label: Text('User Corrected Amount')),
-                                                    const DataColumn(label: Text('Confidence')),
-                                                    const DataColumn(label: Text('Admin Status')),
-                                                    DataColumn(
-                                                      label: SizedBox(
-                                                        width: actionsColumnWidth,
-                                                        child: const Text('Actions'),
+                                                    columns: [
+                                                      const DataColumn(label: Text('Timestamp')),
+                                                      const DataColumn(label: Text('User')),
+                                                      DataColumn(
+                                                        label: SizedBox(
+                                                          width: vendorColumnWidth,
+                                                          child: const Text('Vendor'),
+                                                        ),
                                                       ),
-                                                    ),
-                                                  ],
-                                                  rows: filteredDocs.map((doc) {
+                                                      DataColumn(
+                                                        label: SizedBox(
+                                                          width: amountColumnWidth,
+                                                          child: const Text('System Suggested Amount'),
+                                                        ),
+                                                      ),
+                                                      DataColumn(
+                                                        label: SizedBox(
+                                                          width: amountColumnWidth,
+                                                          child: const Text('User Corrected Amount'),
+                                                        ),
+                                                      ),
+                                                      const DataColumn(label: Text('Confidence')),
+                                                      const DataColumn(label: Text('Admin Status')),
+                                                      DataColumn(
+                                                        label: SizedBox(
+                                                          width: actionsColumnWidth,
+                                                          child: const Text('Actions'),
+                                                        ),
+                                                      ),
+                                                    ],
+                                                    rows: filteredDocs.map((doc) {
                                                     final expenseData = doc.data() as Map<String, dynamic>;
                                                     final docId = doc.id;
                                                     final userId = doc.reference.parent.parent?.id ?? '';
 
                                                     final user = _userCache[userId];
                                                     final userEmail = _maskEmail(user?['email'] ?? 'Unknown', isMasked);
-                                                    debugPrint('expenseData: $expenseData');
-                                                    final vendor = expenseData['vendor']?.toString() ?? '';
+                                                    debugPrint('Row data: $expenseData');
+                                                    final vendor = expenseData['vendor']?.toString() ?? 'Unknown';
 
                                                     final systemSuggestedAmount =
                                                         (expenseData['systemSuggestedAmount'] as num?)?.toDouble() ?? 0.0;
@@ -505,21 +522,35 @@ class _OcrReviewQueueScreenState extends ConsumerState<OcrReviewQueueScreen> {
                                                           SizedBox(
                                                             width: vendorColumnWidth,
                                                             child: Text(
-                                                              vendor.isEmpty ? 'N/A' : vendor,
+                                                              '${expenseData['vendor'] ?? 'Unknown'}',
                                                               maxLines: 1,
                                                               overflow: TextOverflow.ellipsis,
                                                             ),
                                                           ),
                                                         ),
-                                                        DataCell(Text('RM ${systemSuggestedAmount.toStringAsFixed(2)}')),
                                                         DataCell(
-                                                          Text(
-                                                            'RM ${userCorrectedAmount.toStringAsFixed(2)}',
-                                                            style: TextStyle(
-                                                              color: systemSuggestedAmount != userCorrectedAmount
-                                                                  ? Colors.amber
-                                                                  : Colors.green,
-                                                              fontWeight: FontWeight.bold,
+                                                          SizedBox(
+                                                            width: amountColumnWidth,
+                                                            child: Text(
+                                                              'RM ${systemSuggestedAmount.toStringAsFixed(2)}',
+                                                              maxLines: 1,
+                                                              overflow: TextOverflow.ellipsis,
+                                                            ),
+                                                          ),
+                                                        ),
+                                                        DataCell(
+                                                          SizedBox(
+                                                            width: amountColumnWidth,
+                                                            child: Text(
+                                                              'RM ${userCorrectedAmount.toStringAsFixed(2)}',
+                                                              maxLines: 1,
+                                                              overflow: TextOverflow.ellipsis,
+                                                              style: TextStyle(
+                                                                color: systemSuggestedAmount != userCorrectedAmount
+                                                                    ? Colors.amber
+                                                                    : Colors.green,
+                                                                fontWeight: FontWeight.bold,
+                                                              ),
                                                             ),
                                                           ),
                                                         ),
@@ -569,6 +600,7 @@ class _OcrReviewQueueScreenState extends ConsumerState<OcrReviewQueueScreen> {
                                                       ],
                                                     );
                                                   }).toList(),
+                                                  ),
                                                 ),
                                               ),
                                             ),
@@ -801,6 +833,7 @@ class _OcrReviewQueueScreenState extends ConsumerState<OcrReviewQueueScreen> {
       text: (data['userCorrectedAmount'] ?? data['systemSuggestedAmount'] ?? 0.0).toString(),
     );
     final String rawText = data['rawText']?.toString() ?? '';
+    final String confidenceLabel = data['confidenceLabel']?.toString() ?? 'Unknown';
 
     showDialog(
       context: context,
@@ -825,11 +858,33 @@ class _OcrReviewQueueScreenState extends ConsumerState<OcrReviewQueueScreen> {
                           color: colorScheme.onSurfaceVariant,
                         ),
                       ),
+                      if (confidenceLabel == 'Low Confidence') ...[
+                        const SizedBox(height: 12),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: colorScheme.errorContainer.withOpacity(0.35),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: colorScheme.error.withOpacity(0.3)),
+                          ),
+                          child: Text(
+                            'Low-confidence scan: confirm or type the correct vendor name before saving.',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: colorScheme.onErrorContainer,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
                       const SizedBox(height: 20),
                       TextField(
                         controller: vendorController,
+                        textInputAction: TextInputAction.next,
                         decoration: const InputDecoration(
                           labelText: 'Vendor Name',
+                          hintText: 'Type or correct the merchant name',
                           border: OutlineInputBorder(),
                           prefixIcon: Icon(Icons.store),
                         ),
