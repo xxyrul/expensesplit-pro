@@ -254,7 +254,7 @@ class _ExpenseManagementScreenState extends ConsumerState<ExpenseManagementScree
                     // Table and Data view
                     Expanded(
                       child: StreamBuilder<QuerySnapshot>(
-                    stream: _firestore.collectionGroup('expenses').snapshots(),
+                    stream: _firestore.collectionGroup('expenses').orderBy('timestamp', descending: true).snapshots(),
                     builder: (context, snapshot) {
                       if (snapshot.connectionState == ConnectionState.waiting) {
                         return const Center(child: CircularProgressIndicator());
