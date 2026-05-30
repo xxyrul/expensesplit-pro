@@ -173,17 +173,23 @@ class _OcrReviewQueueScreenState extends ConsumerState<OcrReviewQueueScreen> {
 
                           final allDocs = snapshot.data?.docs ?? [];
                           final filteredDocs = _applyFilters(allDocs);
-                                final tableWidth = constraints.maxWidth;
-                                final vendorColumnWidth = isMobile
-                                  ? 120.0
-                                  : (tableWidth * 0.16).clamp(140.0, 220.0);
-                                final amountColumnWidth = isMobile
-                                  ? 112.0
-                                  : (tableWidth * 0.13).clamp(120.0, 180.0);
-                                const actionsColumnWidth = 120.0;
-                                final tableMinWidth = isMobile ? 800.0 : 980.0;
-                                final tableColumnSpacing = (tableWidth * 0.02).clamp(16.0, 28.0);
-                                final tableHorizontalMargin = (tableWidth * 0.015).clamp(12.0, 20.0);
+                          final tableWidth = constraints.maxWidth;
+                          final timestampColumnWidth = isMobile
+                              ? 132.0
+                              : (tableWidth * 0.14).clamp(120.0, 160.0);
+                          final userColumnWidth = isMobile
+                              ? 150.0
+                              : (tableWidth * 0.17).clamp(140.0, 200.0);
+                          final vendorColumnWidth = isMobile
+                              ? 120.0
+                              : (tableWidth * 0.13).clamp(120.0, 170.0);
+                          final amountColumnWidth = isMobile
+                              ? 104.0
+                              : (tableWidth * 0.11).clamp(100.0, 140.0);
+                          const actionsColumnWidth = 76.0;
+                          final tableMinWidth = isMobile ? 760.0 : 860.0;
+                          final tableColumnSpacing = (tableWidth * 0.012).clamp(10.0, 18.0);
+                          final tableHorizontalMargin = (tableWidth * 0.01).clamp(10.0, 16.0);
 
                           return Container(
                             decoration: BoxDecoration(
@@ -451,8 +457,18 @@ class _OcrReviewQueueScreenState extends ConsumerState<OcrReviewQueueScreen> {
                                                       colorScheme.surfaceContainerHighest,
                                                     ),
                                                     columns: [
-                                                      const DataColumn(label: Text('Timestamp')),
-                                                      const DataColumn(label: Text('User')),
+                                                      DataColumn(
+                                                        label: SizedBox(
+                                                          width: timestampColumnWidth,
+                                                          child: const Text('Timestamp'),
+                                                        ),
+                                                      ),
+                                                      DataColumn(
+                                                        label: SizedBox(
+                                                          width: userColumnWidth,
+                                                          child: const Text('User'),
+                                                        ),
+                                                      ),
                                                       DataColumn(
                                                         label: SizedBox(
                                                           width: vendorColumnWidth,
@@ -462,17 +478,17 @@ class _OcrReviewQueueScreenState extends ConsumerState<OcrReviewQueueScreen> {
                                                       DataColumn(
                                                         label: SizedBox(
                                                           width: amountColumnWidth,
-                                                          child: const Text('System Suggested Amount'),
+                                                          child: const Text('System Amt'),
                                                         ),
                                                       ),
                                                       DataColumn(
                                                         label: SizedBox(
                                                           width: amountColumnWidth,
-                                                          child: const Text('User Corrected Amount'),
+                                                          child: const Text('User Amt'),
                                                         ),
                                                       ),
                                                       const DataColumn(label: Text('Confidence')),
-                                                      const DataColumn(label: Text('Admin Status')),
+                                                      const DataColumn(label: Text('Status')),
                                                       DataColumn(
                                                         label: SizedBox(
                                                           width: actionsColumnWidth,
@@ -516,8 +532,26 @@ class _OcrReviewQueueScreenState extends ConsumerState<OcrReviewQueueScreen> {
 
                                                     return DataRow(
                                                       cells: [
-                                                        DataCell(Text(dateStr)),
-                                                        DataCell(Text(userEmail)),
+                                                        DataCell(
+                                                          SizedBox(
+                                                            width: timestampColumnWidth,
+                                                            child: Text(
+                                                              dateStr,
+                                                              maxLines: 1,
+                                                              overflow: TextOverflow.ellipsis,
+                                                            ),
+                                                          ),
+                                                        ),
+                                                        DataCell(
+                                                          SizedBox(
+                                                            width: userColumnWidth,
+                                                            child: Text(
+                                                              userEmail,
+                                                              maxLines: 1,
+                                                              overflow: TextOverflow.ellipsis,
+                                                            ),
+                                                          ),
+                                                        ),
                                                         DataCell(
                                                           SizedBox(
                                                             width: vendorColumnWidth,

@@ -253,9 +253,18 @@ class _DashboardLayoutState extends ConsumerState<DashboardLayout> {
 
           // ── Main content (IndexedStack caches all screens) ──────────
           Expanded(
-            child: IndexedStack(
-              index: _selectedIndex,
-              children: List.generate(8, (i) => _buildScreenByIndex(i)),
+            child: LayoutBuilder(
+              builder: (context, contentConstraints) {
+                return SizedBox(
+                  width: contentConstraints.maxWidth,
+                  child: ClipRect(
+                    child: IndexedStack(
+                      index: _selectedIndex,
+                      children: List.generate(8, (i) => _buildScreenByIndex(i)),
+                    ),
+                  ),
+                );
+              },
             ),
           ),
         ],
