@@ -59,7 +59,23 @@ class _ExpenseManagementScreenState extends ConsumerState<ExpenseManagementScree
   Future<void> forceDataFetch() async {
     print("--- FORCED FETCH START ---");
     try {
-      final snapshot = await FirebaseFirestore.instance.collectionGroup('expenses').get();
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        print("DEBUG: User not signed in!");
+        return;
+      }
+
+      print("DEBUG: Current User UID: ${user.uid}");
+      
+      final adminDoc = await _firestore.collection('admins').doc(user.uid).get();
+      if (!adminDoc.exists) {
+        print("DEBUG: Access Denied. UID ${user.uid} is not in the 'admins' collection.");
+        return; 
+      }
+      
+      print("DEBUG: Admin status verified. Proceeding with query...");
+
+      final snapshot = await _firestore.collectionGroup('expenses').get();
       print("DEBUG: Found ${snapshot.docs.length} documents.");
       for (var doc in snapshot.docs) {
         print("DEBUG: Doc ID: ${doc.id} | Data: ${doc.data()}");
