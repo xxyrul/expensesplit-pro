@@ -210,9 +210,15 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
       }
     } catch (e) {
       if (mounted) {
+        String msg = e.toString();
+        if (msg.startsWith('Exception: Failed to save:')) {
+          msg = msg.replaceFirst('Exception: ', '');
+        } else {
+          msg = 'Failed to save: $e';
+        }
         ModernBottomToast.show(
           context,
-          message: 'Error saving expense: $e',
+          message: msg,
           type: ModernToastType.error,
         );
       }

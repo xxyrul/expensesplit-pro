@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -10,12 +11,22 @@ class ExpenseService {
 
   Future<void> addExpense(ExpenseModel expense) async {
     final uid = _auth.currentUser?.uid;
-    if (uid == null) return;
+    if (uid == null) {
+      throw Exception('User is not authenticated');
+    }
 
-    await _db.collection('users').doc(uid).collection('expenses').add({
-      ...expense.toMap(),
-      'timestamp': FieldValue.serverTimestamp(),
-    });
+    try {
+      await _db.collection('users').doc(uid).collection('expenses').add({
+        ...expense.toMap(),
+        'timestamp': FieldValue.serverTimestamp(),
+      });
+    } on FirebaseException catch (e) {
+      debugPrint('Firestore Write Error: ${e.code} - ${e.message}');
+      throw Exception('Failed to save: ${e.message}');
+    } catch (e) {
+      debugPrint('Unknown Error: $e');
+      throw Exception('Failed to save: $e');
+    }
   }
 
   Future<void> deleteExpense(String expenseId) async {
