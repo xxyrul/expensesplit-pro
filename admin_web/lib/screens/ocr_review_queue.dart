@@ -173,6 +173,12 @@ class _OcrReviewQueueScreenState extends ConsumerState<OcrReviewQueueScreen> {
 
                           final allDocs = snapshot.data?.docs ?? [];
                           final filteredDocs = _applyFilters(allDocs);
+                          final vendorColumnWidth = isMobile
+                              ? 96.0
+                              : (constraints.maxWidth * 0.14).clamp(110.0, 180.0);
+                            final actionsColumnWidth = isMobile ? 84.0 : 108.0;
+                          final tableColumnSpacing = constraints.maxWidth < 1200 ? 20.0 : 28.0;
+                          final tableHorizontalMargin = constraints.maxWidth < 1200 ? 12.0 : 20.0;
 
                           return Container(
                             decoration: BoxDecoration(
@@ -430,44 +436,57 @@ class _OcrReviewQueueScreenState extends ConsumerState<OcrReviewQueueScreen> {
                                           : SingleChildScrollView(
                                               scrollDirection: Axis.vertical,
                                               child: SingleChildScrollView(
-                                                 scrollDirection: Axis.horizontal,
+                                                scrollDirection: Axis.horizontal,
                                                 child: DataTable(
+                                                  columnSpacing: tableColumnSpacing,
+                                                  horizontalMargin: tableHorizontalMargin,
                                                   headingRowColor: WidgetStateProperty.all(
                                                     colorScheme.surfaceContainerHighest,
                                                   ),
-                                                  columns: const [
-                                                    DataColumn(label: Text('Timestamp')),
-                                                    DataColumn(label: Text('User')),
-                                                    DataColumn(label: Text('Vendor')),
-                                                    DataColumn(label: Text('System Suggested Amount')),
-                                                    DataColumn(label: Text('User Corrected Amount')),
-                                                    DataColumn(label: Text('Confidence')),
-                                                    DataColumn(label: Text('Admin Status')),
-                                                    DataColumn(label: Text('Actions')),
+                                                  columns: [
+                                                    const DataColumn(label: Text('Timestamp')),
+                                                    const DataColumn(label: Text('User')),
+                                                    DataColumn(
+                                                      label: SizedBox(
+                                                        width: vendorColumnWidth,
+                                                        child: Text('Vendor'),
+                                                      ),
+                                                    ),
+                                                    const DataColumn(label: Text('System Suggested Amount')),
+                                                    const DataColumn(label: Text('User Corrected Amount')),
+                                                    const DataColumn(label: Text('Confidence')),
+                                                    const DataColumn(label: Text('Admin Status')),
+                                                    DataColumn(
+                                                      label: SizedBox(
+                                                        width: actionsColumnWidth,
+                                                        child: const Text('Actions'),
+                                                      ),
+                                                    ),
                                                   ],
                                                   rows: filteredDocs.map((doc) {
-                                                    final data = doc.data() as Map<String, dynamic>;
+                                                    final expenseData = doc.data() as Map<String, dynamic>;
                                                     final docId = doc.id;
                                                     final userId = doc.reference.parent.parent?.id ?? '';
 
                                                     final user = _userCache[userId];
                                                     final userEmail = _maskEmail(user?['email'] ?? 'Unknown', isMasked);
-                                                    final vendor = data['vendor']?.toString() ?? '';
+                                                    debugPrint('expenseData: $expenseData');
+                                                    final vendor = expenseData['vendor']?.toString() ?? '';
 
                                                     final systemSuggestedAmount =
-                                                        (data['systemSuggestedAmount'] as num?)?.toDouble() ?? 0.0;
+                                                        (expenseData['systemSuggestedAmount'] as num?)?.toDouble() ?? 0.0;
                                                     final userCorrectedAmount =
-                                                        (data['userCorrectedAmount'] as num?)?.toDouble() ?? 0.0;
-                                                    final confidence = data['confidenceLabel'] ?? 'Unknown';
-                                                    final adminStatus = data['adminStatus'] ?? 'Pending';
+                                                        (expenseData['userCorrectedAmount'] as num?)?.toDouble() ?? 0.0;
+                                                    final confidence = expenseData['confidenceLabel'] ?? 'Unknown';
+                                                    final adminStatus = expenseData['adminStatus'] ?? 'Pending';
 
                                                     String dateStr = '';
-                                                    if (data['createdAt'] != null) {
+                                                    if (expenseData['createdAt'] != null) {
                                                       DateTime? createdDate;
-                                                      if (data['createdAt'] is Timestamp) {
-                                                        createdDate = (data['createdAt'] as Timestamp).toDate();
+                                                      if (expenseData['createdAt'] is Timestamp) {
+                                                        createdDate = (expenseData['createdAt'] as Timestamp).toDate();
                                                       } else {
-                                                        createdDate = DateTime.tryParse(data['createdAt']);
+                                                        createdDate = DateTime.tryParse(expenseData['createdAt']);
                                                       }
                                                       if (createdDate != null) {
                                                         dateStr = DateFormat('yyyy-MM-dd HH:mm').format(createdDate);
@@ -482,7 +501,16 @@ class _OcrReviewQueueScreenState extends ConsumerState<OcrReviewQueueScreen> {
                                                       cells: [
                                                         DataCell(Text(dateStr)),
                                                         DataCell(Text(userEmail)),
-                                                        DataCell(Text(vendor.isEmpty ? 'N/A' : vendor)),
+                                                        DataCell(
+                                                          SizedBox(
+                                                            width: vendorColumnWidth,
+                                                            child: Text(
+                                                              vendor.isEmpty ? 'N/A' : vendor,
+                                                              maxLines: 1,
+                                                              overflow: TextOverflow.ellipsis,
+                                                            ),
+                                                          ),
+                                                        ),
                                                         DataCell(Text('RM ${systemSuggestedAmount.toStringAsFixed(2)}')),
                                                         DataCell(
                                                           Text(
@@ -524,14 +552,20 @@ class _OcrReviewQueueScreenState extends ConsumerState<OcrReviewQueueScreen> {
                                                           ),
                                                         ),
                                                         DataCell(
-                                                           _buildDataTableActions(
-                                                             context,
-                                                             userId,
-                                                             docId,
-                                                             data,
-                                                             adminStatus,
-                                                           ),
-                                                         ),
+                                                          SizedBox(
+                                                            width: actionsColumnWidth,
+                                                            child: Align(
+                                                              alignment: Alignment.centerLeft,
+                                                              child: _buildDataTableActions(
+                                                                context,
+                                                                userId,
+                                                                docId,
+                                                                expenseData,
+                                                                adminStatus,
+                                                              ),
+                                                            ),
+                                                          ),
+                                                        ),
                                                       ],
                                                     );
                                                   }).toList(),

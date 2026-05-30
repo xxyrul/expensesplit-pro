@@ -24,7 +24,7 @@ class OcrLogModel {
       'userCorrectedAmount': userCorrectedAmount,
       'confidenceLabel': confidenceLabel,
       'createdAt': createdAt.toUtc().toIso8601String(),
-      if (vendor != null && vendor!.isNotEmpty) 'vendor': vendor,
+      'vendor': vendor?.trim() ?? '',
     };
   }
 
