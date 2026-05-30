@@ -3,11 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
+import 'package:web/web.dart' as web;
 
-// ignore: avoid_web_libraries_in_flutter
-import 'dart:html' as html;
 import '../widgets/modern_bottom_toast.dart';
-import '../services/fcm_service.dart';
 
 class GlobalAnalyticsScreen extends ConsumerStatefulWidget {
   const GlobalAnalyticsScreen({super.key});
@@ -42,7 +40,7 @@ class _GlobalAnalyticsScreenState
       // Build CSV manually — no external package needed
       final rows = <String>['Date,Category,Platform'];
       for (final doc in snapshot.docs) {
-        final data = doc.data() as Map<String, dynamic>;
+        final data = doc.data();
         final date = (data['date'] ?? 'Unknown').toString().replaceAll(',', ' ');
         final cat  = (data['category'] ?? 'General').toString().replaceAll(',', ' ');
         rows.add('$date,$cat,ExpenseSplit Pro');
@@ -50,9 +48,10 @@ class _GlobalAnalyticsScreenState
       final csvString = rows.join('\n');
       final bytes = Uri.encodeComponent(csvString);
 
-      html.AnchorElement(href: 'data:text/csv;charset=utf-8,$bytes')
-        ..setAttribute('download', 'fyp_anonymized_research_data.csv')
-        ..click();
+      final anchor = web.document.createElement('a') as web.HTMLAnchorElement;
+      anchor.href = 'data:text/csv;charset=utf-8,$bytes';
+      anchor.download = 'fyp_anonymized_research_data.csv';
+      anchor.click();
 
       if (mounted) {
         ModernBottomToast.show(
@@ -81,17 +80,17 @@ class _GlobalAnalyticsScreenState
 
     setState(() => _isBroadcasting = true);
     try {
-      final fcmService = FcmService();
-      await fcmService.sendBroadcast(
-        title: 'System Broadcast',
-        body: msg,
-      );
+      await _firestore.collection('system_broadcasts').add({
+        'message': msg,
+        'timestamp': FieldValue.serverTimestamp(),
+        'status': 'pending',
+      });
       _broadcastController.clear();
 
       if (mounted) {
         ModernBottomToast.show(
           context,
-          message: 'Broadcast Pushed Successfully via FCM!',
+          message: 'Broadcast queued for delivery.',
           type: ModernToastType.success,
         );
       }
@@ -100,7 +99,7 @@ class _GlobalAnalyticsScreenState
         final errorMessage = e.toString().replaceFirst('Exception: ', '');
         ModernBottomToast.show(
           context,
-          message: 'FCM Push Failed: $errorMessage',
+          message: 'Failed to queue broadcast: $errorMessage',
           type: ModernToastType.error,
         );
       }
@@ -340,7 +339,7 @@ class _GlobalAnalyticsScreenState
       decoration: BoxDecoration(
         color: cs.surfaceContainer,
         borderRadius: BorderRadius.circular(20),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.15), blurRadius: 20, offset: const Offset(0, 6))],
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.15), blurRadius: 20, offset: const Offset(0, 6))],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -395,7 +394,7 @@ class _GlobalAnalyticsScreenState
                     margin: const EdgeInsets.only(bottom: 10),
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: cs.surfaceContainerHighest.withOpacity(0.4),
+                      color: cs.surfaceContainerHighest.withValues(alpha: 0.4),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Column(
@@ -406,7 +405,7 @@ class _GlobalAnalyticsScreenState
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                               decoration: BoxDecoration(
-                                color: cs.primary.withOpacity(0.1),
+                                color: cs.primary.withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(4),
                               ),
                               child: Text(action,
@@ -438,7 +437,7 @@ class _GlobalAnalyticsScreenState
       decoration: BoxDecoration(
         color: cs.surfaceContainer,
         borderRadius: BorderRadius.circular(20),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.15), blurRadius: 20, offset: const Offset(0, 6))],
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.15), blurRadius: 20, offset: const Offset(0, 6))],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -490,7 +489,7 @@ class _GlobalAnalyticsScreenState
       decoration: BoxDecoration(
         color: cs.surfaceContainer,
         borderRadius: BorderRadius.circular(20),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.15), blurRadius: 20, offset: const Offset(0, 6))],
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.15), blurRadius: 20, offset: const Offset(0, 6))],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -601,7 +600,7 @@ class _GlobalAnalyticsScreenState
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.2),
+            color: Colors.black.withValues(alpha: 0.2),
             blurRadius: 24,
             offset: const Offset(0, 8),
           ),
@@ -615,7 +614,7 @@ class _GlobalAnalyticsScreenState
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: colorScheme.primary.withOpacity(0.1),
+                  color: colorScheme.primary.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(icon, color: colorScheme.primary),
@@ -682,7 +681,7 @@ class _GlobalAnalyticsScreenState
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.2),
+            color: Colors.black.withValues(alpha: 0.2),
             blurRadius: 24,
             offset: const Offset(0, 8),
           ),
@@ -751,6 +750,8 @@ class _GlobalAnalyticsScreenState
         .toList()
       ..sort((a, b) => a.x.compareTo(b.x));
 
+    final chartMaxY = maxY > 5 ? maxY : 5.0;
+
     return LineChart(
       LineChartData(
         gridData: FlGridData(
@@ -793,7 +794,9 @@ class _GlobalAnalyticsScreenState
             sideTitles: SideTitles(
               showTitles: true,
               reservedSize: 40,
+              interval: 1,
               getTitlesWidget: (value, meta) {
+                if (value % 1 != 0) return const SizedBox.shrink();
                 if (value == 0) return const SizedBox.shrink();
                 return SideTitleWidget(
                   meta: meta,
@@ -813,18 +816,19 @@ class _GlobalAnalyticsScreenState
         minX: 0,
         maxX: 6,
         minY: 0,
-        maxY: maxY * 1.2,
+        maxY: chartMaxY,
         lineBarsData: [
           LineChartBarData(
             spots: spots,
-            isCurved: true,
+            isCurved: false,
+            preventCurveOverShooting: true,
             color: const Color(0xFF0F766E),
             barWidth: 3,
             isStrokeCapRound: true,
             dotData: const FlDotData(show: true),
             belowBarData: BarAreaData(
               show: true,
-              color: const Color(0xFF0F766E).withOpacity(0.1),
+              color: const Color(0xFF0F766E).withValues(alpha: 0.1),
             ),
           ),
         ],

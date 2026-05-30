@@ -12,6 +12,7 @@ class NotificationService {
   static const _channelDesc =
       'Alerts when your monthly spending approaches the budget limit.';
   static const _notificationId = 42;
+  static const _systemBroadcastNotificationId = 43;
 
   int _notificationIdForCategory(String category) {
     final categoryHash = category.hashCode.abs();
@@ -66,6 +67,17 @@ class NotificationService {
       title: '$category budget is running low',
       body:
           'You have used 80% of your RM $formattedLimit $category budget. Consider reviewing this category.',
+    );
+  }
+
+  Future<void> showSystemBroadcast({
+    required String title,
+    required String body,
+  }) async {
+    await _showNotification(
+      id: _systemBroadcastNotificationId,
+      title: title,
+      body: body,
     );
   }
 

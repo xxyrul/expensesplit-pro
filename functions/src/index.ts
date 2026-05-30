@@ -1,6 +1,7 @@
 import * as admin from 'firebase-admin';
 import { FieldValue } from 'firebase-admin/firestore';
-import { onDocumentWritten } from 'firebase-functions/v2/firestore';
+import * as functions from 'firebase-functions';
+import { onDocumentCreated } from 'firebase-functions/v2/firestore';
 
 admin.initializeApp();
 
@@ -8,14 +9,16 @@ const BATCH_LIMIT = 500;
 
 type OcrLearningData = Record<string, unknown>;
 
-export const syncOcrLearning = onDocumentWritten('ocr_learning/{ruleId}', async (event) => {
-  const after = event.data?.after;
+export const syncOcrLearning = functions.firestore
+  .document('ocr_learning/{ruleId}')
+  .onWrite(async (change, context) => {
+  const after = change.after;
   if (!after || !after.exists) {
     console.log('ocr_learning document deleted; skipping sync.');
     return;
   }
 
-  const before = event.data?.before;
+  const before = change.before;
   const afterData = after.data() as OcrLearningData;
   const beforeData = before?.exists ? (before.data() as OcrLearningData) : null;
 
@@ -24,7 +27,7 @@ export const syncOcrLearning = onDocumentWritten('ocr_learning/{ruleId}', async 
     return;
   }
 
-  const ruleId = event.params.ruleId as string;
+  const ruleId = context.params.ruleId as string;
   const db = admin.firestore();
   const usersRef = db.collection('users');
 
@@ -73,4 +76,56 @@ export const syncOcrLearning = onDocumentWritten('ocr_learning/{ruleId}', async 
     console.error(`Failed to sync ocr_learning/${ruleId}:`, error);
     throw error;
   }
-});
+  });
+
+export const sendSystemBroadcast = onDocumentCreated(
+  {
+    document: 'system_broadcasts/{docId}',
+    region: 'asia-southeast1',
+  },
+  async (event) => {
+    const snapshot = event.data;
+    if (!snapshot) {
+      console.error(`Missing broadcast snapshot for ${event.params.docId}.`);
+      return;
+    }
+
+    const data = snapshot.data() as Record<string, unknown>;
+    const message = (data.message as string | undefined)?.trim();
+
+    if (!message) {
+      await snapshot.ref.update({
+        status: 'failed',
+        errorDetails: 'Missing message field.',
+      });
+      return;
+    }
+
+    try {
+      const messageId = await admin.messaging().send({
+        topic: 'global_broadcast',
+        notification: {
+          title: 'ExpenseSplit Pro Alert',
+          body: message,
+        },
+      });
+
+      console.log(
+        `Sent system broadcast ${event.params.docId} to global_broadcast: ${messageId}`
+      );
+
+      await snapshot.ref.update({
+        status: 'sent',
+        sentAt: FieldValue.serverTimestamp(),
+        messageId,
+      });
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error(`Failed to send system broadcast ${event.params.docId}:`, error);
+      await snapshot.ref.update({
+        status: 'failed',
+        errorDetails: errorMessage,
+      });
+    }
+  }
+);

@@ -38,7 +38,19 @@ service cloud.firestore {
       allow read: if request.auth != null;
       allow write: if isAdmin();
     }
-        // Allow anyone to read broadcasts, but ONLY Admins can push them
+    // Admin web queues push notifications here; Cloud Functions updates status.
+    match /system_broadcasts/{docId} {
+      allow read: if isAdmin();
+      allow create: if isAdmin()
+        && request.resource.data.keys().hasOnly(['message', 'timestamp', 'status'])
+        && request.resource.data.message is string
+        && request.resource.data.message.size() > 0
+        && request.resource.data.status == 'pending'
+        && request.resource.data.timestamp == request.time;
+      allow update, delete: if false;
+    }
+
+    // Allow anyone to read broadcasts, but ONLY Admins can push them
     match /system_config/{document=**} {
       allow read: if true;
       allow write: if exists(/databases/$(database)/documents/admins/$(request.auth.uid));

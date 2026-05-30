@@ -73,6 +73,16 @@ void main() async {
   // Initialize local notification services
   await NotificationService.instance.initialize();
 
+  FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+    final notification = message.notification;
+    if (notification == null) return;
+
+    NotificationService.instance.showSystemBroadcast(
+      title: notification.title ?? 'ExpenseSplit Pro Alert',
+      body: notification.body ?? '',
+    );
+  });
+
   // 3. Run the app wrapped in ProviderScope for Riverpod
   runApp(const ProviderScope(child: MyApp()));
 }
