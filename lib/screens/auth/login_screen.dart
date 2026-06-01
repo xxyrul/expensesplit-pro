@@ -21,6 +21,43 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   String? _errorMessage;
   bool _isLoading = false;
   bool _obscurePassword = true;
+  String _passwordValidationError = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _passwordController.addListener(_validatePassword);
+  }
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  void _validatePassword() {
+    final password = _passwordController.text;
+    String error = '';
+
+    if (password.isEmpty) {
+      error = '';
+    } else {
+      if (password.length < 8) {
+        error = 'At least 8 characters';
+      } else if (!password.contains(RegExp(r'[A-Z]'))) {
+        error = 'Missing uppercase letter';
+      } else if (!password.contains(RegExp(r'[0-9]'))) {
+        error = 'Missing number';
+      } else if (!password.contains(
+        RegExp(r'[!@#$%^&*()_+\-=\[\]{};:"\\|,.<>\/?]'),
+      )) {
+        error = 'Missing special character (!@#\$%^&*...)';
+      }
+    }
+
+    setState(() => _passwordValidationError = error);
+  }
 
   Future<void> _showForgotPasswordDialog() async {
     final TextEditingController emailResetController = TextEditingController(
@@ -259,6 +296,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         ),
                         const SizedBox(height: 20),
                         _buildPasswordField(),
+                        if (_passwordController.text.isNotEmpty) ...[
+                          const SizedBox(height: 12),
+                          _buildPasswordValidationIndicator(),
+                        ],
                         const SizedBox(height: 8),
                         Align(
                           alignment: Alignment.centerRight,
@@ -470,6 +511,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       keyboardType: TextInputType.text,
       decoration: InputDecoration(
         labelText: "Password",
+        labelStyle: TextStyle(
+          color: _passwordValidationError.isNotEmpty ? colorScheme.error : null,
+        ),
         prefixIcon: Icon(
           Icons.lock_outline,
           color: colorScheme.primary,
@@ -487,6 +531,81 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             setState(() => _obscurePassword = !_obscurePassword);
           },
         ),
+        errorText: _passwordValidationError.isNotEmpty
+            ? _passwordValidationError
+            : null,
+      ),
+    );
+  }
+
+  Widget _buildPasswordValidationIndicator() {
+    final colorScheme = Theme.of(context).colorScheme;
+    final password = _passwordController.text;
+
+    final hasLength = password.length >= 8;
+    final hasUppercase = password.contains(RegExp(r'[A-Z]'));
+    final hasNumber = password.contains(RegExp(r'[0-9]'));
+    final hasSpecial = password.contains(
+      RegExp(r'[!@#$%^&*()_+\-=\[\]{};:"\\|,.<>\/?]'),
+    );
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainer,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: colorScheme.outlineVariant.withOpacity(0.5)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Password Requirements:',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 8),
+          _buildRequirementRow('At least 8 characters', hasLength, colorScheme),
+          _buildRequirementRow('1 uppercase letter', hasUppercase, colorScheme),
+          _buildRequirementRow('1 number', hasNumber, colorScheme),
+          _buildRequirementRow(
+            '1 special character (!@#\$%...)',
+            hasSpecial,
+            colorScheme,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRequirementRow(
+    String text,
+    bool isValid,
+    ColorScheme colorScheme,
+  ) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Icon(
+            isValid ? Icons.check_circle : Icons.radio_button_unchecked,
+            size: 16,
+            color: isValid ? colorScheme.primary : colorScheme.outlineVariant,
+          ),
+          const SizedBox(width: 8),
+          Text(
+            text,
+            style: TextStyle(
+              fontSize: 12,
+              color: isValid
+                  ? colorScheme.onSurface
+                  : colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ],
       ),
     );
   }

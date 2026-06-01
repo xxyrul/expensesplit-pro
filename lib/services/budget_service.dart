@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'auth_service.dart';
 
 class BudgetService {
   final _db = FirebaseFirestore.instance;
@@ -126,6 +127,15 @@ final budgetServiceProvider = Provider((ref) => BudgetService());
 final budgetsStreamProvider = StreamProvider.autoDispose<Map<String, double>>((
   ref,
 ) {
+  final authState = ref.watch(authStateChangesProvider);
   final service = ref.watch(budgetServiceProvider);
-  return service.getBudgets();
+
+  return authState.when(
+    data: (user) {
+      if (user == null) return Stream.value({});
+      return service.getBudgets();
+    },
+    loading: () => Stream.value({}),
+    error: (_, __) => Stream.value({}),
+  );
 });

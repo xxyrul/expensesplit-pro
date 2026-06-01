@@ -1,1 +1,9 @@
-{}
+{
+    "chat.tools.terminal.autoApprove": {
+        "flutter": true,
+        "/^Set-Location 'C:\\\\Users\\\\arul\\\\OneDrive\\\\Desktop\\\\expensesplit_pro'; & 'C:\\\\flutter\\\\bin\\\\flutter\\.bat' devices$/": {
+            "approve": true,
+            "matchCommandLine": true
+        }
+    }
+}

@@ -12,6 +12,39 @@ import '../goals/financial_goals_view.dart';
 import '../debts/debt_management_view.dart';
 import '../../widgets/notifications_sheet.dart';
 
+class DashboardStats {
+  final List<ExpenseModel> recentExpenses;
+  final double totalSpent;
+
+  DashboardStats({
+    required this.recentExpenses,
+    required this.totalSpent,
+  });
+}
+
+final dashboardStatsProvider = FutureProvider.autoDispose<DashboardStats>((ref) async {
+  final expenses = await ref.watch(expensesStreamProvider.future);
+  
+  return await Future.microtask(() {
+    final now = DateTime.now();
+    final currentMonthExpenses = expenses.where((e) {
+      return e.date.year == now.year && e.date.month == now.month;
+    }).toList();
+    
+    final totalSpent = currentMonthExpenses.fold(
+      0.0,
+      (sum, e) => sum + e.amount,
+    );
+
+    final recentExpenses = [...currentMonthExpenses]
+      ..sort((a, b) => b.date.compareTo(a.date));
+
+    return DashboardStats(
+      recentExpenses: recentExpenses,
+      totalSpent: totalSpent,
+    );
+  });
+});
 class DashboardView extends ConsumerWidget {
   // NEW: Add the onSettingsPressed callback
   final VoidCallback? onSettingsPressed;
@@ -27,35 +60,23 @@ class DashboardView extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final expensesAsync = ref.watch(expensesStreamProvider);
     final budgetsAsync = ref.watch(budgetsStreamProvider);
+    final statsAsync = ref.watch(dashboardStatsProvider);
 
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.surface,
       body: budgetsAsync.when(
         data: (budgetLimits) {
           final double totalLimit = budgetLimits['Total'] ?? 0.0;
-          return expensesAsync.when(
-            data: (expenses) {
-              final now = DateTime.now();
-              final currentMonthExpenses = expenses.where((e) {
-                return e.date.year == now.year && e.date.month == now.month;
-              }).toList();
-              final totalSpent = currentMonthExpenses.fold(
-                0.0,
-                (sum, e) => sum + e.amount,
-              );
-
-              final recentExpenses = [...currentMonthExpenses]
-                ..sort((a, b) => b.date.compareTo(a.date));
-
+          return statsAsync.when(
+            data: (stats) {
               return Column(
                 children: [
-                  _buildHeader(context, ref, totalLimit, totalSpent),
+                  _buildHeader(context, ref, totalLimit, stats.totalSpent),
                   _buildQuickActions(context, ref),
                   Expanded(
                     child: SingleChildScrollView(
-                      child: _buildRecentExpenses(context, recentExpenses),
+                      child: _buildRecentExpenses(context, stats.recentExpenses),
                     ),
                   ),
                 ],
