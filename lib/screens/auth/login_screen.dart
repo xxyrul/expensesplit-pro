@@ -1,8 +1,11 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../services/auth_service.dart';
 import '../../theme/brand_theme.dart';
+import '../../widgets/modern_bottom_toast.dart';
 import 'register_screen.dart';
+import '../welcome_page.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -15,6 +18,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final TextEditingController _passwordController = TextEditingController();
   String? _errorMessage;
   bool _isLoading = false;
+  bool _obscurePassword = true;
 
   Future<void> _showForgotPasswordDialog() async {
     final TextEditingController emailResetController =
@@ -131,12 +135,52 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             _emailController.text.trim(),
             _passwordController.text.trim(),
           );
+
+      if (mounted) {
+        // Show success toast
+        ModernBottomToast.show(
+          context,
+          message: 'Login Successful!',
+          type: ModernToastType.success,
+        );
+        
+        // Navigate to WelcomePage
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (context) => const WelcomePage(),
+          ),
+        );
+      }
+    } on FirebaseAuthException catch (e) {
+      String userFriendlyMessage = _mapFirebaseErrorToUserMessage(e.code, e.message);
+      setState(() => _errorMessage = userFriendlyMessage);
     } catch (e) {
-      setState(() {
-        _errorMessage = e.toString();
-      });
+      setState(() => _errorMessage = e.toString());
     } finally {
       if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  String _mapFirebaseErrorToUserMessage(String code, String? message) {
+    switch (code) {
+      case 'user-not-found':
+        return 'No account found with this email address.';
+      case 'wrong-password':
+        return 'Incorrect password. Please try again.';
+      case 'invalid-email':
+        return 'Invalid email address format.';
+      case 'user-disabled':
+        return 'This account has been disabled. Please contact support.';
+      case 'too-many-requests':
+        return 'Too many login attempts. Please try again later.';
+      case 'account-exists-with-different-credential':
+        return 'This email is linked to another login method. Please sign in with Google.';
+      case 'operation-not-allowed':
+        return 'Email/password login is currently disabled. Please try Google Sign-In.';
+      case 'invalid-credential':
+        return 'Invalid credentials. Please check and try again.';
+      default:
+        return message ?? 'Login failed. Please try again.';
     }
   }
 
@@ -185,12 +229,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           keyboardType: TextInputType.emailAddress,
                         ),
                         const SizedBox(height: 20),
-                        _buildTextField(
-                          controller: _passwordController,
-                          label: "Password",
-                          icon: Icons.lock_outline,
-                          obscureText: true,
-                        ),
+                        _buildPasswordField(),
                         const SizedBox(height: 8),
                         Align(
                           alignment: Alignment.centerRight,
@@ -286,6 +325,24 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         setState(() => _isLoading = true);
                         try {
                           await ref.read(authServiceProvider).signInWithGoogle();
+                          if (mounted) {
+                            // Show success toast
+                            ModernBottomToast.show(
+                              context,
+                              message: 'Login Successful!',
+                              type: ModernToastType.success,
+                            );
+                            
+                            // Navigate to WelcomePage
+                            Navigator.of(context).pushReplacement(
+                              MaterialPageRoute(
+                                builder: (context) => const WelcomePage(),
+                              ),
+                            );
+                          }
+                        } on FirebaseAuthException catch (e) {
+                          String userFriendlyMessage = _mapFirebaseErrorToUserMessage(e.code, e.message);
+                          setState(() => _errorMessage = userFriendlyMessage);
                         } catch (e) {
                           setState(() => _errorMessage = e.toString());
                         } finally {
@@ -345,6 +402,29 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPasswordField() {
+    final colorScheme = Theme.of(context).colorScheme;
+    return TextField(
+      controller: _passwordController,
+      obscureText: _obscurePassword,
+      keyboardType: TextInputType.text,
+      decoration: InputDecoration(
+        labelText: "Password",
+        prefixIcon: Icon(Icons.lock_outline, color: colorScheme.primary, size: 20),
+        suffixIcon: IconButton(
+          icon: Icon(
+            _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+            color: colorScheme.primary,
+            size: 20,
+          ),
+          onPressed: () {
+            setState(() => _obscurePassword = !_obscurePassword);
+          },
         ),
       ),
     );

@@ -1,8 +1,10 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../services/auth_service.dart';
 import '../../theme/brand_theme.dart';
 import '../../widgets/modern_bottom_toast.dart';
+import '../welcome_page.dart';
 
 class RegisterScreen extends ConsumerStatefulWidget {
   const RegisterScreen({super.key});
@@ -16,6 +18,43 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   final TextEditingController _passwordController = TextEditingController();
   String? _errorMessage;
   bool _isLoading = false;
+  bool _obscurePassword = true;
+  String _passwordValidationError = '';
+  
+  @override
+  void initState() {
+    super.initState();
+    _passwordController.addListener(_validatePassword);
+  }
+
+  void _validatePassword() {
+    final password = _passwordController.text;
+    String error = '';
+    
+    if (password.isEmpty) {
+      error = '';
+    } else {
+      if (password.length < 8) {
+        error = 'At least 8 characters';
+      } else if (!password.contains(RegExp(r'[A-Z]'))) {
+        error = 'Missing uppercase letter';
+      } else if (!password.contains(RegExp(r'[0-9]'))) {
+        error = 'Missing number';
+      } else if (!password.contains(RegExp(r'[!@#$%^&*()_+\-=\[\]{};:"\\|,.<>\/?]'))) {
+        error = 'Missing special character (!@#\$%^&*...)';
+      }
+    }
+    
+    setState(() => _passwordValidationError = error);
+  }
+
+  bool _isPasswordValid() {
+    final password = _passwordController.text;
+    return password.length >= 8 &&
+        password.contains(RegExp(r'[A-Z]')) &&
+        password.contains(RegExp(r'[0-9]')) &&
+        password.contains(RegExp(r'[!@#$%^&*()_+\-=\[\]{};:"\\|,.<>\/?]'));
+  }
 
   Future<void> _register() async {
     if (_emailController.text.trim().isEmpty ||
@@ -24,8 +63,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       return;
     }
 
-    if (_passwordController.text.length < 6) {
-      setState(() => _errorMessage = "Password must be at least 6 characters");
+    if (!_isPasswordValid()) {
+      setState(() => _errorMessage = "Password does not meet security requirements: $_passwordValidationError");
       return;
     }
 
@@ -43,13 +82,22 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           );
 
       if (mounted) {
-          ModernBottomToast.show(
-            context,
-            message: 'Registration Successful! Welcome!',
-            type: ModernToastType.success,
-          );
-        Navigator.of(context).pop();
+        ModernBottomToast.show(
+          context,
+          message: 'Registration Successful!',
+          type: ModernToastType.success,
+        );
+        
+        // Navigate to WelcomePage
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (context) => const WelcomePage(),
+          ),
+        );
       }
+    } on FirebaseAuthException catch (e) {
+      String userFriendlyMessage = _mapFirebaseErrorToUserMessage(e.code, e.message);
+      setState(() => _errorMessage = userFriendlyMessage);
     } catch (e) {
       if (mounted) {
         setState(() => _errorMessage = e.toString());
@@ -59,11 +107,117 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     }
   }
 
+  String _mapFirebaseErrorToUserMessage(String code, String? message) {
+    switch (code) {
+      case 'email-already-in-use':
+        return 'This email is already registered. Please sign in instead.';
+      case 'invalid-email':
+        return 'Invalid email address format.';
+      case 'weak-password':
+        return 'Password is too weak. Use at least 8 characters with uppercase, number, and special character.';
+      case 'operation-not-allowed':
+        return 'Email/password registration is currently disabled. Please try Google Sign-In.';
+      case 'account-exists-with-different-credential':
+        return 'This email is linked to another login method. Please sign in with Google.';
+      default:
+        return message ?? 'Registration failed. Please try again.';
+    }
+  }
+
   @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
+  }
+
+  Widget _buildPasswordField() {
+    final colorScheme = Theme.of(context).colorScheme;
+    return TextField(
+      controller: _passwordController,
+      obscureText: _obscurePassword,
+      keyboardType: TextInputType.text,
+      decoration: InputDecoration(
+        labelText: "Password",
+        labelStyle: TextStyle(
+          color: _passwordValidationError.isNotEmpty ? colorScheme.error : null,
+        ),
+        prefixIcon: Icon(Icons.lock_outline, color: colorScheme.primary, size: 20),
+        suffixIcon: IconButton(
+          icon: Icon(
+            _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+            color: colorScheme.primary,
+            size: 20,
+          ),
+          onPressed: () {
+            setState(() => _obscurePassword = !_obscurePassword);
+          },
+        ),
+        errorText: _passwordValidationError.isNotEmpty ? _passwordValidationError : null,
+      ),
+    );
+  }
+
+  Widget _buildPasswordValidationIndicator() {
+    final colorScheme = Theme.of(context).colorScheme;
+    final password = _passwordController.text;
+    
+    final hasLength = password.length >= 8;
+    final hasUppercase = password.contains(RegExp(r'[A-Z]'));
+    final hasNumber = password.contains(RegExp(r'[0-9]'));
+    final hasSpecial = password.contains(RegExp(r'[!@#$%^&*()_+\-=\[\]{};:"\\|,.<>\/?]'));
+    
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainer,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: colorScheme.outlineVariant.withOpacity(0.5),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Password Requirements:',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 8),
+          _buildRequirementRow('At least 8 characters', hasLength, colorScheme),
+          _buildRequirementRow('1 uppercase letter', hasUppercase, colorScheme),
+          _buildRequirementRow('1 number', hasNumber, colorScheme),
+          _buildRequirementRow('1 special character (!@#\$%...)', hasSpecial, colorScheme),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRequirementRow(String text, bool isValid, ColorScheme colorScheme) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Icon(
+            isValid ? Icons.check_circle : Icons.radio_button_unchecked,
+            size: 16,
+            color: isValid ? colorScheme.primary : colorScheme.outlineVariant,
+          ),
+          const SizedBox(width: 8),
+          Text(
+            text,
+            style: TextStyle(
+              fontSize: 12,
+              color: isValid ? colorScheme.onSurface : colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -111,12 +265,11 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                           keyboardType: TextInputType.emailAddress,
                         ),
                         const SizedBox(height: 20),
-                        _buildTextField(
-                          controller: _passwordController,
-                          label: "Password",
-                          icon: Icons.lock_outline,
-                          obscureText: true,
-                        ),
+                        _buildPasswordField(),
+                        if (_passwordController.text.isNotEmpty) ...[
+                          const SizedBox(height: 12),
+                          _buildPasswordValidationIndicator(),
+                        ],
                       ],
                     ),
                   ),
@@ -192,6 +345,23 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                         setState(() => _isLoading = true);
                         try {
                           await ref.read(authServiceProvider).signInWithGoogle();
+                          if (mounted) {
+                            ModernBottomToast.show(
+                              context,
+                              message: 'Registration Successful!',
+                              type: ModernToastType.success,
+                            );
+                            
+                            // Navigate to WelcomePage
+                            Navigator.of(context).pushReplacement(
+                              MaterialPageRoute(
+                                builder: (context) => const WelcomePage(),
+                              ),
+                            );
+                          }
+                        } on FirebaseAuthException catch (e) {
+                          String userFriendlyMessage = _mapFirebaseErrorToUserMessage(e.code, e.message);
+                          setState(() => _errorMessage = userFriendlyMessage);
                         } catch (e) {
                           if (mounted) setState(() => _errorMessage = e.toString());
                         } finally {
