@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -21,8 +23,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   bool _obscurePassword = true;
 
   Future<void> _showForgotPasswordDialog() async {
-    final TextEditingController emailResetController =
-        TextEditingController(text: _emailController.text.trim());
+    final TextEditingController emailResetController = TextEditingController(
+      text: _emailController.text.trim(),
+    );
     final colorScheme = Theme.of(context).colorScheme;
     String? dialogError;
     bool dialogLoading = false;
@@ -33,7 +36,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         return StatefulBuilder(
           builder: (context, setState) {
             return AlertDialog(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
               title: const Text(
                 "Reset Password",
                 style: TextStyle(fontWeight: FontWeight.bold),
@@ -52,7 +57,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     keyboardType: TextInputType.emailAddress,
                     decoration: InputDecoration(
                       labelText: "Email Address",
-                      prefixIcon: Icon(Icons.email_outlined, color: colorScheme.primary),
+                      prefixIcon: Icon(
+                        Icons.email_outlined,
+                        color: colorScheme.primary,
+                      ),
                     ),
                   ),
                   if (dialogError != null)
@@ -60,14 +68,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       padding: const EdgeInsets.only(top: 12),
                       child: Text(
                         dialogError!,
-                        style: const TextStyle(color: Colors.redAccent, fontSize: 12),
+                        style: const TextStyle(
+                          color: Colors.redAccent,
+                          fontSize: 12,
+                        ),
                       ),
                     ),
                 ],
               ),
               actions: [
                 TextButton(
-                  onPressed: dialogLoading ? null : () => Navigator.pop(dialogContext),
+                  onPressed: dialogLoading
+                      ? null
+                      : () => Navigator.pop(dialogContext),
                   child: const Text("Cancel"),
                 ),
                 ElevatedButton(
@@ -76,7 +89,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       : () async {
                           final email = emailResetController.text.trim();
                           if (email.isEmpty) {
-                            setState(() => dialogError = "Please enter your email");
+                            setState(
+                              () => dialogError = "Please enter your email",
+                            );
                             return;
                           }
                           setState(() {
@@ -84,12 +99,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             dialogError = null;
                           });
                           try {
-                            await ref.read(authServiceProvider).sendPasswordReset(email);
+                            await ref
+                                .read(authServiceProvider)
+                                .sendPasswordReset(email);
                             if (dialogContext.mounted) {
                               Navigator.pop(dialogContext);
                               ScaffoldMessenger.of(this.context).showSnackBar(
                                 SnackBar(
-                                  content: Text("Password reset email sent to $email"),
+                                  content: Text(
+                                    "Password reset email sent to $email",
+                                  ),
                                   backgroundColor: const Color(0xFF0D9488),
                                 ),
                               );
@@ -105,7 +124,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       ? const SizedBox(
                           width: 20,
                           height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
                         )
                       : const Text("Send Link"),
                 ),
@@ -143,16 +165,21 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           message: 'Login Successful!',
           type: ModernToastType.success,
         );
-        
-        // Navigate to WelcomePage
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(
-            builder: (context) => const WelcomePage(),
-          ),
-        );
+
+        // Navigate to WelcomePage after brief delay to allow toast to display
+        Future.delayed(const Duration(milliseconds: 600), () {
+          if (mounted) {
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(builder: (context) => const WelcomePage()),
+            );
+          }
+        });
       }
     } on FirebaseAuthException catch (e) {
-      String userFriendlyMessage = _mapFirebaseErrorToUserMessage(e.code, e.message);
+      String userFriendlyMessage = _mapFirebaseErrorToUserMessage(
+        e.code,
+        e.message,
+      );
       setState(() => _errorMessage = userFriendlyMessage);
     } catch (e) {
       setState(() => _errorMessage = e.toString());
@@ -205,7 +232,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   Container(
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
-                      color: isDark ? colorScheme.surfaceContainer : Colors.white,
+                      color: isDark
+                          ? colorScheme.surfaceContainer
+                          : Colors.white,
                       borderRadius: BorderRadius.circular(22),
                       border: Border.all(
                         color: isDark
@@ -299,7 +328,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   // 4. OR DIVIDER
                   Row(
                     children: [
-                      Expanded(child: Divider(color: colorScheme.outlineVariant)),
+                      Expanded(
+                        child: Divider(color: colorScheme.outlineVariant),
+                      ),
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 15),
                         child: Text(
@@ -310,7 +341,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           ),
                         ),
                       ),
-                      Expanded(child: Divider(color: colorScheme.outlineVariant)),
+                      Expanded(
+                        child: Divider(color: colorScheme.outlineVariant),
+                      ),
                     ],
                   ),
 
@@ -321,34 +354,52 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     width: double.infinity,
                     height: 55,
                     child: OutlinedButton.icon(
-                      onPressed: _isLoading ? null : () async {
-                        setState(() => _isLoading = true);
-                        try {
-                          await ref.read(authServiceProvider).signInWithGoogle();
-                          if (mounted) {
-                            // Show success toast
-                            ModernBottomToast.show(
-                              context,
-                              message: 'Login Successful!',
-                              type: ModernToastType.success,
-                            );
-                            
-                            // Navigate to WelcomePage
-                            Navigator.of(context).pushReplacement(
-                              MaterialPageRoute(
-                                builder: (context) => const WelcomePage(),
-                              ),
-                            );
-                          }
-                        } on FirebaseAuthException catch (e) {
-                          String userFriendlyMessage = _mapFirebaseErrorToUserMessage(e.code, e.message);
-                          setState(() => _errorMessage = userFriendlyMessage);
-                        } catch (e) {
-                          setState(() => _errorMessage = e.toString());
-                        } finally {
-                          if (mounted) setState(() => _isLoading = false);
-                        }
-                      },
+                      onPressed: _isLoading
+                          ? null
+                          : () async {
+                              setState(() => _isLoading = true);
+                              try {
+                                await ref
+                                    .read(authServiceProvider)
+                                    .signInWithGoogle();
+                                if (mounted) {
+                                  // Show success toast
+                                  ModernBottomToast.show(
+                                    context,
+                                    message: 'Login Successful!',
+                                    type: ModernToastType.success,
+                                  );
+
+                                  // Navigate to WelcomePage after brief delay to allow toast to display
+                                  Future.delayed(
+                                    const Duration(milliseconds: 600),
+                                    () {
+                                      if (mounted) {
+                                        Navigator.of(context).pushReplacement(
+                                          MaterialPageRoute(
+                                            builder: (context) =>
+                                                const WelcomePage(),
+                                          ),
+                                        );
+                                      }
+                                    },
+                                  );
+                                }
+                              } on FirebaseAuthException catch (e) {
+                                String userFriendlyMessage =
+                                    _mapFirebaseErrorToUserMessage(
+                                      e.code,
+                                      e.message,
+                                    );
+                                setState(
+                                  () => _errorMessage = userFriendlyMessage,
+                                );
+                              } catch (e) {
+                                setState(() => _errorMessage = e.toString());
+                              } finally {
+                                if (mounted) setState(() => _isLoading = false);
+                              }
+                            },
                       icon: Image.asset('assets/google_logo.png', height: 24),
                       label: const Text(
                         "Continue with Google",
@@ -360,18 +411,22 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     ),
                   ),
 
-                    const SizedBox(height: 20),
+                  const SizedBox(height: 20),
 
-                    // Helpful troubleshooting link when Google Sign-In reports OAuth/SHA errors
-                    if (_errorMessage != null && (_errorMessage!.contains('Google Sign-In failed') || _errorMessage!.toLowerCase().contains('sha') || _errorMessage!.toLowerCase().contains('oauth') || _errorMessage!.contains('10')))
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: TextButton.icon(
-                          onPressed: _showGoogleTroubleshootDialog,
-                          icon: const Icon(Icons.help_outline),
-                          label: const Text('Troubleshoot Google Sign-In'),
-                        ),
+                  // Helpful troubleshooting link when Google Sign-In reports OAuth/SHA errors
+                  if (_errorMessage != null &&
+                      (_errorMessage!.contains('Google Sign-In failed') ||
+                          _errorMessage!.toLowerCase().contains('sha') ||
+                          _errorMessage!.toLowerCase().contains('oauth') ||
+                          _errorMessage!.contains('10')))
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: TextButton.icon(
+                        onPressed: _showGoogleTroubleshootDialog,
+                        icon: const Icon(Icons.help_outline),
+                        label: const Text('Troubleshoot Google Sign-In'),
                       ),
+                    ),
 
                   // 6. REGISTER LINK
                   TextButton(
@@ -415,10 +470,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       keyboardType: TextInputType.text,
       decoration: InputDecoration(
         labelText: "Password",
-        prefixIcon: Icon(Icons.lock_outline, color: colorScheme.primary, size: 20),
+        prefixIcon: Icon(
+          Icons.lock_outline,
+          color: colorScheme.primary,
+          size: 20,
+        ),
         suffixIcon: IconButton(
           icon: Icon(
-            _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+            _obscurePassword
+                ? Icons.visibility_off_outlined
+                : Icons.visibility_outlined,
             color: colorScheme.primary,
             size: 20,
           ),
@@ -442,25 +503,40 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               children: [
                 const Text('Common causes:'),
                 const SizedBox(height: 8),
-                const Text('• Missing SHA-1 / SHA-256 fingerprints in Firebase for Android.'),
-                const Text('• OAuth client not configured (Web vs Android client IDs).'),
+                const Text(
+                  '• Missing SHA-1 / SHA-256 fingerprints in Firebase for Android.',
+                ),
+                const Text(
+                  '• OAuth client not configured (Web vs Android client IDs).',
+                ),
                 const SizedBox(height: 12),
                 const Text('Recommended steps:'),
                 const SizedBox(height: 8),
-                const Text('1. Run the following to get your debug keystore fingerprints on Windows:'),
+                const Text(
+                  '1. Run the following to get your debug keystore fingerprints on Windows:',
+                ),
                 const SizedBox(height: 6),
-                SelectableText('keytool -list -v -keystore %USERPROFILE%\\.android\\debug.keystore -alias androiddebugkey -storepass android -keypass android'),
+                SelectableText(
+                  'keytool -list -v -keystore %USERPROFILE%\\.android\\debug.keystore -alias androiddebugkey -storepass android -keypass android',
+                ),
                 const SizedBox(height: 8),
-                const Text('2. Add SHA-1 and SHA-256 to Firebase Console → Project Settings → Your apps.'),
+                const Text(
+                  '2. Add SHA-1 and SHA-256 to Firebase Console → Project Settings → Your apps.',
+                ),
                 const SizedBox(height: 8),
-                const Text('3. Download the updated google-services.json and replace android/app/google-services.json.'),
+                const Text(
+                  '3. Download the updated google-services.json and replace android/app/google-services.json.',
+                ),
                 const SizedBox(height: 8),
                 const Text('4. Rebuild the app and try signing in again.'),
               ],
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Close')),
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Close'),
+            ),
           ],
         );
       },

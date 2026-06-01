@@ -27,7 +27,7 @@ class SettingsView extends ConsumerStatefulWidget {
 }
 
 class _SettingsViewState extends ConsumerState<SettingsView>
-  with WidgetsBindingObserver {
+    with WidgetsBindingObserver {
   bool _loadingSettings = true;
 
   bool _notificationsEnabled = true;
@@ -103,7 +103,11 @@ class _SettingsViewState extends ConsumerState<SettingsView>
     await prefs.setString(key, value);
   }
 
-  Future<void> _saveProfileDetails(String newName, String newUsername, String newEmail) async {
+  Future<void> _saveProfileDetails(
+    String newName,
+    String newUsername,
+    String newEmail,
+  ) async {
     if (newName.isEmpty) {
       ModernBottomToast.show(
         context,
@@ -134,17 +138,16 @@ class _SettingsViewState extends ConsumerState<SettingsView>
         if (mounted) {
           ModernBottomToast.show(
             context,
-            message: 'Verification email sent to $newEmail. Please verify to update your email.',
+            message:
+                'Verification email sent to $newEmail. Please verify to update your email.',
             type: ModernToastType.info,
           );
         }
       }
 
-      await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
-        'displayName': newName,
-        'name': newUsername,
-        'email': newEmail,
-      });
+      await FirebaseFirestore.instance.collection('users').doc(user.uid).update(
+        {'displayName': newName, 'name': newUsername, 'email': newEmail},
+      );
 
       if (!mounted) return;
       ModernBottomToast.show(
@@ -210,14 +213,15 @@ class _SettingsViewState extends ConsumerState<SettingsView>
     try {
       final authService = ref.read(authServiceProvider);
       await authService.linkPhoneNumber(verificationId, smsCode);
-      
+
       final user = FirebaseAuth.instance.currentUser;
       if (user != null) {
-        await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
-          'phoneNumber': user.phoneNumber,
-        });
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .update({'phoneNumber': user.phoneNumber});
       }
-      
+
       if (!mounted) return;
       ModernBottomToast.show(
         context,
@@ -241,14 +245,15 @@ class _SettingsViewState extends ConsumerState<SettingsView>
     try {
       final authService = ref.read(authServiceProvider);
       await authService.unlinkPhoneNumber();
-      
+
       final user = FirebaseAuth.instance.currentUser;
       if (user != null) {
-        await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
-          'phoneNumber': FieldValue.delete(),
-        });
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .update({'phoneNumber': FieldValue.delete()});
       }
-      
+
       if (!mounted) return;
       ModernBottomToast.show(
         context,
@@ -305,7 +310,9 @@ class _SettingsViewState extends ConsumerState<SettingsView>
             TextField(
               controller: confirmPasswordController,
               obscureText: true,
-              decoration: const InputDecoration(labelText: 'Confirm new password'),
+              decoration: const InputDecoration(
+                labelText: 'Confirm new password',
+              ),
             ),
           ],
         ),
@@ -405,7 +412,9 @@ class _SettingsViewState extends ConsumerState<SettingsView>
             TextField(
               controller: confirmPasswordController,
               obscureText: true,
-              decoration: const InputDecoration(labelText: 'Confirm new password'),
+              decoration: const InputDecoration(
+                labelText: 'Confirm new password',
+              ),
             ),
           ],
         ),
@@ -428,7 +437,9 @@ class _SettingsViewState extends ConsumerState<SettingsView>
     final newPassword = newPasswordController.text.trim();
     final confirmPassword = confirmPasswordController.text.trim();
 
-    if (currentPassword.isEmpty || newPassword.isEmpty || confirmPassword.isEmpty) {
+    if (currentPassword.isEmpty ||
+        newPassword.isEmpty ||
+        confirmPassword.isEmpty) {
       ModernBottomToast.show(
         context,
         message: 'Please fill in all password fields.',
@@ -456,10 +467,12 @@ class _SettingsViewState extends ConsumerState<SettingsView>
     }
 
     try {
-      await ref.read(authServiceProvider).changePassword(
-        currentPassword: currentPassword,
-        newPassword: newPassword,
-      );
+      await ref
+          .read(authServiceProvider)
+          .changePassword(
+            currentPassword: currentPassword,
+            newPassword: newPassword,
+          );
       await _refreshAuthProviderState();
       if (!mounted) return;
       ModernBottomToast.show(
@@ -492,7 +505,11 @@ class _SettingsViewState extends ConsumerState<SettingsView>
 
   bool get _canUsePasswordAuth => !_isGoogleUser || _hasPasswordProvider;
 
-  Future<void> _openEditProfileScreen(String name, String rawUsername, String email) async {
+  Future<void> _openEditProfileScreen(
+    String name,
+    String rawUsername,
+    String email,
+  ) async {
     await Navigator.of(context).push(
       PageRouteBuilder(
         transitionDuration: const Duration(milliseconds: 320),
@@ -515,10 +532,13 @@ class _SettingsViewState extends ConsumerState<SettingsView>
           onUnlinkPhoneNumber: _unlinkPhoneNumber,
         ),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          final slide = Tween<Offset>(
-            begin: const Offset(0.06, 0.0),
-            end: Offset.zero,
-          ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic));
+          final slide =
+              Tween<Offset>(
+                begin: const Offset(0.06, 0.0),
+                end: Offset.zero,
+              ).animate(
+                CurvedAnimation(parent: animation, curve: Curves.easeOutCubic),
+              );
           return FadeTransition(
             opacity: animation,
             child: SlideTransition(position: slide, child: child),
@@ -623,8 +643,7 @@ class _SettingsViewState extends ConsumerState<SettingsView>
       if (!mounted) return;
       ModernBottomToast.show(
         context,
-        message:
-            'Could not delete account. You may need to re-login first: $e',
+        message: 'Could not delete account. You may need to re-login first: $e',
         type: ModernToastType.error,
       );
     }
@@ -750,7 +769,10 @@ class _SettingsViewState extends ConsumerState<SettingsView>
               (option) => ListTile(
                 title: Text(labelBuilder(option)),
                 trailing: option == currentValue
-                    ? Icon(Icons.check, color: Theme.of(context).colorScheme.primary)
+                    ? Icon(
+                        Icons.check,
+                        color: Theme.of(context).colorScheme.primary,
+                      )
                     : null,
                 onTap: () => Navigator.pop(context, option),
               ),
@@ -836,7 +858,9 @@ class _SettingsViewState extends ConsumerState<SettingsView>
                   data: (userProfile) {
                     final String name = userProfile?.displayName ?? 'User';
                     final String email = userProfile?.email ?? 'No email';
-                    final String rawUsername = userProfile?.name ?? (email.contains('@') ? email.split('@').first : 'user');
+                    final String rawUsername =
+                        userProfile?.name ??
+                        (email.contains('@') ? email.split('@').first : 'user');
                     final String username = '@$rawUsername';
                     final String initials = name.isNotEmpty
                         ? name[0].toUpperCase()
@@ -848,7 +872,8 @@ class _SettingsViewState extends ConsumerState<SettingsView>
                       username,
                       email,
                       initials,
-                      onEdit: () => _openEditProfileScreen(name, rawUsername, email),
+                      onEdit: () =>
+                          _openEditProfileScreen(name, rawUsername, email),
                     );
                   },
                   loading: () => _buildLoadingHeader(context),
@@ -880,10 +905,16 @@ class _SettingsViewState extends ConsumerState<SettingsView>
                             value: ref.watch(themeProvider) == ThemeMode.system,
                             onChanged: (value) async {
                               if (value) {
-                                ref.read(themeProvider.notifier).useSystemTheme();
+                                ref
+                                    .read(themeProvider.notifier)
+                                    .useSystemTheme();
                               } else {
-                                final isDark = Theme.of(context).brightness == Brightness.dark;
-                                ref.read(themeProvider.notifier).setDarkMode(isDark);
+                                final isDark =
+                                    Theme.of(context).brightness ==
+                                    Brightness.dark;
+                                ref
+                                    .read(themeProvider.notifier)
+                                    .setDarkMode(isDark);
                               }
                             },
                             subtitle:
@@ -894,13 +925,18 @@ class _SettingsViewState extends ConsumerState<SettingsView>
                             Icons.dark_mode_outlined,
                             'Dark Mode',
                             colorScheme.primary,
-                            value: Theme.of(context).brightness == Brightness.dark,
-                            onChanged: ref.watch(themeProvider) == ThemeMode.system
+                            value:
+                                Theme.of(context).brightness == Brightness.dark,
+                            onChanged:
+                                ref.watch(themeProvider) == ThemeMode.system
                                 ? null
                                 : (value) async {
-                                    ref.read(themeProvider.notifier).setDarkMode(value);
+                                    ref
+                                        .read(themeProvider.notifier)
+                                        .setDarkMode(value);
                                   },
-                            subtitle: ref.watch(themeProvider) == ThemeMode.system
+                            subtitle:
+                                ref.watch(themeProvider) == ThemeMode.system
                                 ? 'Disabled while following system theme'
                                 : null,
                           ),
@@ -1042,7 +1078,63 @@ class _SettingsViewState extends ConsumerState<SettingsView>
     return SizedBox(
       width: double.infinity,
       child: FilledButton.icon(
-        onPressed: () => ref.read(authServiceProvider).signOut(),
+        onPressed: () async {
+          // Show confirmation dialog
+          final shouldLogout =
+              await showDialog<bool>(
+                context: context,
+                builder: (dialogContext) => AlertDialog(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  title: const Text('Confirm Logout'),
+                  content: const Text(
+                    'Are you sure you want to logout? You\'ll need to sign in again.',
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(dialogContext, false),
+                      child: const Text('Cancel'),
+                    ),
+                    FilledButton(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: colorScheme.error,
+                      ),
+                      onPressed: () => Navigator.pop(dialogContext, true),
+                      child: const Text('Logout'),
+                    ),
+                  ],
+                ),
+              ) ??
+              false;
+
+          if (!shouldLogout || !mounted) return;
+
+          try {
+            // Call logout
+            await ref.read(authServiceProvider).signOut();
+
+            if (mounted) {
+              // Show success toast
+              ModernBottomToast.show(
+                context,
+                message: 'Logged out successfully',
+                type: ModernToastType.success,
+              );
+
+              // AuthWrapper will automatically navigate to LoginScreen
+              // via the authStateChangesProvider stream update
+            }
+          } catch (e) {
+            if (mounted) {
+              ModernBottomToast.show(
+                context,
+                message: 'Logout failed: ${e.toString()}',
+                type: ModernToastType.error,
+              );
+            }
+          }
+        },
         icon: const Icon(Icons.logout),
         label: const Text(
           'Logout',
@@ -1069,7 +1161,10 @@ class _SettingsViewState extends ConsumerState<SettingsView>
           children: [
             Icon(Icons.privacy_tip_outlined),
             SizedBox(width: 10),
-            Text('Privacy Policy', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            Text(
+              'Privacy Policy',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
           ],
         ),
         content: SizedBox(
@@ -1078,16 +1173,26 @@ class _SettingsViewState extends ConsumerState<SettingsView>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _policySection('Data Collection',
-                    'We collect the following data to operate ExpenseSplit Pro:\n\n• Expense records, amounts, categories, and split allocations entered by you.\n• Receipt images you upload for OCR-based parsing.\n• Your login email address via Google OAuth 2.0 authentication.\n• An optional phone number if you link it for account recovery.'),
-                _policySection('Data Usage',
-                    '• Group expense splitting metrics and balance calculations.\n• Internal audit trail logging for accountability and compliance.\n• Financial reports and analytics for your expense groups.\n• We never use your data for advertising or share it with third parties commercially.'),
-                _policySection('Security',
-                    '• All data is transmitted over HTTPS/TLS encryption.\n• Role-based access control enforced at the database level.\n• Explicit enforcement of PII data masking configurations is available via the Admin Portal.\n• Immutable audit logs protect against unauthorised data modification.'),
-                _policySection('Data Retention',
-                    'Your data is retained only as long as necessary to provide the service. Administrators can configure retention periods. You may request deletion of your account and data at any time.'),
-                _policySection('Your Rights',
-                    'You have the right to access, correct, or delete your personal data. Contact your system administrator to exercise these rights.'),
+                _policySection(
+                  'Data Collection',
+                  'We collect the following data to operate ExpenseSplit Pro:\n\n• Expense records, amounts, categories, and split allocations entered by you.\n• Receipt images you upload for OCR-based parsing.\n• Your login email address via Google OAuth 2.0 authentication.\n• An optional phone number if you link it for account recovery.',
+                ),
+                _policySection(
+                  'Data Usage',
+                  '• Group expense splitting metrics and balance calculations.\n• Internal audit trail logging for accountability and compliance.\n• Financial reports and analytics for your expense groups.\n• We never use your data for advertising or share it with third parties commercially.',
+                ),
+                _policySection(
+                  'Security',
+                  '• All data is transmitted over HTTPS/TLS encryption.\n• Role-based access control enforced at the database level.\n• Explicit enforcement of PII data masking configurations is available via the Admin Portal.\n• Immutable audit logs protect against unauthorised data modification.',
+                ),
+                _policySection(
+                  'Data Retention',
+                  'Your data is retained only as long as necessary to provide the service. Administrators can configure retention periods. You may request deletion of your account and data at any time.',
+                ),
+                _policySection(
+                  'Your Rights',
+                  'You have the right to access, correct, or delete your personal data. Contact your system administrator to exercise these rights.',
+                ),
               ],
             ),
           ),
@@ -1111,7 +1216,10 @@ class _SettingsViewState extends ConsumerState<SettingsView>
           children: [
             Icon(Icons.description_outlined),
             SizedBox(width: 10),
-            Text('Terms of Service', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            Text(
+              'Terms of Service',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
           ],
         ),
         content: SizedBox(
@@ -1120,18 +1228,30 @@ class _SettingsViewState extends ConsumerState<SettingsView>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _policySection('Acceptance',
-                    'By using ExpenseSplit Pro, you agree to these Terms. If you do not agree, please discontinue use of the application immediately.'),
-                _policySection('Authorised Use',
-                    'This app is for personal and group expense tracking only. You agree to:\n\n• Enter truthful and accurate expense data.\n• Use your own account and not share credentials.\n• Not attempt to access other users\' data without permission.\n• Not use this app for any illegal or fraudulent purpose.'),
-                _policySection('User Responsibilities',
-                    '• You are responsible for the accuracy of expense records you create.\n• Report any bugs, security issues, or suspicious behaviour to the system administrator.\n• You are responsible for keeping your login credentials secure.'),
-                _policySection('Account Termination',
-                    'Accounts may be suspended or terminated for violation of these terms, including falsifying data, unauthorised access attempts, or misuse of the application.'),
-                _policySection('Google Authentication',
-                    'This app uses Google OAuth 2.0 for sign-in. By using Google sign-in, you also agree to Google\'s Terms of Service and Privacy Policy.'),
-                _policySection('Governing Law',
-                    'These Terms are governed by the laws of Malaysia. Any disputes shall be resolved under the jurisdiction of Malaysian courts.'),
+                _policySection(
+                  'Acceptance',
+                  'By using ExpenseSplit Pro, you agree to these Terms. If you do not agree, please discontinue use of the application immediately.',
+                ),
+                _policySection(
+                  'Authorised Use',
+                  'This app is for personal and group expense tracking only. You agree to:\n\n• Enter truthful and accurate expense data.\n• Use your own account and not share credentials.\n• Not attempt to access other users\' data without permission.\n• Not use this app for any illegal or fraudulent purpose.',
+                ),
+                _policySection(
+                  'User Responsibilities',
+                  '• You are responsible for the accuracy of expense records you create.\n• Report any bugs, security issues, or suspicious behaviour to the system administrator.\n• You are responsible for keeping your login credentials secure.',
+                ),
+                _policySection(
+                  'Account Termination',
+                  'Accounts may be suspended or terminated for violation of these terms, including falsifying data, unauthorised access attempts, or misuse of the application.',
+                ),
+                _policySection(
+                  'Google Authentication',
+                  'This app uses Google OAuth 2.0 for sign-in. By using Google sign-in, you also agree to Google\'s Terms of Service and Privacy Policy.',
+                ),
+                _policySection(
+                  'Governing Law',
+                  'These Terms are governed by the laws of Malaysia. Any disputes shall be resolved under the jurisdiction of Malaysian courts.',
+                ),
               ],
             ),
           ),
@@ -1157,10 +1277,7 @@ class _SettingsViewState extends ConsumerState<SettingsView>
             style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
           ),
           const SizedBox(height: 6),
-          Text(
-            body,
-            style: const TextStyle(fontSize: 13, height: 1.6),
-          ),
+          Text(body, style: const TextStyle(fontSize: 13, height: 1.6)),
         ],
       ),
     );
@@ -1182,9 +1299,9 @@ class _SettingsViewState extends ConsumerState<SettingsView>
     String name,
     String username,
     String email,
-    String initials,
-    {required VoidCallback onEdit}
-  ) {
+    String initials, {
+    required VoidCallback onEdit,
+  }) {
     return Container(
       width: double.infinity,
       padding: EdgeInsets.only(
@@ -1296,7 +1413,9 @@ class _SettingsViewState extends ConsumerState<SettingsView>
                             onPressed: onEdit,
                             style: TextButton.styleFrom(
                               foregroundColor: Colors.white,
-                              backgroundColor: Colors.white.withValues(alpha: 0.12),
+                              backgroundColor: Colors.white.withValues(
+                                alpha: 0.12,
+                              ),
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 12,
                                 vertical: 10,
@@ -1326,7 +1445,9 @@ class _SettingsViewState extends ConsumerState<SettingsView>
         child: Text(
           title,
           style: TextStyle(
-            color: Theme.of(context).brightness == Brightness.dark ? Colors.white54 : const Color(0xFF64748B),
+            color: Theme.of(context).brightness == Brightness.dark
+                ? Colors.white54
+                : const Color(0xFF64748B),
             fontWeight: FontWeight.bold,
             fontSize: 12,
           ),
@@ -1422,7 +1543,9 @@ class _SettingsViewState extends ConsumerState<SettingsView>
               trailingText,
               style: TextStyle(
                 fontWeight: FontWeight.bold,
-                color: Theme.of(context).brightness == Brightness.dark ? Colors.white70 : const Color(0xFF0F172A),
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? Colors.white70
+                    : const Color(0xFF0F172A),
               ),
             ),
           const SizedBox(width: 5),

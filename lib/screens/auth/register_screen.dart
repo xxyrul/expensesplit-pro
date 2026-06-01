@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -20,7 +22,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   bool _isLoading = false;
   bool _obscurePassword = true;
   String _passwordValidationError = '';
-  
+
   @override
   void initState() {
     super.initState();
@@ -30,7 +32,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   void _validatePassword() {
     final password = _passwordController.text;
     String error = '';
-    
+
     if (password.isEmpty) {
       error = '';
     } else {
@@ -40,11 +42,13 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         error = 'Missing uppercase letter';
       } else if (!password.contains(RegExp(r'[0-9]'))) {
         error = 'Missing number';
-      } else if (!password.contains(RegExp(r'[!@#$%^&*()_+\-=\[\]{};:"\\|,.<>\/?]'))) {
+      } else if (!password.contains(
+        RegExp(r'[!@#$%^&*()_+\-=\[\]{};:"\\|,.<>\/?]'),
+      )) {
         error = 'Missing special character (!@#\$%^&*...)';
       }
     }
-    
+
     setState(() => _passwordValidationError = error);
   }
 
@@ -64,7 +68,10 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     }
 
     if (!_isPasswordValid()) {
-      setState(() => _errorMessage = "Password does not meet security requirements: $_passwordValidationError");
+      setState(
+        () => _errorMessage =
+            "Password does not meet security requirements: $_passwordValidationError",
+      );
       return;
     }
 
@@ -87,16 +94,21 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           message: 'Registration Successful!',
           type: ModernToastType.success,
         );
-        
-        // Navigate to WelcomePage
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(
-            builder: (context) => const WelcomePage(),
-          ),
-        );
+
+        // Navigate to WelcomePage after brief delay to allow toast to display
+        Future.delayed(const Duration(milliseconds: 600), () {
+          if (mounted) {
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(builder: (context) => const WelcomePage()),
+            );
+          }
+        });
       }
     } on FirebaseAuthException catch (e) {
-      String userFriendlyMessage = _mapFirebaseErrorToUserMessage(e.code, e.message);
+      String userFriendlyMessage = _mapFirebaseErrorToUserMessage(
+        e.code,
+        e.message,
+      );
       setState(() => _errorMessage = userFriendlyMessage);
     } catch (e) {
       if (mounted) {
@@ -142,10 +154,16 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         labelStyle: TextStyle(
           color: _passwordValidationError.isNotEmpty ? colorScheme.error : null,
         ),
-        prefixIcon: Icon(Icons.lock_outline, color: colorScheme.primary, size: 20),
+        prefixIcon: Icon(
+          Icons.lock_outline,
+          color: colorScheme.primary,
+          size: 20,
+        ),
         suffixIcon: IconButton(
           icon: Icon(
-            _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+            _obscurePassword
+                ? Icons.visibility_off_outlined
+                : Icons.visibility_outlined,
             color: colorScheme.primary,
             size: 20,
           ),
@@ -153,7 +171,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             setState(() => _obscurePassword = !_obscurePassword);
           },
         ),
-        errorText: _passwordValidationError.isNotEmpty ? _passwordValidationError : null,
+        errorText: _passwordValidationError.isNotEmpty
+            ? _passwordValidationError
+            : null,
       ),
     );
   }
@@ -161,20 +181,20 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   Widget _buildPasswordValidationIndicator() {
     final colorScheme = Theme.of(context).colorScheme;
     final password = _passwordController.text;
-    
+
     final hasLength = password.length >= 8;
     final hasUppercase = password.contains(RegExp(r'[A-Z]'));
     final hasNumber = password.contains(RegExp(r'[0-9]'));
-    final hasSpecial = password.contains(RegExp(r'[!@#$%^&*()_+\-=\[\]{};:"\\|,.<>\/?]'));
-    
+    final hasSpecial = password.contains(
+      RegExp(r'[!@#$%^&*()_+\-=\[\]{};:"\\|,.<>\/?]'),
+    );
+
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: colorScheme.surfaceContainer,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: colorScheme.outlineVariant.withOpacity(0.5),
-        ),
+        border: Border.all(color: colorScheme.outlineVariant.withOpacity(0.5)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -191,13 +211,21 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           _buildRequirementRow('At least 8 characters', hasLength, colorScheme),
           _buildRequirementRow('1 uppercase letter', hasUppercase, colorScheme),
           _buildRequirementRow('1 number', hasNumber, colorScheme),
-          _buildRequirementRow('1 special character (!@#\$%...)', hasSpecial, colorScheme),
+          _buildRequirementRow(
+            '1 special character (!@#\$%...)',
+            hasSpecial,
+            colorScheme,
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildRequirementRow(String text, bool isValid, ColorScheme colorScheme) {
+  Widget _buildRequirementRow(
+    String text,
+    bool isValid,
+    ColorScheme colorScheme,
+  ) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
@@ -212,7 +240,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             text,
             style: TextStyle(
               fontSize: 12,
-              color: isValid ? colorScheme.onSurface : colorScheme.onSurfaceVariant,
+              color: isValid
+                  ? colorScheme.onSurface
+                  : colorScheme.onSurfaceVariant,
             ),
           ),
         ],
@@ -241,7 +271,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   Container(
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
-                      color: isDark ? colorScheme.surfaceContainer : Colors.white,
+                      color: isDark
+                          ? colorScheme.surfaceContainer
+                          : Colors.white,
                       borderRadius: BorderRadius.circular(22),
                       border: Border.all(
                         color: isDark
@@ -319,7 +351,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   // 4. OR DIVIDER
                   Row(
                     children: [
-                      Expanded(child: Divider(color: colorScheme.outlineVariant)),
+                      Expanded(
+                        child: Divider(color: colorScheme.outlineVariant),
+                      ),
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 15),
                         child: Text(
@@ -330,7 +364,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                           ),
                         ),
                       ),
-                      Expanded(child: Divider(color: colorScheme.outlineVariant)),
+                      Expanded(
+                        child: Divider(color: colorScheme.outlineVariant),
+                      ),
                     ],
                   ),
 
@@ -341,33 +377,44 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     width: double.infinity,
                     height: 55,
                     child: OutlinedButton.icon(
-                      onPressed: _isLoading ? null : () async {
-                        setState(() => _isLoading = true);
-                        try {
-                          await ref.read(authServiceProvider).signInWithGoogle();
-                          if (mounted) {
-                            ModernBottomToast.show(
-                              context,
-                              message: 'Registration Successful!',
-                              type: ModernToastType.success,
-                            );
-                            
-                            // Navigate to WelcomePage
-                            Navigator.of(context).pushReplacement(
-                              MaterialPageRoute(
-                                builder: (context) => const WelcomePage(),
-                              ),
-                            );
-                          }
-                        } on FirebaseAuthException catch (e) {
-                          String userFriendlyMessage = _mapFirebaseErrorToUserMessage(e.code, e.message);
-                          setState(() => _errorMessage = userFriendlyMessage);
-                        } catch (e) {
-                          if (mounted) setState(() => _errorMessage = e.toString());
-                        } finally {
-                          if (mounted) setState(() => _isLoading = false);
-                        }
-                      },
+                      onPressed: _isLoading
+                          ? null
+                          : () async {
+                              setState(() => _isLoading = true);
+                              try {
+                                await ref
+                                    .read(authServiceProvider)
+                                    .signInWithGoogle();
+                                if (mounted) {
+                                  ModernBottomToast.show(
+                                    context,
+                                    message: 'Registration Successful!',
+                                    type: ModernToastType.success,
+                                  );
+
+                                  // Navigate to WelcomePage
+                                  Navigator.of(context).pushReplacement(
+                                    MaterialPageRoute(
+                                      builder: (context) => const WelcomePage(),
+                                    ),
+                                  );
+                                }
+                              } on FirebaseAuthException catch (e) {
+                                String userFriendlyMessage =
+                                    _mapFirebaseErrorToUserMessage(
+                                      e.code,
+                                      e.message,
+                                    );
+                                setState(
+                                  () => _errorMessage = userFriendlyMessage,
+                                );
+                              } catch (e) {
+                                if (mounted)
+                                  setState(() => _errorMessage = e.toString());
+                              } finally {
+                                if (mounted) setState(() => _isLoading = false);
+                              }
+                            },
                       icon: Image.asset('assets/google_logo.png', height: 24),
                       label: const Text(
                         "Continue with Google",
