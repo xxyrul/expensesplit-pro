@@ -150,13 +150,39 @@ class _CameraScannerViewState extends State<CameraScannerView>
       await _controller!.initialize();
       if (!mounted) return;
 
-      await _controller!.setFlashMode(_flashMode);
+      // ── Flash: always start with flash off ──────────────────────────────────
+      await _controller!.setFlashMode(FlashMode.off);
+
+      // ── Autofocus: enable continuous AF + lock exposure to centre ──────────
+      await _applyFocusSettings();
+
       await _controller!.startImageStream(_onImageAvailable);
 
       setState(() => _isCameraReady = true);
     } catch (e) {
       debugPrint('Camera init error: $e');
     }
+  }
+
+  /// Applies stable continuous autofocus and auto-exposure centred on frame.
+  /// Silently ignores errors on devices that don't support these APIs.
+  Future<void> _applyFocusSettings() async {
+    final ctrl = _controller;
+    if (ctrl == null || !ctrl.value.isInitialized) return;
+    try {
+      // Continuous autofocus (re-focuses whenever the scene changes).
+      await ctrl.setFocusMode(FocusMode.auto);
+    } catch (_) {}
+    try {
+      // Pin the focus-point to the very centre of the viewfinder.
+      await ctrl.setFocusPoint(const Offset(0.5, 0.5));
+    } catch (_) {}
+    try {
+      await ctrl.setExposureMode(ExposureMode.auto);
+    } catch (_) {}
+    try {
+      await ctrl.setExposurePoint(const Offset(0.5, 0.5));
+    } catch (_) {}
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
@@ -269,6 +295,15 @@ class _CameraScannerViewState extends State<CameraScannerView>
 
     try {
       await _controller!.stopImageStream();
+
+      // ── Flash fix: force flash OFF before the still capture so that any
+      // torch that was on during preview doesn't bleed into the photo or
+      // stay lit after the shutter fires. The user's chosen flash preference
+      // (_flashMode) is restored when the stream restarts below.
+      try {
+        await _controller!.setFlashMode(FlashMode.off);
+      } catch (_) {}
+
       final XFile file = await _controller!.takePicture();
 
       if (!mounted) return;
@@ -279,7 +314,6 @@ class _CameraScannerViewState extends State<CameraScannerView>
       _isCapturing = false;
       _stableFrameCount = 0;
       if (mounted) setState(() => _captureProgress = 0.0);
-      // Restart stream after returning (the navigator pop re-mounts this page).
     }
   }
 
@@ -319,6 +353,14 @@ class _CameraScannerViewState extends State<CameraScannerView>
       _textDetectedLastFrame = false;
       _cornerAnimCtrl.reverse();
       setState(() => _captureProgress = 0.0);
+
+      // Restore the user's flash preference and re-apply stable AF/AE
+      // now that we are back in live-preview mode.
+      try {
+        await _controller!.setFlashMode(_flashMode);
+      } catch (_) {}
+      await _applyFocusSettings();
+
       await _controller!.startImageStream(_onImageAvailable);
     }
   }

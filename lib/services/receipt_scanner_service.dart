@@ -13,6 +13,18 @@ class _TextElement {
   _TextElement(this.text, this.rect);
 }
 
+class RecognizedTextLine {
+  final String text;
+  final int index;
+  final int totalLines;
+
+  const RecognizedTextLine({
+    required this.text,
+    required this.index,
+    required this.totalLines,
+  });
+}
+
 class ReceiptScannerService {
   final ImagePicker _picker = ImagePicker();
   final TextRecognizer _textRecognizer = TextRecognizer(script: TextRecognitionScript.latin);
@@ -158,28 +170,39 @@ class ReceiptScannerService {
 
     // ── TIER 1: Keyword scan ──────────────────────────────────────────────────
     // Highly resilient against OCR misreads for "TOTAL", "JUMLAH", "AMAUN"
-    final totalRegex = RegExp(
-        r'\b(grand|t0tal|tota1|totai|tota|10tal|total|nett?|payable|amount|jumlah|jum|jumiah|jml|amaun)\b');
     final subtotalRegex = RegExp(r'\b(sub|tax|sst|gst)\b');
 
+    RecognizedTextLine? bestLine;
+    var bestScore = 0;
     for (int i = 0; i < lines.length; i++) {
-      final line = lines[i].toLowerCase();
-      if (isNoise(line)) continue;
+      final candidate = RecognizedTextLine(
+        text: lines[i],
+        index: i,
+        totalLines: lines.length,
+      );
+      final score = calculateLineScore(candidate);
+      if (score > bestScore) {
+        bestScore = score;
+        bestLine = candidate;
+      }
+    }
+
+    if (bestLine != null && bestScore > 0) {
+      final line = bestLine.text.toLowerCase();
 
       final lineAmounts = amountRegex
-          .allMatches(line)
+          .allMatches(bestLine.text)
           .map((m) => parseAmountString(m.group(1)!))
           .whereType<double>()
           .toList();
 
-      final bool hasTotalKeyword = totalRegex.hasMatch(line);
       final bool isSubtotal = subtotalRegex.hasMatch(line);
 
-      if (hasTotalKeyword && !isSubtotal) {
+      if (!isNoise(line) && !isSubtotal) {
         double? matched = lineAmounts.isNotEmpty ? lineAmounts.last : null;
-        if (matched == null && i + 1 < lines.length) {
+        if (matched == null && bestLine.index + 1 < lines.length) {
           // Amount may be on the next line
-          final nextLine = lines[i + 1].toLowerCase();
+          final nextLine = lines[bestLine.index + 1].toLowerCase();
           if (!isNoise(nextLine)) {
             final nextAmts = amountRegex
                 .allMatches(nextLine)
@@ -299,6 +322,54 @@ class ReceiptScannerService {
       'date': receiptDate,
       'rawText': text,
     };
+  }
+
+  /// Scores a single OCR line for likelihood of being the receipt grand total.
+  ///
+  /// Points are awarded for:
+  ///   +4  — keyword match ('total', 'jumlah', 'due', 'amaun', 'amount due')
+  ///   +2  — line is in the bottom 30 % of the receipt
+  ///   +1  — line contains at least one numeric value
+  ///
+  /// The caller selects the line with the highest score instead of the first
+  /// boolean keyword match, making extraction robust to partial OCR reads and
+  /// receipts where a label and its amount appear on separate lines.
+  static int calculateLineScore(RecognizedTextLine line) {
+    int score = 0;
+    final lower = line.text.toLowerCase();
+
+    // ── Keyword bonus ──────────────────────────────────────────────────────────
+    const keywordPoints = {
+      'total': 4,
+      'jumlah': 4,
+      'due': 4,
+      'amaun': 3,
+      'amount due': 4,
+      'grand total': 5,
+      'bayaran': 2,
+    };
+    for (final entry in keywordPoints.entries) {
+      if (lower.contains(entry.key)) {
+        score += entry.value;
+        break; // only award the first (highest-priority) keyword hit
+      }
+    }
+
+    // ── Position bonus ─────────────────────────────────────────────────────────
+    // Lines in the bottom 30 % of the receipt are more likely to hold the total.
+    if (line.totalLines > 0) {
+      final relativePosition = line.index / line.totalLines;
+      if (relativePosition >= 0.70) {
+        score += 2;
+      }
+    }
+
+    // ── Numeric content bonus ──────────────────────────────────────────────────
+    if (RegExp(r'[0-9]').hasMatch(line.text)) {
+      score += 1;
+    }
+
+    return score;
   }
 
   void dispose() {
