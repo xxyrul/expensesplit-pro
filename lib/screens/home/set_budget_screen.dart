@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../services/budget_service.dart';
 import '../../utils/category_styles.dart';
@@ -141,6 +142,8 @@ class _SetBudgetScreenState extends ConsumerState<SetBudgetScreen> {
           final filledCategories = _controllers.values
               .where((controller) => controller.text.trim().isNotEmpty)
               .length;
+          final categories = _categories;
+          debugPrint('Category List Size: ${categories.length}');
 
           return Column(
             children: [
@@ -170,8 +173,11 @@ class _SetBudgetScreenState extends ConsumerState<SetBudgetScreen> {
                         "Give each spending area a clear limit.",
                       ),
                       const SizedBox(height: 15),
-                      ..._categories.map(
-                        (cat) => Padding(
+                      ...categories.map((cat) {
+                        debugPrint(
+                          'SetBudgetScreen: building category input for $cat',
+                        );
+                        return Padding(
                           padding: const EdgeInsets.only(bottom: 14),
                           child: _buildInputCard(
                             cat,
@@ -179,8 +185,8 @@ class _SetBudgetScreenState extends ConsumerState<SetBudgetScreen> {
                             getCategoryStyle(cat).icon,
                             getCategoryStyle(cat).color,
                           ),
-                        ),
-                      ),
+                        );
+                      }),
                       const SizedBox(height: 20),
                       _buildSaveButton(),
                       const SizedBox(height: 12),
