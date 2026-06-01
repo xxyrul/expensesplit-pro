@@ -196,27 +196,36 @@ class DashboardView extends ConsumerWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                "RM ${remaining.toStringAsFixed(2)} remaining",
-                style: const TextStyle(color: Colors.white70, fontSize: 12),
+              Expanded(
+                child: Text(
+                  "RM ${remaining.toStringAsFixed(2)} left",
+                  style: const TextStyle(color: Colors.white70, fontSize: 12),
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
-              Row(
-                children: [
-                  Icon(
-                    trendingOver ? Icons.trending_up : Icons.trending_down,
-                    color: projectedColor,
-                    size: 14,
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    "Projected: RM ${projected.toStringAsFixed(0)}",
-                    style: TextStyle(
+              Expanded(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      trendingOver ? Icons.trending_up : Icons.trending_down,
                       color: projectedColor,
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
+                      size: 14,
                     ),
-                  ),
-                ],
+                    const SizedBox(width: 4),
+                    Flexible(
+                      child: Text(
+                        "Proj: RM ${projected.toStringAsFixed(0)}",
+                        style: TextStyle(
+                          color: projectedColor,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
               ),
               GestureDetector(
                 onTap: () {
