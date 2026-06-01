@@ -235,6 +235,7 @@ class _SetBudgetScreenState extends ConsumerState<SetBudgetScreen> {
         borderRadius: const BorderRadius.vertical(bottom: Radius.circular(30)),
       ),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -325,6 +326,7 @@ class _SetBudgetScreenState extends ConsumerState<SetBudgetScreen> {
           const SizedBox(width: 14),
           Expanded(
             child: Column(
+              mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
@@ -365,6 +367,7 @@ class _SetBudgetScreenState extends ConsumerState<SetBudgetScreen> {
   Widget _buildSectionHeader(String title, String subtitle) {
     final colorScheme = Theme.of(context).colorScheme;
     return Column(
+      mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
