@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../models/expense_model.dart';
 import '../../services/expense_service.dart';
+import '../../providers/expense_providers.dart';
 import '../../services/vendor_intelligence_service.dart';
 import '../../widgets/scan_receipt_button.dart';
 import '../../utils/category_styles.dart';

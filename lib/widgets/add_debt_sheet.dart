@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../models/debt_model.dart';
 import '../../services/debt_service.dart';
+import '../../providers/debt_providers.dart';
 import 'modern_bottom_toast.dart';
 import '../../utils/category_styles.dart';
 

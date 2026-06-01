@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../services/expense_service.dart';
+import '../../providers/expense_providers.dart';
 import '../../models/expense_model.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
 import '../../theme/brand_theme.dart';
 import '../../utils/category_styles.dart';
 import '../../services/export_service.dart';
+import '../../providers/export_providers.dart';
 import '../../widgets/insights_carousel.dart';
 import '../../widgets/ai_advisor_card.dart';
 import '../../widgets/modern_bottom_toast.dart';

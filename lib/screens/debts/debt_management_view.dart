@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 
 import '../../models/debt_model.dart';
 import '../../services/debt_service.dart';
+import '../../providers/debt_providers.dart';
 import '../../utils/category_styles.dart';
 import '../../widgets/add_debt_sheet.dart';
 import '../../widgets/update_debt_sheet.dart';

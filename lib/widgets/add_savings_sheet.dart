@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../models/goal_model.dart';
 import '../../services/goal_service.dart';
+import '../../providers/goal_providers.dart';
 import 'modern_bottom_toast.dart';
 
 class AddSavingsSheet extends ConsumerStatefulWidget {

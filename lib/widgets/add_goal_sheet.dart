@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 
 import '../../models/goal_model.dart';
 import '../../services/goal_service.dart';
+import '../../providers/goal_providers.dart';
 import '../../utils/category_styles.dart';
 import 'modern_bottom_toast.dart';
 

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../services/budget_service.dart';
+import '../../providers/budget_providers.dart';
 import '../../utils/category_styles.dart';
 import '../../widgets/modern_bottom_toast.dart';
 import '../../theme/brand_theme.dart';

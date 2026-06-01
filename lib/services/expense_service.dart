@@ -1,79 +1,31 @@
-import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/expense_model.dart';
-import 'auth_service.dart';
+import '../repositories/expense_repository.dart';
 
 class ExpenseService {
-  final FirebaseFirestore _db = FirebaseFirestore.instance;
-  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final ExpenseRepository _repository;
 
-  Future<void> addExpense(ExpenseModel expense) async {
-    final uid = _auth.currentUser?.uid;
-    if (uid == null) {
-      throw Exception('User is not authenticated');
-    }
+  ExpenseService(this._repository);
 
-    try {
-      await _db.collection('users').doc(uid).collection('expenses').add({
-        ...expense.toMap(),
-        'timestamp': FieldValue.serverTimestamp(),
-      });
-    } on FirebaseException catch (e) {
-      debugPrint('Firestore Write Error: ${e.code} - ${e.message}');
-      throw Exception('Failed to save: ${e.message}');
-    } catch (e) {
-      debugPrint('Unknown Error: $e');
-      throw Exception('Failed to save: $e');
-    }
-  }
-
-  Future<void> deleteExpense(String expenseId) async {
-    final uid = _auth.currentUser?.uid;
-    if (uid == null) return;
-    await _db
-        .collection('users')
-        .doc(uid)
-        .collection('expenses')
-        .doc(expenseId)
-        .delete();
-  }
-
-  Future<void> updateExpense(String expenseId, ExpenseModel expense) async {
-    final uid = _auth.currentUser?.uid;
-    if (uid == null) return;
-    await _db
-        .collection('users')
-        .doc(uid)
-        .collection('expenses')
-        .doc(expenseId)
-        .update({
-          ...expense.toMap(),
-          'timestamp': Timestamp.fromDate(expense.date),
-        });
-  }
+  Future<void> addExpense(ExpenseModel expense) => _repository.addExpense(expense);
+  Future<void> deleteExpense(String expenseId) => _repository.deleteExpense(expenseId);
+  Future<void> updateExpense(String expenseId, ExpenseModel expense) => _repository.updateExpense(expenseId, expense);
 
   Future<void> backfillMissingExpenseTimestamps() async {
-    final uid = _auth.currentUser?.uid;
+    final uid = _repository.currentUserId;
     if (uid == null) return;
     await backfillMissingExpenseTimestampsForUser(uid);
   }
 
   Future<void> backfillMissingExpenseTimestampsForUser(String uid) async {
-    final snapshot = await _db
-        .collection('users')
-        .doc(uid)
-        .collection('expenses')
-        .get();
-
-    WriteBatch batch = _db.batch();
+    final snapshot = await _repository.getExpensesSnapshotForUser(uid);
+    var batch = _repository.batch();
     var pendingWrites = 0;
 
     Future<void> commitBatchIfNeeded({bool force = false}) async {
       if (pendingWrites == 0 || (!force && pendingWrites < 450)) return;
       await batch.commit();
-      batch = _db.batch();
+      batch = _repository.batch();
       pendingWrites = 0;
     }
 
@@ -101,76 +53,28 @@ class ExpenseService {
     await commitBatchIfNeeded(force: true);
   }
 
-  Stream<List<ExpenseModel>> getExpenses() {
-    final uid = _auth.currentUser?.uid;
-    if (uid == null) return Stream.value([]);
-
-    return getExpensesSnapshotStreamForUser(uid).map(
-      (snapshot) => snapshot.docs
-          .map((doc) => ExpenseModel.fromMap(doc.id, doc.data()))
-          .toList(),
-    );
-  }
-
   Stream<QuerySnapshot<Map<String, dynamic>>> getExpensesSnapshotStream() {
-    final uid = _auth.currentUser?.uid;
+    final uid = _repository.currentUserId;
     if (uid == null) return const Stream.empty();
-    return getExpensesSnapshotStreamForUser(uid);
+    return _repository.getExpensesSnapshotStreamForUser(uid);
   }
 
-  Stream<QuerySnapshot<Map<String, dynamic>>> getExpensesSnapshotStreamForUser(
-    String uid,
-  ) {
-    return _db
-        .collection('users')
-        .doc(uid)
-        .collection('expenses')
-        .orderBy('timestamp', descending: true)
-        .snapshots();
+  Stream<QuerySnapshot<Map<String, dynamic>>> getExpensesSnapshotStreamForUser(String uid) {
+    return _repository.getExpensesSnapshotStreamForUser(uid);
   }
 
-  Stream<QuerySnapshot<Map<String, dynamic>>>
-  getExpensesSnapshotStreamForUserWithBackfill(String uid) async* {
+  Stream<QuerySnapshot<Map<String, dynamic>>> getExpensesSnapshotStreamForUserWithBackfill(String uid) async* {
     await backfillMissingExpenseTimestampsForUser(uid);
-    yield* getExpensesSnapshotStreamForUser(uid);
+    yield* _repository.getExpensesSnapshotStreamForUser(uid);
+  }
+  
+  Map<String, double> getMonthlyTrend(List<ExpenseModel> expenses, DateTime month) {
+    final Map<String, double> trend = {};
+    for (var expense in expenses) {
+      if (expense.date.year == month.year && expense.date.month == month.month) {
+        trend[expense.category] = (trend[expense.category] ?? 0.0) + expense.amount;
+      }
+    }
+    return trend;
   }
 }
-
-final expenseServiceProvider = Provider((ref) => ExpenseService());
-
-final expensesSnapshotStreamProvider =
-    StreamProvider.autoDispose<QuerySnapshot<Map<String, dynamic>>>((ref) {
-      final authState = ref.watch(authStateChangesProvider);
-      final service = ref.watch(expenseServiceProvider);
-
-      return authState.when(
-        data: (user) {
-          if (user == null) return const Stream.empty();
-          return service.getExpensesSnapshotStreamForUserWithBackfill(user.uid);
-        },
-        loading: () => const Stream.empty(),
-        error: (_, __) => const Stream.empty(),
-      );
-    });
-
-final expensesStreamProvider = StreamProvider.autoDispose<List<ExpenseModel>>((
-  ref,
-) {
-  final authState = ref.watch(authStateChangesProvider);
-  final service = ref.watch(expenseServiceProvider);
-
-  return authState.when(
-    data: (user) {
-      if (user == null) return Stream.value([]);
-      return service
-          .getExpensesSnapshotStreamForUserWithBackfill(user.uid)
-          .map(
-            (snapshot) => snapshot.docs
-                .map((doc) => ExpenseModel.fromMap(doc.id, doc.data()))
-                .toList(),
-          );
-    },
-    loading: () => Stream.value([]),
-    error: (_, __) => Stream.value([]),
-  );
-});

@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/budget_alert_provider.dart';
 import '../../services/expense_service.dart';
+import '../../providers/expense_providers.dart';
 import '../../services/budget_service.dart';
+import '../../providers/budget_providers.dart';
 
 class NotificationsSheet extends ConsumerStatefulWidget {
   const NotificationsSheet({super.key});

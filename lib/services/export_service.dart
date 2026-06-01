@@ -9,10 +9,6 @@ import 'package:universal_html/html.dart' as html;
 import 'dart:convert';
 import '../models/expense_model.dart';
 
-final exportServiceProvider = Provider<ExportService>((ref) {
-  return ExportService();
-});
-
 class ExportService {
   Future<void> exportExpensesToCsv(List<ExpenseModel> expenses, String monthLabel) async {
     if (expenses.isEmpty) return;

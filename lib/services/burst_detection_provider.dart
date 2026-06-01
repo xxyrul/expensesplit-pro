@@ -1,6 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/expense_service.dart';
+import '../providers/expense_providers.dart';
 import '../services/budget_service.dart';
+import '../providers/budget_providers.dart';
 
 /// Represents a category that has exceeded its budget
 class BurstCategory {
