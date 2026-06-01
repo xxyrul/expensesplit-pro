@@ -39,7 +39,6 @@ class _CameraScannerViewState extends State<CameraScannerView>
   FlashMode _flashMode = FlashMode.off;
   final List<FlashMode> _flashCycle = [
     FlashMode.off,
-    FlashMode.auto,
     FlashMode.torch,
   ];
 
@@ -294,31 +293,20 @@ class _CameraScannerViewState extends State<CameraScannerView>
     _isCapturing = true;
 
     try {
-      // 1. Set the flash mode FIRST while the video stream is actively running.
-      // This is crucial for Android because the camera needs active frames 
-      // to calculate exposure and focus for the upcoming flash.
       try {
         await _controller!.setFlashMode(_flashMode);
       } catch (_) {}
 
-      // 2. Wait half a second for the hardware to spool up the flash capacitor,
-      // fire any pre-flashes, and lock the autofocus/exposure.
-      await Future.delayed(const Duration(milliseconds: 500));
-
-      // 3. Stop the image stream so `takePicture` triggers the high-res 
-      // still capture pipeline instead of just grabbing a low-res video frame.
-      try {
-        await _controller!.stopImageStream();
-      } catch (_) {}
-
-      // 4. Brief pause for the Camera2 API to detach the stream.
       await Future.delayed(const Duration(milliseconds: 200));
 
-      // 5. Snap the high-quality photo!
       final XFile file = await _controller!.takePicture();
 
-      // 6. Force flash OFF immediately after capture so the LED doesn't stay lit.
+      // HACK: Samsung and some other Android devices have a bug where the flash
+      // stays permanently stuck ON after takePicture() if it was used.
+      // The proven workaround is to briefly force it to Torch, then Off.
       try {
+        await _controller!.setFlashMode(FlashMode.torch);
+        await Future.delayed(const Duration(milliseconds: 50));
         await _controller!.setFlashMode(FlashMode.off);
       } catch (_) {}
 
