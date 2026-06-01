@@ -294,17 +294,33 @@ class _CameraScannerViewState extends State<CameraScannerView>
     _isCapturing = true;
 
     try {
-      await _controller!.stopImageStream();
+      // 1. Set the flash mode FIRST while the video stream is actively running.
+      // This is crucial for Android because the camera needs active frames 
+      // to calculate exposure and focus for the upcoming flash.
+      try {
+        await _controller!.setFlashMode(_flashMode);
+      } catch (_) {}
 
-      // ── Flash fix: force flash OFF before the still capture so that any
-      // torch that was on during preview doesn't bleed into the photo or
-      // stay lit after the shutter fires. The user's chosen flash preference
-      // (_flashMode) is restored when the stream restarts below.
+      // 2. Wait half a second for the hardware to spool up the flash capacitor,
+      // fire any pre-flashes, and lock the autofocus/exposure.
+      await Future.delayed(const Duration(milliseconds: 500));
+
+      // 3. Stop the image stream so `takePicture` triggers the high-res 
+      // still capture pipeline instead of just grabbing a low-res video frame.
+      try {
+        await _controller!.stopImageStream();
+      } catch (_) {}
+
+      // 4. Brief pause for the Camera2 API to detach the stream.
+      await Future.delayed(const Duration(milliseconds: 200));
+
+      // 5. Snap the high-quality photo!
+      final XFile file = await _controller!.takePicture();
+
+      // 6. Force flash OFF immediately after capture so the LED doesn't stay lit.
       try {
         await _controller!.setFlashMode(FlashMode.off);
       } catch (_) {}
-
-      final XFile file = await _controller!.takePicture();
 
       if (!mounted) return;
       await _navigateToConfirm(file);
