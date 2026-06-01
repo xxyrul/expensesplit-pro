@@ -398,47 +398,60 @@ class _SetBudgetScreenState extends ConsumerState<SetBudgetScreen> {
     Color iconColor,
   ) {
     final colorScheme = Theme.of(context).colorScheme;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(
-        color: colorScheme.surfaceContainer,
-        borderRadius: BorderRadius.circular(20),
-        border: Border(
-          left: BorderSide(color: iconColor, width: 4),
-          top: BorderSide(color: colorScheme.outlineVariant),
-          right: BorderSide(color: colorScheme.outlineVariant),
-          bottom: BorderSide(color: colorScheme.outlineVariant),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.02),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: TextField(
-        controller: controller,
-        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-        decoration: InputDecoration(
-          border: InputBorder.none,
-          labelText: label,
-          labelStyle: TextStyle(
-            color: colorScheme.onSurfaceVariant,
-            fontSize: 14,
-          ),
-          prefixText: "RM ",
-          prefixStyle: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: colorScheme.onSurface,
-          ),
-          icon: CircleAvatar(
-            backgroundColor: iconColor.withOpacity(0.12),
-            radius: 18,
-            child: Icon(icon, color: iconColor, size: 20),
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Container(
+          width: 4,
+          height: 56,
+          decoration: BoxDecoration(
+            color: iconColor,
+            borderRadius: BorderRadius.circular(2),
           ),
         ),
-      ),
+        const SizedBox(width: 12),
+        Container(
+          width: 50,
+          height: 50,
+          decoration: BoxDecoration(
+            color: colorScheme.surfaceContainerHighest,
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Icon(icon, color: iconColor, size: 24),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: TextField(
+            controller: controller,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+            ),
+            decoration: InputDecoration(
+              labelText: label,
+              labelStyle: TextStyle(
+                color: colorScheme.onSurfaceVariant,
+                fontSize: 13,
+              ),
+              prefixText: "RM ",
+              prefixStyle: const TextStyle(
+                fontWeight: FontWeight.w500,
+                fontSize: 16,
+              ),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: BorderSide(color: colorScheme.outlineVariant),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: BorderSide(color: iconColor, width: 2),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 

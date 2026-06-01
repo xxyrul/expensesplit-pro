@@ -214,7 +214,7 @@ class _EditProfileScreenState extends State<EditProfileScreen>
       if (text.startsWith('0')) {
         return '$defaultDialCode${text.substring(1)}';
       }
-      return '$defaultDialCode$text';
+      return '+$text';
     }
 
     final phoneController = TextEditingController(text: defaultDialCode);
@@ -251,58 +251,60 @@ class _EditProfileScreenState extends State<EditProfileScreen>
                   codeSent ? "Verify SMS Code" : "Link Phone Number",
                   style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
-                content: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      codeSent
-                          ? "Enter the 6-digit verification code sent to your phone."
-                          : "Enter your phone number. The app will auto-format and append your local country code.",
-                      style: const TextStyle(fontSize: 14),
-                    ),
-                    const SizedBox(height: 16),
-                    if (!codeSent) ...[
-                      TextField(
-                        controller: phoneController,
-                        keyboardType: TextInputType.phone,
-                        autofocus: true,
-                        decoration: InputDecoration(
-                          labelText: "Phone Number",
-                          hintText: "e.g. 01114190091",
-                          prefixIcon: Icon(Icons.phone_outlined, color: colorScheme.primary),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
+                content: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
                       Text(
-                        "Formatted: $normalizedPhone",
-                        style: TextStyle(
-                          color: colorScheme.onSurfaceVariant.withOpacity(0.7),
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
-                          fontStyle: FontStyle.italic,
-                        ),
+                        codeSent
+                            ? "Enter the 6-digit verification code sent to your phone."
+                            : "Enter your phone number. The app will auto-format and append your local country code.",
+                        style: const TextStyle(fontSize: 14),
                       ),
-                    ] else
-                      TextField(
-                        controller: smsCodeController,
-                        keyboardType: TextInputType.number,
-                        autofocus: true,
-                        maxLength: 6,
-                        decoration: InputDecoration(
-                          labelText: "SMS Code",
-                          prefixIcon: Icon(Icons.lock_clock_outlined, color: colorScheme.primary),
+                      const SizedBox(height: 16),
+                      if (!codeSent) ...[
+                        TextField(
+                          controller: phoneController,
+                          keyboardType: TextInputType.phone,
+                          autofocus: true,
+                          decoration: InputDecoration(
+                            labelText: "Phone Number",
+                            hintText: "e.g. 01114190091",
+                            prefixIcon: Icon(Icons.phone_outlined, color: colorScheme.primary),
+                          ),
                         ),
-                      ),
-                    if (flowError != null)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 12),
-                        child: Text(
-                          flowError!,
-                          style: const TextStyle(color: Colors.redAccent, fontSize: 12),
+                        const SizedBox(height: 8),
+                        Text(
+                          "Formatted: $normalizedPhone",
+                          style: TextStyle(
+                            color: colorScheme.onSurfaceVariant.withOpacity(0.7),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                            fontStyle: FontStyle.italic,
+                          ),
                         ),
-                      ),
-                  ],
+                      ] else
+                        TextField(
+                          controller: smsCodeController,
+                          keyboardType: TextInputType.number,
+                          autofocus: true,
+                          maxLength: 6,
+                          decoration: InputDecoration(
+                            labelText: "SMS Code",
+                            prefixIcon: Icon(Icons.lock_clock_outlined, color: colorScheme.primary),
+                          ),
+                        ),
+                      if (flowError != null)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 12),
+                          child: Text(
+                            flowError!,
+                            style: const TextStyle(color: Colors.redAccent, fontSize: 12),
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
                 actions: [
                   TextButton(

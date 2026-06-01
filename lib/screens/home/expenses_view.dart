@@ -38,10 +38,18 @@ class _ExpensesViewState extends ConsumerState<ExpensesView> {
   final Map<String, GlobalKey> _expenseItemKeys = {};
 
   final List<String> _categories = ['All', ...kCategories];
+  final Map<String, GlobalKey> _categoryKeys = {};
+  final ScrollController _categoryScrollController = ScrollController();
+
+  Stream<QuerySnapshot<Map<String, dynamic>>>? _cachedExpensesStream;
+  String? _cachedUserUid;
 
   @override
   void initState() {
     super.initState();
+    for (var cat in _categories) {
+      _categoryKeys[cat] = GlobalKey(debugLabel: 'category_$cat');
+    }
     _highlightedExpenseId = widget.focusExpenseId;
     _pendingFocusScroll = widget.focusExpenseId != null;
   }
@@ -62,7 +70,8 @@ class _ExpensesViewState extends ConsumerState<ExpensesView> {
   @override
   void dispose() {
     _searchController.dispose();
-    _listScrollController.dispose();
+    // _listScrollController.dispose();
+    // _categoryScrollController.dispose();
     super.dispose();
   }
 
@@ -195,14 +204,17 @@ class _ExpensesViewState extends ConsumerState<ExpensesView> {
             return const Center(child: CircularProgressIndicator());
           }
 
-          final expensesStream = ref
-              .read(expenseServiceProvider)
-              .getExpensesSnapshotStreamForUserWithBackfill(user.uid);
+          if (_cachedUserUid != user.uid || _cachedExpensesStream == null) {
+            _cachedUserUid = user.uid;
+            _cachedExpensesStream = ref
+                .read(expenseServiceProvider)
+                .getExpensesSnapshotStreamForUserWithBackfill(user.uid);
+          }
 
           return budgetsAsync.when(
             data: (budgetLimits) {
               return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                stream: expensesStream,
+                stream: _cachedExpensesStream,
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return const Center(child: CircularProgressIndicator());
@@ -479,6 +491,7 @@ class _ExpensesViewState extends ConsumerState<ExpensesView> {
       height: 70,
       margin: const EdgeInsets.only(top: 20, bottom: 10),
       child: ListView.builder(
+        controller: _categoryScrollController,
         padding: const EdgeInsets.symmetric(horizontal: 16),
         scrollDirection: Axis.horizontal,
         itemCount: _categories.length,
@@ -491,8 +504,20 @@ class _ExpensesViewState extends ConsumerState<ExpensesView> {
               setState(() {
                 _selectedCategory = category;
               });
+              
+              // Animate to center the tapped item
+              final key = _categoryKeys[category];
+              if (key != null && key.currentContext != null) {
+                Scrollable.ensureVisible(
+                  key.currentContext!,
+                  duration: const Duration(milliseconds: 350),
+                  curve: Curves.easeOutCubic,
+                  alignment: 0.5, // 0.5 means center it in the viewport
+                );
+              }
             },
             child: Container(
+              key: _categoryKeys[category],
               margin: const EdgeInsets.symmetric(horizontal: 6, vertical: 12),
               padding: const EdgeInsets.symmetric(horizontal: 24),
               alignment: Alignment.center,

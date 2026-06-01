@@ -375,10 +375,10 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                           : () async {
                               setState(() => _isLoading = true);
                               try {
-                                await ref
+                                final user = await ref
                                     .read(authServiceProvider)
                                     .signInWithGoogle();
-                                if (mounted) {
+                                if (mounted && user != null) {
                                   ModernBottomToast.show(
                                     context,
                                     message: 'Registration Successful!',

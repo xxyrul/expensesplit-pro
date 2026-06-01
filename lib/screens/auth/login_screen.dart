@@ -393,10 +393,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           : () async {
                               setState(() => _isLoading = true);
                               try {
-                                await ref
+                                final user = await ref
                                     .read(authServiceProvider)
                                     .signInWithGoogle();
-                                if (mounted) {
+                                if (mounted && user != null) {
                                   // Show success toast
                                   ModernBottomToast.show(
                                     context,
