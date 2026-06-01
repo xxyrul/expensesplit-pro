@@ -36,9 +36,11 @@ class _CameraScannerViewState extends State<CameraScannerView>
   bool _isCameraReady = false;
 
   // ── Flash ────────────────────────────────────────────────────────────────────
-  FlashMode _flashMode = FlashMode.off;
+  FlashMode _flashMode = FlashMode.auto;
   final List<FlashMode> _flashCycle = [
+    FlashMode.auto,
     FlashMode.off,
+    FlashMode.always,
     FlashMode.torch,
   ];
 
@@ -386,6 +388,7 @@ class _CameraScannerViewState extends State<CameraScannerView>
   IconData get _flashIcon {
     switch (_flashMode) {
       case FlashMode.torch:
+      case FlashMode.always:
         return Icons.flash_on_rounded;
       case FlashMode.auto:
         return Icons.flash_auto_rounded;

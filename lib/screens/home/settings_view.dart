@@ -803,10 +803,7 @@ class _SettingsViewState extends ConsumerState<SettingsView>
 
   Future<void> _exportCurrentMonth() async {
     try {
-      final expenses = await ref
-          .read(expenseServiceProvider)
-          .getExpenses()
-          .first;
+      final expenses = await ref.read(expensesStreamProvider.future);
       final now = DateTime.now();
       final filtered = expenses
           .where((e) => e.date.year == now.year && e.date.month == now.month)
