@@ -811,6 +811,17 @@ class _SettingsViewState extends ConsumerState<SettingsView>
           .toList();
 
       final monthLabel = DateFormat('MMMM yyyy').format(now);
+      
+      if (filtered.isEmpty) {
+        if (!mounted) return;
+        ModernBottomToast.show(
+          context,
+          message: 'No expenses available to export for $monthLabel.',
+          type: ModernToastType.warning,
+        );
+        return;
+      }
+
       await ref
           .read(exportServiceProvider)
           .exportExpensesToCsv(filtered, monthLabel);

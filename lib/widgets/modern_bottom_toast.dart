@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-enum ModernToastType { success, error, info }
+enum ModernToastType { success, error, info, warning }
 
 class ModernBottomToast {
   static OverlayEntry? _activeEntry;
@@ -25,6 +25,10 @@ class ModernBottomToast {
       case ModernToastType.error:
         accentColor = theme.colorScheme.error;
         icon = Icons.error_outline_rounded;
+        break;
+      case ModernToastType.warning:
+        accentColor = Colors.orange;
+        icon = Icons.warning_amber_rounded;
         break;
       case ModernToastType.info:
         accentColor = theme.colorScheme.secondary;

@@ -183,6 +183,14 @@ class _ReportsViewState extends ConsumerState<ReportsView> {
                 child: IconButton(
                   icon: const Icon(Icons.download_rounded, color: Colors.white, size: 20),
                   onPressed: () async {
+                    if (filtered.isEmpty) {
+                      ModernBottomToast.show(
+                        context,
+                        message: 'No expenses available to export for $_selectedMonth.',
+                        type: ModernToastType.warning,
+                      );
+                      return;
+                    }
                     ModernBottomToast.show(
                       context,
                       message: 'Generating CSV Report...',
