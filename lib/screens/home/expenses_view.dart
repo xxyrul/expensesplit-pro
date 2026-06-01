@@ -781,7 +781,17 @@ class _ExpensesViewState extends ConsumerState<ExpensesView> {
                     ),
                   ),
                   const SizedBox(height: 4),
-                  const Icon(Icons.chevron_right, color: Colors.grey, size: 16),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (expense.needsReview)
+                        const Padding(
+                          padding: EdgeInsets.only(right: 8.0),
+                          child: Icon(Icons.error_outline, color: Colors.orange, size: 16),
+                        ),
+                      const Icon(Icons.chevron_right, color: Colors.grey, size: 16),
+                    ],
+                  ),
                 ],
               ),
             ],

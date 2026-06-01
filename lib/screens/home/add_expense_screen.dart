@@ -20,6 +20,7 @@ class AddExpenseScreen extends ConsumerStatefulWidget {
   final String? capturedImagePath;
   final String? expenseIdToEdit;
   final bool showScanSuccessBanner;
+  final bool needsReview;
 
   const AddExpenseScreen({
     super.key,
@@ -31,6 +32,7 @@ class AddExpenseScreen extends ConsumerStatefulWidget {
     this.capturedImagePath,
     this.expenseIdToEdit,
     this.showScanSuccessBanner = false,
+    this.needsReview = false,
   });
 
   @override
@@ -164,6 +166,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
       vendor: enteredVendor,
       category: _selectedCategory,
       date: _selectedDate,
+      needsReview: widget.needsReview,
     );
 
     setState(() => _isSaving = true);

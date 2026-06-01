@@ -144,6 +144,7 @@ class ReceiptScannerService {
     // Matches numbers with exactly 2 decimal places (e.g. 12.34, 1,234.56, 1.234,56)
     final RegExp amountRegex = RegExp(r'([0-9]+(?:[,.][0-9]{3})*[.,][0-9]{2})');
     double? foundTotal;
+    bool needsReview = false;
 
     double? parseAmountString(String amtStr) {
       amtStr = amtStr.replaceAll(' ', '');
@@ -221,6 +222,7 @@ class ReceiptScannerService {
     // ONLY triggered if a noise section (CASH/CHANGE) WAS EXPLICITLY FOUND.
     // If the receipt has a clear CASH boundary, the total is the last amount before it.
     if (foundTotal == null) {
+      needsReview = true;
       int noiseStart = -1;
       for (int i = 0; i < lines.length; i++) {
         if (isNoise(lines[i].toLowerCase())) { noiseStart = i; break; }
@@ -321,6 +323,7 @@ class ReceiptScannerService {
       'amount': amount,
       'date': receiptDate,
       'rawText': text,
+      'needsReview': needsReview,
     };
   }
 

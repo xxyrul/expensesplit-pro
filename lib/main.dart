@@ -3,6 +3,11 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import 'firebase_options.dart';
@@ -11,6 +16,8 @@ import 'services/notification_service.dart';
 import 'providers/theme_provider.dart';
 import 'theme/dynamic_theme_scope.dart';
 import 'widgets/keyboard_dismiss_on_tap.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'screens/welcome_page.dart';
 
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
@@ -23,6 +30,9 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 void main() async {
   // 1. Ensure Flutter is ready
   WidgetsFlutterBinding.ensureInitialized();
+
+  final prefs = await SharedPreferences.getInstance();
+  final hasSeenWelcome = prefs.getBool('has_seen_welcome') ?? false;
 
   // 2. Initialize Firebase
   await Firebase.initializeApp(
@@ -84,11 +94,12 @@ void main() async {
   });
 
   // 3. Run the app wrapped in ProviderScope for Riverpod
-  runApp(const ProviderScope(child: MyApp()));
+  runApp(ProviderScope(child: MyApp(hasSeenWelcome: hasSeenWelcome)));
 }
 
 class MyApp extends ConsumerWidget {
-  const MyApp({super.key});
+  final bool hasSeenWelcome;
+  const MyApp({super.key, this.hasSeenWelcome = false});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -107,7 +118,7 @@ class MyApp extends ConsumerWidget {
           },
           theme: lightTheme,
           darkTheme: darkTheme,
-          home: AuthWrapper(),
+          home: hasSeenWelcome ? const AuthWrapper() : const WelcomePage(),
           debugShowCheckedModeBanner: false,
         );
       },

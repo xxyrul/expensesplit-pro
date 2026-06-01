@@ -203,14 +203,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           type: ModernToastType.success,
         );
 
-        // Navigate to WelcomePage after brief delay to allow toast to display
-        Future.delayed(const Duration(milliseconds: 600), () {
-          if (mounted) {
-            Navigator.of(context).pushReplacement(
-              MaterialPageRoute(builder: (context) => const WelcomePage()),
-            );
-          }
-        });
+        // AuthWrapper will automatically navigate to HomeScreen.
       }
     } on FirebaseAuthException catch (e) {
       String userFriendlyMessage = _mapFirebaseErrorToUserMessage(
@@ -411,20 +404,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                     type: ModernToastType.success,
                                   );
 
-                                  // Navigate to WelcomePage after brief delay to allow toast to display
-                                  Future.delayed(
-                                    const Duration(milliseconds: 600),
-                                    () {
-                                      if (mounted) {
-                                        Navigator.of(context).pushReplacement(
-                                          MaterialPageRoute(
-                                            builder: (context) =>
-                                                const WelcomePage(),
-                                          ),
-                                        );
-                                      }
-                                    },
-                                  );
+                                  // AuthWrapper handles navigation automatically.
                                 }
                               } on FirebaseAuthException catch (e) {
                                 String userFriendlyMessage =

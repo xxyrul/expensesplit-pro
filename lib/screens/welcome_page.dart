@@ -1,191 +1,144 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import '../services/auth_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../theme/brand_theme.dart';
-import '../widgets/modern_bottom_toast.dart';
-import 'home/home_screen.dart';
+import 'auth_wrapper.dart';
 
 class WelcomePage extends ConsumerWidget {
   const WelcomePage({super.key});
 
+  Future<void> _completeOnboarding(BuildContext context) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('has_seen_welcome', true);
+
+    if (context.mounted) {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (context) => const AuthWrapper(),
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final authState = ref.watch(authStateChangesProvider);
-    final userProfileAsync = ref.watch(userProfileProvider);
-
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.surface,
-      body: authState.when(
-        data: (user) {
-          if (user == null) {
-            // User logged out, navigate back to login
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
-            });
-            return const Center(child: CircularProgressIndicator());
-          }
+      body: SingleChildScrollView(
+        child: Column(
+          children: [
+            // Header with gradient
+            _buildHeader(context),
 
-          return userProfileAsync.when(
-            data: (userProfile) {
-              final displayName = userProfile?.displayName ?? 'Friend';
-              
-              return SingleChildScrollView(
-                child: Column(
-                  children: [
-                    // Header with gradient
-                    _buildHeader(context, displayName),
+            // Welcome card
+            Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: Column(
+                children: [
+                  // Decorative icon
+                  Container(
+                    width: 80,
+                    height: 80,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Theme.of(context)
+                          .colorScheme
+                          .primary
+                          .withOpacity(0.1),
+                    ),
+                    child: Icon(
+                      Icons.waving_hand_rounded,
+                      size: 40,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
 
-                    // Welcome card
-                    Padding(
-                      padding: const EdgeInsets.all(24.0),
-                      child: Column(
+                  // Welcome message
+                  Text(
+                    'Welcome to ExpenseSplit Pro!',
+                    style: Theme.of(context)
+                        .textTheme
+                        .headlineSmall
+                        ?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Subtitle
+                  Text(
+                    'Get ready to take control of your finances',
+                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                          color: Theme.of(context)
+                              .colorScheme
+                              .onSurfaceVariant,
+                        ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 40),
+
+                  // Feature cards
+                  _buildFeatureCard(
+                    context,
+                    icon: Icons.trending_down_rounded,
+                    title: 'Track Expenses',
+                    description: 'Monitor your spending with ease',
+                  ),
+                  const SizedBox(height: 12),
+                  _buildFeatureCard(
+                    context,
+                    icon: Icons.pie_chart_rounded,
+                    title: 'Set Budgets',
+                    description: 'Control your spending limits',
+                  ),
+                  const SizedBox(height: 12),
+                  _buildFeatureCard(
+                    context,
+                    icon: Icons.emoji_events_rounded,
+                    title: 'Achieve Goals',
+                    description: 'Work towards your financial goals',
+                  ),
+                  const SizedBox(height: 40),
+
+                  // Get started button
+                  SizedBox(
+                    width: double.infinity,
+                    height: 56,
+                    child: FilledButton(
+                      onPressed: () => _completeOnboarding(context),
+                      style: FilledButton.styleFrom(
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          // Decorative icon
-                          Container(
-                            width: 80,
-                            height: 80,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .primary
-                                  .withOpacity(0.1),
-                            ),
-                            child: Icon(
-                              Icons.waving_hand_rounded,
-                              size: 40,
-                              color: Theme.of(context).colorScheme.primary,
+                          const Text(
+                            "Let's Get Started",
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
                             ),
                           ),
-                          const SizedBox(height: 24),
-
-                          // Welcome message
-                          Text(
-                            'Welcome, $displayName!',
-                            style: Theme.of(context)
-                                .textTheme
-                                .headlineLarge
-                                ?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                ),
-                            textAlign: TextAlign.center,
-                          ),
-                          const SizedBox(height: 12),
-
-                          // Subtitle
-                          Text(
-                            'Get ready to take control of your finances',
-                            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                                  color: Theme.of(context)
-                                      .colorScheme
-                                      .onSurfaceVariant,
-                                ),
-                            textAlign: TextAlign.center,
-                          ),
-                          const SizedBox(height: 40),
-
-                          // Feature cards
-                          _buildFeatureCard(
-                            context,
-                            icon: Icons.trending_down_rounded,
-                            title: 'Track Expenses',
-                            description: 'Monitor your spending with ease',
-                          ),
-                          const SizedBox(height: 12),
-                          _buildFeatureCard(
-                            context,
-                            icon: Icons.pie_chart_rounded,
-                            title: 'Set Budgets',
-                            description: 'Control your spending limits',
-                          ),
-                          const SizedBox(height: 12),
-                          _buildFeatureCard(
-                            context,
-                            icon: Icons.emoji_events_rounded,
-                            title: 'Achieve Goals',
-                            description: 'Work towards your financial goals',
-                          ),
-                          const SizedBox(height: 40),
-
-                          // Get started button
-                          SizedBox(
-                            width: double.infinity,
-                            height: 56,
-                            child: FilledButton(
-                              onPressed: () {
-                                Navigator.of(context).pushReplacement(
-                                  MaterialPageRoute(
-                                    builder: (context) => const HomeScreen(),
-                                  ),
-                                );
-                              },
-                              style: FilledButton.styleFrom(
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(14),
-                                ),
-                              ),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  const Text(
-                                    "Let's Get Started",
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  const Icon(Icons.arrow_forward_rounded),
-                                ],
-                              ),
-                            ),
-                          ),
+                          const SizedBox(width: 8),
+                          const Icon(Icons.arrow_forward_rounded),
                         ],
                       ),
                     ),
-                  ],
-                ),
-              );
-            },
-            loading: () => const Center(child: CircularProgressIndicator()),
-            error: (err, stack) {
-              return Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.error_outline_rounded,
-                      size: 64,
-                      color: Theme.of(context).colorScheme.error,
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Error loading user profile',
-                      style: Theme.of(context).textTheme.titleLarge,
-                    ),
-                    const SizedBox(height: 24),
-                    FilledButton(
-                      onPressed: () {
-                        ref.refresh(userProfileProvider);
-                      },
-                      child: const Text('Retry'),
-                    ),
-                  ],
-                ),
-              );
-            },
-          );
-        },
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, stack) => Center(
-          child: Text('Error: $err'),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildHeader(BuildContext context, String displayName) {
+  Widget _buildHeader(BuildContext context) {
     return Container(
       width: double.infinity,
       padding: EdgeInsets.only(
@@ -206,7 +159,7 @@ class WelcomePage extends ConsumerWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Icon(
+              const Icon(
                 Icons.account_balance_wallet_rounded,
                 color: Colors.white,
                 size: 32,
@@ -221,9 +174,9 @@ class WelcomePage extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: 20),
-          Text(
-            'Hello, $displayName',
-            style: const TextStyle(
+          const Text(
+            'Your Financial Journey Starts Here',
+            style: TextStyle(
               color: Colors.white70,
               fontSize: 14,
               fontWeight: FontWeight.w500,

@@ -15,10 +15,12 @@ import '../../widgets/notifications_sheet.dart';
 class DashboardStats {
   final List<ExpenseModel> recentExpenses;
   final double totalSpent;
+  final double projectedSpending;
 
   DashboardStats({
     required this.recentExpenses,
     required this.totalSpent,
+    required this.projectedSpending,
   });
 }
 
@@ -36,12 +38,17 @@ final dashboardStatsProvider = FutureProvider.autoDispose<DashboardStats>((ref) 
       (sum, e) => sum + e.amount,
     );
 
+    final daysElapsed = now.day;
+    final daysInMonth = DateTime(now.year, now.month + 1, 0).day;
+    final projectedSpending = (totalSpent / daysElapsed) * daysInMonth;
+
     final recentExpenses = [...currentMonthExpenses]
       ..sort((a, b) => b.date.compareTo(a.date));
 
     return DashboardStats(
       recentExpenses: recentExpenses,
       totalSpent: totalSpent,
+      projectedSpending: projectedSpending,
     );
   });
 });
@@ -72,7 +79,7 @@ class DashboardView extends ConsumerWidget {
             data: (stats) {
               return Column(
                 children: [
-                  _buildHeader(context, ref, totalLimit, stats.totalSpent),
+                  _buildHeader(context, ref, totalLimit, stats.totalSpent, stats.projectedSpending),
                   _buildQuickActions(context, ref),
                   Expanded(
                     child: SingleChildScrollView(
@@ -97,9 +104,13 @@ class DashboardView extends ConsumerWidget {
     WidgetRef ref,
     double limit,
     double spent,
+    double projected,
   ) {
     final remaining = limit - spent;
     final progress = limit > 0 ? (spent / limit).clamp(0.0, 1.0) : 0.0;
+    
+    final bool trendingOver = limit > 0 && projected > limit;
+    final Color projectedColor = trendingOver ? Colors.orangeAccent : Colors.greenAccent;
 
     return Container(
       padding: EdgeInsets.only(
@@ -188,6 +199,24 @@ class DashboardView extends ConsumerWidget {
               Text(
                 "RM ${remaining.toStringAsFixed(2)} remaining",
                 style: const TextStyle(color: Colors.white70, fontSize: 12),
+              ),
+              Row(
+                children: [
+                  Icon(
+                    trendingOver ? Icons.trending_up : Icons.trending_down,
+                    color: projectedColor,
+                    size: 14,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    "Projected: RM ${projected.toStringAsFixed(0)}",
+                    style: TextStyle(
+                      color: projectedColor,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
               ),
               GestureDetector(
                 onTap: () {
@@ -486,13 +515,21 @@ class DashboardView extends ConsumerWidget {
                     ],
                   ),
                 ),
-                Text(
-                  '-RM ${expense.amount.toStringAsFixed(2)}',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 15,
-                    color: colorScheme.error,
-                  ),
+                Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      '-RM ${expense.amount.toStringAsFixed(2)}',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                        color: colorScheme.error,
+                      ),
+                    ),
+                    if (expense.needsReview)
+                      const Icon(Icons.error_outline, color: Colors.orange, size: 16),
+                  ],
                 ),
                 const SizedBox(width: 4),
                 Icon(Icons.chevron_right, color: colorScheme.onSurfaceVariant, size: 20),

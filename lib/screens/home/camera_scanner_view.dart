@@ -338,6 +338,7 @@ class _CameraScannerViewState extends State<CameraScannerView>
           initialDate: parsed['date'],
           rawText: parsed['rawText'],
           showScanSuccessBanner: true,
+          needsReview: parsed['needsReview'] ?? false,
         ),
         transitionsBuilder: (_, animation, __, child) {
           return FadeTransition(opacity: animation, child: child);

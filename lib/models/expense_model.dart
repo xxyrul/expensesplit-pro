@@ -4,6 +4,7 @@ class ExpenseModel {
   final String vendor;
   final String category;
   final DateTime date;
+  final bool needsReview;
 
   ExpenseModel({
     this.id,
@@ -11,6 +12,7 @@ class ExpenseModel {
     required this.vendor,
     required this.category,
     required this.date,
+    this.needsReview = false,
   });
 
   // Convert to Map for Firestore
@@ -20,6 +22,7 @@ class ExpenseModel {
       'vendor': vendor,
       'category': category,
       'date': date.toIso8601String(),
+      'needsReview': needsReview,
     };
   }
 
@@ -31,6 +34,7 @@ class ExpenseModel {
       vendor: map['vendor'] ?? '',
       category: map['category'] ?? 'General',
       date: DateTime.parse(map['date']),
+      needsReview: map['needsReview'] ?? false,
     );
   }
 }
