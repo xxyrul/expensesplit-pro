@@ -22,7 +22,11 @@ service cloud.firestore {
     // 1. Standard rules for user folders
     match /users/{userId}/{document=**} {
       allow read: if (request.auth != null && request.auth.uid == userId) || isAdmin();
-      allow write: if request.auth != null && request.auth.uid == userId;
+      allow write: if (request.auth != null && request.auth.uid == userId) || isAdmin();
+    }
+    
+    match /audit_log/{docId} {
+      allow read, write: if isAdmin();
     }
     
     // 2. NEW: Explicit rules required for Collection Group Queries

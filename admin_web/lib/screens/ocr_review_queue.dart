@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 
 import '../services/audit_log_service.dart';
 import '../widgets/vendor_learn_dialog.dart';
+import '../providers/admin_action_notifier.dart';
 
 class OcrReviewQueueScreen extends ConsumerStatefulWidget {
   const OcrReviewQueueScreen({super.key});
@@ -85,6 +86,7 @@ class _OcrReviewQueueScreenState extends ConsumerState<OcrReviewQueueScreen> {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final loadingStates = ref.watch(adminActionProvider);
 
     return FutureBuilder<bool>(
       future: _isMaskingActive(),
@@ -132,19 +134,21 @@ class _OcrReviewQueueScreenState extends ConsumerState<OcrReviewQueueScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                'OCR Review Queue',
-                                style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                'Review and correct low-confidence OCR transcriptions. Feed adjustments back to the global learning dictionary.',
-                                style: TextStyle(color: colorScheme.onSurfaceVariant, fontSize: 16),
-                              ),
-                            ],
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'OCR Review Queue',
+                                  style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  'Review and correct low-confidence OCR transcriptions. Feed adjustments back to the global learning dictionary.',
+                                  style: TextStyle(color: colorScheme.onSurfaceVariant, fontSize: 16),
+                                ),
+                              ],
+                            ),
                           ),
                           ElevatedButton.icon(
                             onPressed: _loadUserCache,
@@ -229,7 +233,7 @@ class _OcrReviewQueueScreenState extends ConsumerState<OcrReviewQueueScreen> {
 
                                                 final user = _userCache[userId];
                                                 final userEmail = _maskEmail(user?['email'] ?? 'Unknown', isMasked);
-                                                final vendor = data['vendor']?.toString() ?? '';
+                                                final vendor = _getVendorName(data);
 
                                                 final systemSuggestedAmount =
                                                     (data['systemSuggestedAmount'] as num?)?.toDouble() ?? 0.0;
@@ -390,17 +394,26 @@ class _OcrReviewQueueScreenState extends ConsumerState<OcrReviewQueueScreen> {
                                                             ),
                                                             if (adminStatus == 'Pending') ...[
                                                               const SizedBox(width: 8),
-                                                              IconButton.filledTonal(
-                                                                icon: const Icon(Icons.check, color: Colors.green, size: 20),
-                                                                tooltip: 'Approve System Value',
-                                                                onPressed: () => _updateStatus(
-                                                                  userId,
-                                                                  docId,
-                                                                  'Approved',
-                                                                  systemSuggestedAmount,
-                                                                  userCorrectedAmount,
-                                                                ),
-                                                              ),
+                                                              loadingStates.contains(docId)
+                                                                  ? const SizedBox(
+                                                                      width: 32,
+                                                                      height: 32,
+                                                                      child: Padding(
+                                                                        padding: EdgeInsets.all(6.0),
+                                                                        child: CircularProgressIndicator(strokeWidth: 2),
+                                                                      ),
+                                                                    )
+                                                                  : IconButton.filledTonal(
+                                                                      icon: const Icon(Icons.check, color: Colors.green, size: 20),
+                                                                      tooltip: 'Approve System Value',
+                                                                      onPressed: () => ref.read(adminActionProvider.notifier).approveExpense(
+                                                                        context: context,
+                                                                        userId: userId,
+                                                                        docId: docId,
+                                                                        systemVal: systemSuggestedAmount,
+                                                                        userVal: userCorrectedAmount,
+                                                                      ),
+                                                                    ),
                                                               const SizedBox(width: 8),
                                                               IconButton.filledTonal(
                                                                 icon: const Icon(Icons.close, color: Colors.red, size: 20),
@@ -503,8 +516,7 @@ class _OcrReviewQueueScreenState extends ConsumerState<OcrReviewQueueScreen> {
 
                                                     final user = _userCache[userId];
                                                     final userEmail = _maskEmail(user?['email'] ?? 'Unknown', isMasked);
-                                                    debugPrint('Row data: $expenseData');
-                                                    final vendor = expenseData['vendor']?.toString() ?? 'Unknown';
+                                                    final vendor = _getVendorName(expenseData);
 
                                                     final systemSuggestedAmount =
                                                         (expenseData['systemSuggestedAmount'] as num?)?.toDouble() ?? 0.0;
@@ -556,7 +568,7 @@ class _OcrReviewQueueScreenState extends ConsumerState<OcrReviewQueueScreen> {
                                                           SizedBox(
                                                             width: vendorColumnWidth,
                                                             child: Text(
-                                                              '${expenseData['vendor'] ?? 'Unknown'}',
+                                                              vendor,
                                                               maxLines: 1,
                                                               overflow: TextOverflow.ellipsis,
                                                             ),
@@ -627,6 +639,7 @@ class _OcrReviewQueueScreenState extends ConsumerState<OcrReviewQueueScreen> {
                                                                 docId,
                                                                 expenseData,
                                                                 adminStatus,
+                                                                loadingStates,
                                                               ),
                                                             ),
                                                           ),
@@ -662,6 +675,7 @@ class _OcrReviewQueueScreenState extends ConsumerState<OcrReviewQueueScreen> {
     String docId,
     Map<String, dynamic> data,
     String adminStatus,
+    Set<String> loadingStates,
   ) {
     final rawText = data['rawText']?.toString() ?? '';
     final systemSuggestedAmount = (data['systemSuggestedAmount'] as num?)?.toDouble() ?? 0.0;
@@ -687,7 +701,13 @@ class _OcrReviewQueueScreenState extends ConsumerState<OcrReviewQueueScreen> {
             _showOcrReviewDialog(context, userId, docId, data);
             break;
           case 'approve':
-            _updateStatus(userId, docId, 'Approved', systemSuggestedAmount, userCorrectedAmount);
+            ref.read(adminActionProvider.notifier).approveExpense(
+              context: context,
+              userId: userId,
+              docId: docId,
+              systemVal: systemSuggestedAmount,
+              userVal: userCorrectedAmount,
+            );
             break;
           case 'reject':
             _updateStatus(userId, docId, 'Rejected', systemSuggestedAmount, userCorrectedAmount);
@@ -706,8 +726,14 @@ class _OcrReviewQueueScreenState extends ConsumerState<OcrReviewQueueScreen> {
       ],
       child: Row(
         mainAxisSize: MainAxisSize.min,
-        children: const [
-          Icon(Icons.more_vert),
+        children: [
+          loadingStates.contains(docId)
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Icon(Icons.more_vert),
         ],
       ),
     );
@@ -837,6 +863,35 @@ class _OcrReviewQueueScreenState extends ConsumerState<OcrReviewQueueScreen> {
           detail:
               'Marked OCR log as $status (SysSuggested: RM ${systemVal.toStringAsFixed(2)} | UserCorrected: RM ${userVal.toStringAsFixed(2)}).',
         );
+  }
+
+  String _getVendorName(Map<String, dynamic> data) {
+    final keys = ['vendor', 'merchant', 'store', 'name'];
+    for (final key in keys) {
+      final val = data[key]?.toString();
+      if (val != null && val.trim().isNotEmpty && val.trim().toLowerCase() != 'unknown' && val.trim().toLowerCase() != 'not specified') {
+        return val;
+      }
+    }
+    return _extractVendorFromRawText(data['rawText']?.toString() ?? '');
+  }
+
+  String _extractVendorFromRawText(String rawText) {
+    if (rawText.isEmpty) return 'Unknown';
+    final lines = rawText.split('\n').map((l) => l.trim()).where((l) => l.isNotEmpty).toList();
+    if (lines.isEmpty) return 'Unknown';
+    
+    // Ignore common receipt header words
+    final ignoreWords = ['invoice', 'receipt', 'tax invoice', 'order', 'welcome', 'amount', 'total', 'cash', 'visa', 'mastercard', 'date', 'time', 'qty', 'item'];
+    
+    // Scan the top 6 lines of the receipt for the first valid company name
+    for (final line in lines.take(6)) {
+      final lower = line.toLowerCase();
+      if (lower.length > 3 && !ignoreWords.any((w) => lower.contains(w))) {
+        return line;
+      }
+    }
+    return lines.first;
   }
 
   void _showLearnDialog(
