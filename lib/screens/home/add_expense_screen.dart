@@ -77,6 +77,10 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
       _selectedCategory = widget.initialCategory!;
     }
 
+    if (widget.capturedImagePath != null) {
+      _selectedReceiptImage = File(widget.capturedImagePath!);
+    }
+
     _checkSmartVendor();
 
     if (widget.showScanSuccessBanner) {
@@ -370,7 +374,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (!kIsWeb)
+            if (!kIsWeb && _selectedReceiptImage == null)
               const Padding(
                 padding: EdgeInsets.symmetric(horizontal: 40),
                 child: ScanReceiptButton(),
@@ -446,7 +450,6 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
   }
 
   Widget _buildHeader() {
-    final bool hasImage = widget.capturedImagePath != null;
     return Container(
       width: double.infinity,
       padding: EdgeInsets.only(
@@ -497,87 +500,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
             ],
           ),
           const SizedBox(height: 20),
-          if (hasImage)
-            GestureDetector(
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => _FullScreenImageViewer(
-                    imagePath: widget.capturedImagePath!,
-                  ),
-                ),
-              ),
-              child: Hero(
-                tag: 'receipt_image',
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(20),
-                  child: Stack(
-                    children: [
-                      Image.file(
-                        File(widget.capturedImagePath!),
-                        height: 140,
-                        width: double.infinity,
-                        fit: BoxFit.cover,
-                      ),
-                      Positioned(
-                        bottom: 8,
-                        right: 8,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.black.withOpacity(0.55),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: const Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                  Icons.zoom_out_map,
-                                  color: Colors.white,
-                                  size: 14,
-                                ),
-                              SizedBox(width: 4),
-                              Text(
-                                'Tap to expand',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 11,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            )
-          else
-            Container(
-              padding: const EdgeInsets.all(15),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.12),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: const Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.add_circle_outline, color: Colors.white),
-                  SizedBox(width: 10),
-                  Text(
-                    "Manual Entry Mode",
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-            ),
+
         ],
       ),
     );
