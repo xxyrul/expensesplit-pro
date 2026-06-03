@@ -681,14 +681,7 @@ class _OcrReviewQueueScreenState extends ConsumerState<OcrReviewQueueScreen> {
     final systemSuggestedAmount = (data['systemSuggestedAmount'] as num?)?.toDouble() ?? 0.0;
     final userCorrectedAmount = (data['userCorrectedAmount'] as num?)?.toDouble() ?? 0.0;
 
-    // If not pending, only show the raw text viewer
-    if (adminStatus != 'Pending') {
-      return IconButton(
-        icon: const Icon(Icons.text_snippet),
-        tooltip: 'Show Raw OCR text',
-        onPressed: () => _showRawTextDialog(context, rawText),
-      );
-    }
+    // Removed conditional adminStatus check, PopupMenu is always visible
 
     return PopupMenuButton<String>(
       tooltip: 'Actions',
@@ -698,7 +691,19 @@ class _OcrReviewQueueScreenState extends ConsumerState<OcrReviewQueueScreen> {
             _showRawTextDialog(context, rawText);
             break;
           case 'review':
-            _showOcrReviewDialog(context, userId, docId, data);
+            if (adminStatus == 'Approved' || adminStatus == 'Rejected') {
+              ref.read(adminActionProvider.notifier).revertToPending(
+                context: context,
+                userId: userId,
+                docId: docId,
+              ).then((_) {
+                if (context.mounted) {
+                  _showOcrReviewDialog(context, userId, docId, data);
+                }
+              });
+            } else {
+              _showOcrReviewDialog(context, userId, docId, data);
+            }
             break;
           case 'approve':
             ref.read(adminActionProvider.notifier).approveExpense(

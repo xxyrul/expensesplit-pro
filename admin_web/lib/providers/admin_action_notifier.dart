@@ -71,6 +71,57 @@ class AdminActionNotifier extends Notifier<Set<String>> {
       state = state.where((id) => id != docId).toSet();
     }
   }
+
+  Future<void> revertToPending({
+    required BuildContext context,
+    required String userId,
+    required String docId,
+  }) async {
+    state = {...state, docId};
+    try {
+      final firestore = FirebaseFirestore.instance;
+      
+      await firestore.collection('users').doc(userId).collection('ocr_logs').doc(docId).update({
+        'adminStatus': 'Pending',
+      });
+
+      await firestore.collection('audit_log').add({
+        'action': 're-evaluation',
+        'adminId': 'admin_id',
+        'timestamp': FieldValue.serverTimestamp(),
+        'docId': docId,
+        'details': 'Reverted OCR log to Pending for re-evaluation.',
+      });
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Row(
+              children: [
+                Icon(Icons.history, color: Colors.white),
+                SizedBox(width: 8),
+                Text('Record reverted to Pending for Re-evaluation.'),
+              ],
+            ),
+            backgroundColor: Colors.orange[800],
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Revert failed: $e'),
+            backgroundColor: Colors.red[800],
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } finally {
+      state = state.where((id) => id != docId).toSet();
+    }
+  }
 }
 
 final adminActionProvider = NotifierProvider<AdminActionNotifier, Set<String>>(() {
