@@ -1,18 +1,25 @@
 import 'package:flutter/material.dart';
-import '../../models/expense_model.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../providers/expense_providers.dart';
 import 'dart:ui';
 
-class AiAdvisorCard extends StatelessWidget {
-  final List<ExpenseModel> expenses;
-
-  const AiAdvisorCard({super.key, required this.expenses});
+class AiAdvisorCard extends ConsumerWidget {
+  const AiAdvisorCard({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    if (expenses.isEmpty) return const SizedBox.shrink();
+  Widget build(BuildContext context, WidgetRef ref) {
+    final trendData = ref.watch(monthlyTrendProvider(DateTime.now()));
+    
+    if (trendData.isEmpty) {
+      return _buildCard(context, "No spending data available yet.");
+    }
+    
+    final totalSpent = trendData.values.fold(0.0, (a, b) => a + b);
+    
+    return _buildCard(context, "You have spent RM ${totalSpent.toStringAsFixed(0)} this month.");
+  }
 
-    String advice = _generateAdvice(expenses);
-
+  Widget _buildCard(BuildContext context, String text) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
       child: ClipRRect(
@@ -62,7 +69,7 @@ class AiAdvisorCard extends StatelessWidget {
                       ),
                       const SizedBox(height: 6),
                       Text(
-                        advice,
+                        text,
                         style: TextStyle(
                           fontSize: 14,
                           color: Theme.of(context).brightness == Brightness.dark ? Colors.white70 : Colors.black87,
@@ -79,33 +86,5 @@ class AiAdvisorCard extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  String _generateAdvice(List<ExpenseModel> expenses) {
-    final catTotals = <String, double>{};
-    for (var e in expenses) {
-      catTotals[e.category] = (catTotals[e.category] ?? 0) + e.amount;
-    }
-    String topCat = "General";
-    double maxCatSpend = 0;
-    
-    catTotals.forEach((c, amt) {
-      if (amt > maxCatSpend) {
-        maxCatSpend = amt;
-        topCat = c;
-      }
-    });
-
-    if (topCat == "Food") {
-      return "You spent RM ${maxCatSpend.toStringAsFixed(0)} on Food! Consider meal prepping this week to save an easy RM 150.";
-    } else if (topCat == "Transport") {
-      return "High transport costs (RM ${maxCatSpend.toStringAsFixed(0)}). A monthly transit pass might be cheaper depending on your routes.";
-    } else if (topCat == "Entertainment") {
-      return "Having fun is great, but Entertainment took the #1 spot at RM ${maxCatSpend.toStringAsFixed(0)}. Watch your budget!";
-    } else if (topCat == "Shopping") {
-      return "RM ${maxCatSpend.toStringAsFixed(0)} on Shopping! Try waiting 48 hours before your next non-essential purchase.";
-    } else {
-      return "Your biggest expense area is $topCat at RM ${maxCatSpend.toStringAsFixed(0)}. Keep tracking your receipts to find savings!";
-    }
   }
 }

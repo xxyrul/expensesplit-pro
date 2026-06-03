@@ -30,16 +30,20 @@ class AuthWrapper extends ConsumerWidget {
           child: SlideTransition(position: slide, child: child),
         );
       },
-      child: userAsync.when(
-        data: (user) {
-          if (user == null) {
-            return const LoginScreen(key: ValueKey('login'));
-          }
-          return const HomeScreen(key: ValueKey('home'));
-        },
-        loading: () => const LoadingScreen(key: ValueKey('loading')),
-        error: (err, stack) => const LoginScreen(key: ValueKey('login-error')),
-      ),
+      child: userAsync.isLoading
+          ? const LoadingScreen(key: ValueKey('loading'))
+          : userAsync.when(
+              skipLoadingOnReload: true,
+              data: (user) {
+                if (user == null) {
+                  return const LoginScreen(key: ValueKey('login'));
+                }
+                return const HomeScreen(key: ValueKey('home'));
+              },
+              loading: () => const LoadingScreen(key: ValueKey('loading')),
+              error: (err, stack) =>
+                  const LoginScreen(key: ValueKey('login-error')),
+            ),
     );
   }
 }
@@ -83,7 +87,12 @@ class LoadingScreen extends StatelessWidget {
                       ),
                     ],
                   ),
-                  child: Image.asset('assets/app_logo.png'),
+                  child: Center(
+                    child: Image.asset(
+                      'assets/app_logo.png',
+                      fit: BoxFit.contain,
+                    ),
+                  ),
                 ),
                 const SizedBox(height: 22),
                 const Text(

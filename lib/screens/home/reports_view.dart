@@ -115,7 +115,7 @@ class _ReportsViewState extends ConsumerState<ReportsView> {
                         },
                       ),
                       const SizedBox(height: 15),
-                      AiAdvisorCard(expenses: filtered),
+                      const AiAdvisorCard(),
                       const SizedBox(height: 40),
                     ],
                   ),
