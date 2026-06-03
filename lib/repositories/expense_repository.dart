@@ -73,5 +73,25 @@ class ExpenseRepository {
         .get();
   }
 
+  Future<List<ExpenseModel>> getExpensesByDateRange(DateTime start, DateTime end) async {
+    final uid = currentUserId;
+    if (uid == null) return [];
+
+    final startTimestamp = Timestamp.fromDate(start);
+    // Include the entire end day
+    final endTimestamp = Timestamp.fromDate(DateTime(end.year, end.month, end.day, 23, 59, 59));
+
+    final snapshot = await _db
+        .collection('users')
+        .doc(uid)
+        .collection('expenses')
+        .where('timestamp', isGreaterThanOrEqualTo: startTimestamp)
+        .where('timestamp', isLessThanOrEqualTo: endTimestamp)
+        .orderBy('timestamp', descending: true)
+        .get();
+
+    return snapshot.docs.map((doc) => ExpenseModel.fromMap(doc.id, doc.data())).toList();
+  }
+
   WriteBatch batch() => _db.batch();
 }

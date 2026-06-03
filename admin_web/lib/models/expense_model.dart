@@ -26,8 +26,8 @@ class ExpenseModel {
     return ExpenseModel(
       id: id,
       amount: (map['amount'] as num).toDouble(),
-      vendor: map['vendor'] ?? '',
-      category: map['category'] ?? 'General',
+      vendor: map['vendor']?.toString() ?? map['merchant']?.toString() ?? map['store']?.toString() ?? 'Not Specified',
+      category: map['category']?.toString() ?? 'General',
       date: DateTime.parse(map['date']),
     );
   }

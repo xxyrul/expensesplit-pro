@@ -5,12 +5,14 @@ class UserModel {
   final String name; // You can keep this as a fallback if needed
   final String displayName; // This is the field your UI is looking for
   final String email;
+  final double? monthlyBudget;
 
   UserModel({
     required this.id, 
     required this.name, 
     required this.email,
     required this.displayName,
+    this.monthlyBudget,
   });
 
   // Factory constructor for creating a UserModel from a Firestore document
@@ -28,6 +30,7 @@ class UserModel {
       email: data['email'] ?? '',
       // This is what the UI wants
       displayName: data['displayName'] ?? data['name'] ?? 'User',
+      monthlyBudget: data['monthlyBudget']?.toDouble(),
     );
   }
 
@@ -38,6 +41,7 @@ class UserModel {
       "name": name,
       "displayName": displayName,
       "email": email,
+      "monthlyBudget": monthlyBudget,
       "createdAt": FieldValue.serverTimestamp(),
     };
   }

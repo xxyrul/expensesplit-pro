@@ -1,48 +1,93 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/expense_providers.dart';
+import '../../providers/budget_providers.dart';
 import 'dart:ui';
 
 class AiAdvisorCard extends ConsumerWidget {
   const AiAdvisorCard({super.key});
 
-  String _generateInsight(double totalSpent) {
-    if (totalSpent < 100) {
-      return "You're off to a great start! Your spending is very low this month. Keep it up!";
-    } else if (totalSpent <= 500) {
-      return "You're on track. A moderate pace keeps you safely within budget.";
-    } else {
-      return "Spending is getting high. Consider pausing non-essential purchases for a bit!";
-    }
-  }
-
-  Color _getProgressColor(double progress) {
-    if (progress < 0.5) return Colors.greenAccent;
-    if (progress < 0.8) return Colors.amber;
-    return Colors.redAccent;
+  String _generateInsight(double totalSpent, double targetBudget) {
+    if (totalSpent == 0) return "Start tracking your first expense to get tips!";
+    if (totalSpent < targetBudget * 0.5) return "Great job! You've spent less than half your budget. Keep saving!";
+    if (totalSpent <= targetBudget * 0.9) return "You're getting close to your limit. Time to cut back on non-essentials.";
+    if (totalSpent <= targetBudget) return "Warning! You are right at your budget limit. Freeze spending if possible.";
+    return "You've exceeded your budget this month! Let's plan better for next month.";
   }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final trendData = ref.watch(monthlyTrendProvider(DateTime.now()));
+    final budgetsAsync = ref.watch(budgetsStreamProvider);
+    
+    final targetBudget = budgetsAsync.maybeWhen(
+      data: (budgets) => (budgets['Total'] != null && budgets['Total']! > 0) ? budgets['Total']! : 1000.0,
+      orElse: () => 1000.0,
+    );
+    
+    final isDefaultBudget = budgetsAsync.maybeWhen(
+      data: (budgets) => (budgets['Total'] == null || budgets['Total'] == 0),
+      orElse: () => true,
+    );
+
     final totalSpent = trendData.isEmpty ? 0.0 : trendData.values.fold(0.0, (a, b) => a + b);
-    final targetBudget = 1000.0;
     
     if (totalSpent == 0.0) {
-      return _buildCard(context, "Start tracking your first expense!", totalSpent, targetBudget, isEmpty: true);
+      return _buildCard(
+        context, 
+        Text(
+          "Start tracking your first expense!",
+          style: TextStyle(
+            fontSize: 14,
+            color: Theme.of(context).brightness == Brightness.dark ? Colors.white70 : Colors.black87,
+            height: 1.4,
+            fontWeight: FontWeight.w500,
+          ),
+        ), 
+        totalSpent, 
+        targetBudget, 
+        isDefaultBudget, 
+        isEmpty: true
+      );
     }
+    
+    final localAdvice = _generateInsight(totalSpent, targetBudget);
     
     return _buildCard(
       context, 
-      "You have spent RM ${totalSpent.toStringAsFixed(0)} this month.\n\n${_generateInsight(totalSpent)}", 
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            "You have used RM ${totalSpent.toStringAsFixed(0)} of your RM ${targetBudget.toStringAsFixed(0)} monthly limit.\n",
+            style: TextStyle(
+              fontSize: 14,
+              color: Theme.of(context).brightness == Brightness.dark ? Colors.white70 : Colors.black87,
+              height: 1.4,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          Text(
+            localAdvice,
+            style: TextStyle(
+              fontSize: 14,
+              color: Theme.of(context).brightness == Brightness.dark ? Colors.white70 : Colors.black87,
+              height: 1.4,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ), 
       totalSpent, 
       targetBudget,
+      isDefaultBudget,
       isEmpty: false,
     );
   }
 
-  Widget _buildCard(BuildContext context, String text, double totalSpent, double targetBudget, {bool isEmpty = false}) {
+  Widget _buildCard(BuildContext context, Widget contentWidget, double totalSpent, double targetBudget, bool isDefaultBudget, {bool isEmpty = false}) {
     final progress = (totalSpent / targetBudget).clamp(0.0, 1.0);
+    final progressColor = totalSpent <= targetBudget ? Colors.green : Colors.red;
     
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
@@ -92,15 +137,18 @@ class AiAdvisorCard extends ConsumerWidget {
                         ),
                       ),
                       const SizedBox(height: 8),
-                      Text(
-                        text,
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Theme.of(context).brightness == Brightness.dark ? Colors.white70 : Colors.black87,
-                          height: 1.4,
-                          fontWeight: FontWeight.w500,
+                      contentWidget,
+                      if (isDefaultBudget) ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          "Set your budget in Profile to track goals.",
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontStyle: FontStyle.italic,
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
                         ),
-                      ),
+                      ],
                       if (!isEmpty) ...[
                         const SizedBox(height: 15),
                         ClipRRect(
@@ -109,7 +157,7 @@ class AiAdvisorCard extends ConsumerWidget {
                             value: progress,
                             minHeight: 8,
                             backgroundColor: Theme.of(context).colorScheme.outlineVariant.withOpacity(0.3),
-                            valueColor: AlwaysStoppedAnimation<Color>(_getProgressColor(progress)),
+                            valueColor: AlwaysStoppedAnimation<Color>(progressColor),
                           ),
                         ),
                         const SizedBox(height: 4),

@@ -12,6 +12,7 @@ import '../../providers/export_providers.dart';
 import '../../widgets/insights_carousel.dart';
 import '../../widgets/ai_advisor_card.dart';
 import '../../widgets/modern_bottom_toast.dart';
+import '../report_generator_screen.dart';
 
 class ReportsView extends ConsumerStatefulWidget {
   final VoidCallback? onBack;
@@ -183,34 +184,12 @@ class _ReportsViewState extends ConsumerState<ReportsView> {
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: IconButton(
-                  icon: const Icon(Icons.download_rounded, color: Colors.white, size: 20),
-                  onPressed: () async {
-                    if (filtered.isEmpty) {
-                      ModernBottomToast.show(
-                        context,
-                        message: 'No expenses available to export for $_selectedMonth.',
-                        type: ModernToastType.warning,
-                      );
-                      return;
-                    }
-                    ModernBottomToast.show(
+                  icon: const Icon(Icons.picture_as_pdf_rounded, color: Colors.white, size: 20),
+                  onPressed: () {
+                    Navigator.push(
                       context,
-                      message: 'Generating CSV Report...',
-                      type: ModernToastType.info,
+                      MaterialPageRoute(builder: (context) => const ReportGeneratorScreen()),
                     );
-                    try {
-                      final exportService = ref.read(exportServiceProvider);
-                      await exportService.exportExpensesToCsv(
-                        filtered,
-                        _selectedMonth,
-                      );
-                    } catch (e) {
-                      ModernBottomToast.show(
-                        context,
-                        message: 'Error sharing report: $e',
-                        type: ModernToastType.error,
-                      );
-                    }
                   },
                 ),
               ),

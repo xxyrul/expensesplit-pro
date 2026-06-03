@@ -30,7 +30,7 @@ android {
         applicationId = "com.example.expensesplit_pro"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion
+        minSdk = 26
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
@@ -53,6 +53,9 @@ dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
     // Material 3 dynamic colors (Android 12+ / 16 system wallpaper palette)
     implementation("com.google.android.material:material:1.12.0")
+    // AICore / Gemini Nano ML Kit
+    implementation("com.google.mlkit:genai-prompt:1.0.0-beta1")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
 }
 flutter {
     source = "../.."
