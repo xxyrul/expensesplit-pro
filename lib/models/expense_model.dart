@@ -5,6 +5,7 @@ class ExpenseModel {
   final String category;
   final DateTime date;
   final bool needsReview;
+  final String? receiptImageUrl;
 
   ExpenseModel({
     this.id,
@@ -13,6 +14,7 @@ class ExpenseModel {
     required this.category,
     required this.date,
     this.needsReview = false,
+    this.receiptImageUrl,
   });
 
   // Convert to Map for Firestore
@@ -23,6 +25,7 @@ class ExpenseModel {
       'category': category,
       'date': date.toIso8601String(),
       'needsReview': needsReview,
+      if (receiptImageUrl != null) 'receiptImageUrl': receiptImageUrl,
     };
   }
 
@@ -31,10 +34,11 @@ class ExpenseModel {
     return ExpenseModel(
       id: id,
       amount: (map['amount'] as num).toDouble(),
-      vendor: map['vendor'] ?? '',
+      vendor: map['vendor'] ?? map['merchant'] ?? map['store'] ?? map['name'] ?? 'Not Specified',
       category: map['category'] ?? 'General',
       date: DateTime.parse(map['date']),
       needsReview: map['needsReview'] ?? false,
+      receiptImageUrl: map['receiptImageUrl'] as String?,
     );
   }
 }

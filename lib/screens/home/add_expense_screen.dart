@@ -9,7 +9,11 @@ import '../../providers/expense_providers.dart';
 import '../../services/vendor_intelligence_service.dart';
 import '../../widgets/scan_receipt_button.dart';
 import '../../utils/category_styles.dart';
-import '../../widgets/modern_bottom_toast.dart';
+import '../utils/modern_bottom_toast.dart';
+import '../widgets/receipt_picker_widget.dart';
+import '../../services/receipt_upload_service.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../theme/brand_theme.dart';
 
 class AddExpenseScreen extends ConsumerStatefulWidget {
@@ -47,6 +51,11 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
   DateTime _selectedDate = DateTime.now();
   bool _isAiCategory = false;
   bool _isSaving = false;
+  
+  File? _selectedReceiptImage;
+  bool _isUploadingReceipt = false;
+  String? _uploadedReceiptUrl;
+  final ReceiptUploadService _receiptUploadService = ReceiptUploadService();
 
   @override
   void initState() {
@@ -162,16 +171,25 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
       return;
     }
 
-    final newExpense = ExpenseModel(
-      amount: enteredAmount,
-      vendor: enteredVendor,
-      category: _selectedCategory,
-      date: _selectedDate,
-      needsReview: widget.needsReview,
-    );
-
     setState(() => _isSaving = true);
+    
     try {
+      if (_selectedReceiptImage != null && _uploadedReceiptUrl == null) {
+        setState(() => _isUploadingReceipt = true);
+        final userId = FirebaseAuth.instance.currentUser?.uid ?? 'unknown_user';
+        _uploadedReceiptUrl = await _receiptUploadService.uploadReceipt(userId, _selectedReceiptImage!, context);
+        setState(() => _isUploadingReceipt = false);
+      }
+
+      final newExpense = ExpenseModel(
+        amount: enteredAmount,
+        vendor: enteredVendor,
+        category: _selectedCategory,
+        date: _selectedDate,
+        needsReview: widget.needsReview,
+        receiptImageUrl: _uploadedReceiptUrl,
+      );
+
       final svc = ref.read(expenseServiceProvider);
       if (widget.expenseIdToEdit != null) {
         // Edit mode
@@ -358,6 +376,29 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                 child: ScanReceiptButton(),
               ),
             const SizedBox(height: 12),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: ReceiptPickerWidget(
+                selectedImage: _selectedReceiptImage,
+                isUploading: _isUploadingReceipt,
+                onPickImage: (source) async {
+                  final file = await _receiptUploadService.pickImage(source, context);
+                  if (file != null) {
+                    setState(() {
+                      _selectedReceiptImage = file;
+                      _uploadedReceiptUrl = null; // reset if they pick a new image
+                    });
+                  }
+                },
+                onRemoveImage: () {
+                  setState(() {
+                    _selectedReceiptImage = null;
+                    _uploadedReceiptUrl = null;
+                  });
+                },
+              ),
+            ),
+            const SizedBox(height: 24),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 40),
               child: _buildGradientSaveButton(),
