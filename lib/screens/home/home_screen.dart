@@ -2,16 +2,12 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/auth_service.dart';
 import 'dashboard_view.dart';
 import 'add_expense_screen.dart';
-import '../../utils/receipt_processing_ui.dart';
-import 'budget_view.dart';
-import 'settings_view.dart';
 import 'expenses_view.dart';
-import 'reports_view.dart';
+import 'settings_view.dart';
+import '../goals/financial_goals_view.dart';
 import '../../services/budget_alert_provider.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
@@ -30,12 +26,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     super.initState();
   }
 
-  @override
-  void dispose() {
-    super.dispose();
-  }
-
-  // We use a getter for screens so it can access 'setState'
   List<Widget> get _screens => [
     DashboardView(
       onSettingsPressed: () {
@@ -69,28 +59,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       },
     ),
     const AddExpenseScreen(),
-    BudgetView(
-      onBack: () {
-        setState(() => _selectedIndex = 0); // Back to Dashboard
-      },
-    ),
+    const FinancialGoalsView(),
     SettingsView(
       onBack: () {
-        setState(() => _selectedIndex = 0); // Back to Dashboard
-      },
-    ),
-    ReportsView(
-      onBack: () {
-        setState(() => _selectedIndex = 0); // Back to Dashboard
+        setState(() => _selectedIndex = 0);
       },
     ),
   ];
 
   @override
   Widget build(BuildContext context) {
-    // Keep the budget alert listener alive while HomeScreen is mounted.
     ref.watch(budgetAlertListenerProvider);
-    final currentScreen = _screens[_selectedIndex];
 
     return PopScope(
       canPop: _selectedIndex == 0,
@@ -102,149 +81,92 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         });
       },
       child: Scaffold(
-      backgroundColor: Theme.of(context).colorScheme.surface,
-      extendBody: true,
-      body: Stack(
-        children: [
-          Positioned.fill(
-            child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 240),
-              switchInCurve: Curves.easeOutCubic,
-              switchOutCurve: Curves.easeInCubic,
-              transitionBuilder: (child, animation) {
-                final slide = Tween<Offset>(
-                  begin: const Offset(0.04, 0.02),
-                  end: Offset.zero,
-                ).animate(animation);
-                return FadeTransition(
-                  opacity: animation,
-                  child: SlideTransition(position: slide, child: child),
-                );
-              },
-              child: Stack(
-                key: ValueKey(_selectedIndex),
-                children: [
-                  Positioned(
-                    top: -120,
-                    right: -70,
-                    child: _ambientCircle(
-                      size: 250,
-                      color: Theme.of(context).colorScheme.primary.withOpacity(0.12),
-                    ),
-                  ),
-                  Positioned(
-                    bottom: -80,
-                    left: -90,
-                    child: _ambientCircle(
-                      size: 220,
-                      color: Theme.of(context).colorScheme.secondary.withOpacity(0.10),
-                    ),
-                  ),
-                  currentScreen,
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-
-      bottomNavigationBar: _selectedIndex == 4
-          ? null
-          : SafeArea(
-              minimum: const EdgeInsets.only(left: 36, right: 36, bottom: 14),
-              child: Container(
-                height: 72,
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.surfaceContainer.withOpacity(0.96),
-                  borderRadius: BorderRadius.circular(999),
-                  border: Border.all(
-                    color: Theme.of(context).colorScheme.outlineVariant.withOpacity(0.6),
-                    width: 1.5,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.16),
-                      blurRadius: 28,
-                      offset: const Offset(0, 8),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Expanded(child: _buildNavItem(Icons.home_rounded, "Home", 0)),
-                    Expanded(
-                      child: _buildNavItem(
-                        Icons.account_balance_wallet_outlined,
-                        "Expenses",
-                        1,
-                      ),
-                    ),
-                    Expanded(
-                      child: _buildNavItem(
-                        Icons.pie_chart_outline_rounded,
-                        "Budget",
-                        3,
-                      ),
-                    ),
-                    Expanded(
-                      child: _buildNavItem(Icons.bar_chart_rounded, "Reports", 5),
-                    ),
-                  ],
-                ),
-              ),
-            ),
+        backgroundColor: Theme.of(context).colorScheme.surface,
+        body: IndexedStack(
+          index: _selectedIndex,
+          children: _screens,
+        ),
+        bottomNavigationBar: _selectedIndex == 2 
+            ? null 
+            : _buildStitchBottomNav(),
       ),
     );
   }
 
-  Widget _ambientCircle({required double size, required Color color}) {
-    return IgnorePointer(
-      child: Container(
-        height: size,
-        width: size,
-        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+  Widget _buildStitchBottomNav() {
+    final colorScheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Container(
+      padding: EdgeInsets.only(
+        left: 16,
+        right: 16,
+        bottom: MediaQuery.of(context).padding.bottom + 12,
+        top: 12,
+      ),
+      decoration: BoxDecoration(
+        color: isDark ? colorScheme.surfaceContainerHighest : Colors.white,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0057C3).withOpacity(0.06),
+            blurRadius: 30,
+            offset: const Offset(0, -10),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          _buildNavItem(Icons.home_rounded, "Home", 0),
+          _buildNavItem(Icons.receipt_long_rounded, "History", 1),
+          _buildNavItem(Icons.add_circle_outline_rounded, "Add", 2),
+          _buildNavItem(Icons.track_changes_rounded, "Goals", 3),
+          _buildNavItem(Icons.person_outline_rounded, "Profile", 4),
+        ],
       ),
     );
   }
 
   Widget _buildNavItem(IconData icon, String label, int index) {
     final bool isSelected = _selectedIndex == index;
+    final colorScheme = Theme.of(context).colorScheme;
+    
     return GestureDetector(
-      onTap: () => setState(() => _selectedIndex = index),
+      onTap: () {
+        // If "Add" is tapped, we push it to keep the bottom nav hidden naturally
+        if (index == 2) {
+           Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const AddExpenseScreen()),
+          );
+        } else {
+           setState(() => _selectedIndex = index);
+        }
+      },
+      behavior: HitTestBehavior.opaque,
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 220),
-        curve: Curves.easeOut,
-        margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 6),
-        padding: const EdgeInsets.symmetric(vertical: 4),
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFFE8F0FE) : Colors.transparent, // Soft blue pill
           borderRadius: BorderRadius.circular(999),
-          color: isSelected 
-              ? Theme.of(context).colorScheme.onSurface.withOpacity(0.08) 
-              : Colors.transparent,
         ),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
               icon,
-              color: isSelected
-                  ? Theme.of(context).colorScheme.onSurface
-                  : Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.7),
-              size: 21,
+              color: isSelected ? const Color(0xFF0057C3) : colorScheme.outline,
+              size: 24,
             ),
-            const SizedBox(height: 3),
+            const SizedBox(height: 4),
             Text(
               label,
               style: TextStyle(
-                fontSize: 10,
-                color: isSelected
-                    ? Theme.of(context).colorScheme.onSurface
-                    : Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.7),
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                letterSpacing: 0.05,
+                fontSize: 12,
+                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                color: isSelected ? const Color(0xFF0057C3) : colorScheme.outline,
               ),
             ),
           ],

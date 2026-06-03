@@ -30,19 +30,23 @@ abstract final class ExpressiveTheme {
   );
 
   static final ColorScheme _lightScheme = const ColorScheme.light(
-    primary: Color(0xFF0D9488), // Teal primary
+    primary: Color(0xFF0057C3),
     onPrimary: Colors.white,
-    secondary: Color(0xFF7C3AED), // Muted violet support
+    secondary: Color(0xFF006D36),
     onSecondary: Colors.white,
-    surface: Color(0xFFF8FAFC), // Off-white light mode background
-    onSurface: Color(0xFF0F172A), // Dark slate text
-    surfaceContainer: Colors.white,
-    surfaceContainerHigh: Color(0xFFF1F5F9),
-    surfaceContainerHighest: Color(0xFFE2E8F0),
-    onSurfaceVariant: Color(0xFF64748B), // Slate gray text
-    outline: Color(0xFF94A3B8),
-    outlineVariant: Color(0xFFE2E8F0), // Soft light borders
-    error: Color(0xFFEF4444),
+    tertiary: Color(0xFF7D5400),
+    onTertiary: Colors.white,
+    surface: Color(0xFFFAF9F5),
+    onSurface: Color(0xFF1B1C1A),
+    surfaceContainerLowest: Colors.white,
+    surfaceContainerLow: Color(0xFFF4F4F0),
+    surfaceContainer: Color(0xFFEFEEEA),
+    surfaceContainerHigh: Color(0xFFE9E8E4),
+    surfaceContainerHighest: Color(0xFFE3E2DF),
+    onSurfaceVariant: Color(0xFF424754),
+    outline: Color(0xFF727786),
+    outlineVariant: Color(0xFFC2C6D7),
+    error: Color(0xFFBA1A1A),
     onError: Colors.white,
   );
 
