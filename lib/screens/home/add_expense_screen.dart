@@ -9,7 +9,7 @@ import '../../providers/expense_providers.dart';
 import '../../services/vendor_intelligence_service.dart';
 import '../../widgets/scan_receipt_button.dart';
 import '../../utils/category_styles.dart';
-import '../../utils/modern_bottom_toast.dart';
+import '../../widgets/modern_bottom_toast.dart';
 import '../../widgets/receipt_picker_widget.dart';
 import '../../services/receipt_upload_service.dart';
 import 'package:image_picker/image_picker.dart';
