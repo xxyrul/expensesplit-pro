@@ -141,7 +141,7 @@ class _CameraScannerViewState extends State<CameraScannerView>
 
       _controller = CameraController(
         backCamera,
-        ResolutionPreset.high,
+        ResolutionPreset.medium,
         enableAudio: false,
         imageFormatGroup: !kIsWeb && Platform.isIOS
             ? ImageFormatGroup.bgra8888
@@ -324,14 +324,22 @@ class _CameraScannerViewState extends State<CameraScannerView>
   }
 
   Future<void> _navigateToConfirm(XFile imageFile) async {
-    // Parse synchronously so we can pass pre-filled data.
-    final inputImage = InputImage.fromFilePath(imageFile.path);
-    final recognized = await _textRecognizer.processImage(inputImage);
-    final parsed = ReceiptScannerService.parseReceiptText(
-      ReceiptScannerService.formatRecognizedText(recognized),
+    // Show loading while cloud function runs
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(child: CircularProgressIndicator()),
     );
 
+    final inputImage = InputImage.fromFilePath(imageFile.path);
+    final recognized = await _textRecognizer.processImage(inputImage);
+    final rawText = ReceiptScannerService.formatRecognizedText(recognized);
+    
+    final parsed = await ReceiptScannerService.analyzeTextWithAI(rawText);
+
     if (!mounted) return;
+    Navigator.of(context).pop(); // dismiss loading
 
     await Navigator.push(
       context,
@@ -339,12 +347,12 @@ class _CameraScannerViewState extends State<CameraScannerView>
         transitionDuration: const Duration(milliseconds: 500),
         pageBuilder: (_, __, ___) => AddExpenseScreen(
           capturedImagePath: imageFile.path,
-          initialAmount: parsed['amount'],
-          initialVendor: parsed['vendor'],
-          initialDate: parsed['date'],
-          rawText: parsed['rawText'],
+          initialAmount: parsed?['amount'],
+          initialVendor: parsed?['vendor'],
+          initialDate: parsed?['date'],
+          rawText: parsed?['rawText'],
           showScanSuccessBanner: true,
-          needsReview: parsed['needsReview'] ?? false,
+          needsReview: parsed?['needsReview'] ?? false,
         ),
         transitionsBuilder: (_, animation, __, child) {
           return FadeTransition(opacity: animation, child: child);
@@ -411,6 +419,8 @@ class _CameraScannerViewState extends State<CameraScannerView>
     final XFile? file = await picker.pickImage(
       source: ImageSource.gallery,
       imageQuality: 85,
+      maxWidth: 1920,
+      maxHeight: 1920,
     );
     if (file == null || !mounted) {
       // Restart stream if user cancelled

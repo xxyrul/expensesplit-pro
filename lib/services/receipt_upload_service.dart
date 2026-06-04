@@ -47,8 +47,15 @@ class ReceiptUploadService {
       final UploadTask uploadTask = ref.putFile(imageFile, metadata);
       final TaskSnapshot snapshot = await uploadTask;
       
-      final String downloadUrl = await snapshot.ref.getDownloadURL();
-      return downloadUrl;
+      try {
+        final String downloadUrl = await snapshot.ref.getDownloadURL();
+        return downloadUrl;
+      } on FirebaseException catch (e) {
+        if (e.code == 'object-not-found') {
+          throw Exception('File uploaded, but read access was denied. Please update Firebase Storage rules to allow read access.');
+        }
+        rethrow;
+      }
 
     } catch (e) {
       if (context.mounted) {

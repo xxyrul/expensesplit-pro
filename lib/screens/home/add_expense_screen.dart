@@ -10,10 +10,10 @@ import '../../services/vendor_intelligence_service.dart';
 import '../../widgets/scan_receipt_button.dart';
 import '../../utils/category_styles.dart';
 import '../../widgets/modern_bottom_toast.dart';
-import '../../widgets/receipt_picker_widget.dart';
 import '../../services/receipt_upload_service.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:camera/camera.dart';
 import '../../theme/brand_theme.dart';
 
 class AddExpenseScreen extends ConsumerStatefulWidget {
@@ -57,6 +57,10 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
   String? _uploadedReceiptUrl;
   final ReceiptUploadService _receiptUploadService = ReceiptUploadService();
 
+  CameraController? _cameraController;
+  Future<void>? _initializeControllerFuture;
+  bool _isCameraReady = false;
+
   @override
   void initState() {
     super.initState();
@@ -94,6 +98,30 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
         }
       });
     }
+
+    _initializeCamera();
+  }
+
+  Future<void> _initializeCamera() async {
+    try {
+      final cameras = await availableCameras();
+      if (cameras.isEmpty) return;
+      final firstCamera = cameras.first;
+      _cameraController = CameraController(
+        firstCamera,
+        ResolutionPreset.medium,
+        enableAudio: false,
+      );
+      _initializeControllerFuture = _cameraController!.initialize();
+      await _initializeControllerFuture;
+      if (mounted) {
+        setState(() {
+          _isCameraReady = true;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error initializing camera: $e');
+    }
   }
 
   Future<void> _checkSmartVendor() async {
@@ -116,6 +144,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
   void dispose() {
     _amountController.dispose();
     _vendorController.dispose();
+    _cameraController?.dispose();
     super.dispose();
   }
 
@@ -256,404 +285,520 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Scaffold(
-      backgroundColor: isDark
+    
+    final bgColor = isDark
           ? Theme.of(context).scaffoldBackgroundColor
-          : const Color(0xFFF3F7F8),
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            _buildHeader(),
-            const SizedBox(height: 20),
-            _buildInputCard(
-              label: "Amount",
-              child: Row(
-                children: [
-                  Text(
-                    "RM ",
-                    style: TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                      color: isDark ? Colors.white70 : const Color(0xFF475569),
-                    ),
-                  ),
-                  Expanded(
-                    child: TextField(
-                      controller: _amountController,
-                      keyboardType: TextInputType.number,
-                      style: const TextStyle(
-                        fontSize: 40,
-                        fontWeight: FontWeight.bold,
+          : const Color(0xFFF3F7F8);
+    final sheetColor = isDark
+          ? Theme.of(context).colorScheme.surfaceContainerHighest ?? const Color(0xFF1E293B)
+          : Colors.white;
+    final textColor = isDark ? Colors.white : const Color(0xFF1E293B);
+    final subTextColor = isDark ? Colors.white54 : Colors.black54;
+
+    return Scaffold(
+      backgroundColor: bgColor,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: Icon(Icons.close_rounded, color: textColor),
+          onPressed: () {
+            if (Navigator.canPop(context)) {
+              Navigator.pop(context);
+            } else {
+              Navigator.of(context).pushReplacementNamed('/');
+            }
+          },
+        ),
+        centerTitle: true,
+        title: Text(
+          widget.expenseIdToEdit != null ? "Edit Expense" : "Add Expense",
+          style: TextStyle(
+            color: textColor,
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              setState(() {
+                _amountController.clear();
+                _vendorController.clear();
+                _selectedDate = DateTime.now();
+                _selectedCategory = 'Food';
+                _selectedReceiptImage = null;
+                _uploadedReceiptUrl = null;
+              });
+            },
+            child: Text(
+              "Reset",
+              style: TextStyle(color: subTextColor, fontSize: 14),
+            ),
+          )
+        ],
+      ),
+      body: CustomScrollView(
+        slivers: [
+          SliverFillRemaining(
+            hasScrollBody: false,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+                  decoration: BoxDecoration(
+                    color: sheetColor,
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.5),
+                        blurRadius: 20,
+                        offset: const Offset(0, -5),
                       ),
-                      decoration: InputDecoration(
-                        border: InputBorder.none,
-                        hintText: "0.00",
-                        hintStyle: TextStyle(
-                          color: isDark ? Colors.white24 : Colors.grey[400],
+                    ],
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Center(
+                        child: Column(
+                          children: [
+                            Text(
+                              "TOTAL AMOUNT",
+                              style: TextStyle(
+                                color: subTextColor,
+                                fontSize: 12,
+                                letterSpacing: 1.2,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              crossAxisAlignment: CrossAxisAlignment.baseline,
+                              textBaseline: TextBaseline.alphabetic,
+                              children: [
+                                Text(
+                                  "RM ",
+                                  style: TextStyle(
+                                    color: subTextColor,
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                IntrinsicWidth(
+                                  child: TextField(
+                                    controller: _amountController,
+                                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      color: textColor,
+                                      fontSize: 48,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                    decoration: InputDecoration(
+                                      border: InputBorder.none,
+                                      hintText: "0.00",
+                                      hintStyle: TextStyle(color: subTextColor.withOpacity(0.5)),
+                                      isDense: true,
+                                      contentPadding: EdgeInsets.zero,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 16),
+                            Container(
+                              width: 40,
+                              height: 4,
+                              decoration: BoxDecoration(
+                                color: Theme.of(context).colorScheme.primary,
+                                borderRadius: BorderRadius.circular(2),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
+                      const SizedBox(height: 32),
+                      _buildInputField(
+                        label: "Merchant / Vendor",
+                        icon: Icons.storefront_rounded,
+                        textColor: textColor,
+                        subTextColor: subTextColor,
+                        child: TextField(
+                          controller: _vendorController,
+                          style: TextStyle(color: textColor, fontSize: 16),
+                          decoration: InputDecoration(
+                            border: InputBorder.none,
+                            hintText: "e.g. Village Grocer",
+                            hintStyle: TextStyle(color: subTextColor.withOpacity(0.5)),
+                            isDense: true,
+                            contentPadding: EdgeInsets.zero,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      _buildInputField(
+                        label: "Transaction Date",
+                        icon: Icons.calendar_today_rounded,
+                        textColor: textColor,
+                        subTextColor: subTextColor,
+                        child: InkWell(
+                          onTap: () => _selectDate(context),
+                          child: Row(
+                            children: [
+                              Text(
+                                DateFormat('dd MMMM yyyy').format(_selectedDate),
+                                style: TextStyle(color: textColor, fontSize: 16),
+                              ),
+                              const Spacer(),
+                              Icon(Icons.chevron_right_rounded, color: subTextColor),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            "CATEGORY",
+                            style: TextStyle(
+                              color: subTextColor,
+                              fontSize: 12,
+                              letterSpacing: 1.2,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          Text(
+                            "View All",
+                            style: TextStyle(
+                              color: Theme.of(context).colorScheme.primary,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      _buildCategorySection(isDark, textColor, subTextColor),
+                      const SizedBox(height: 24),
+                      _buildReceiptAttachmentSection(subTextColor),
+                      const SizedBox(height: 32),
+                      _buildGradientSaveButton(),
+                      SizedBox(height: MediaQuery.of(context).padding.bottom),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInputField({
+    required String label,
+    required IconData icon,
+    required Widget child,
+    required Color textColor,
+    required Color subTextColor,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            color: subTextColor,
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        const SizedBox(height: 8),
+        ReusableInputContainer(
+          child: Row(
+            children: [
+              Icon(icon, color: subTextColor, size: 20),
+              const SizedBox(width: 12),
+              Expanded(child: child),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCategorySection(bool isDark, Color textColor, Color subTextColor) {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      physics: const BouncingScrollPhysics(),
+      child: Row(
+        children: kCategories.map((key) {
+          final style = getCategoryStyle(key);
+          final isSelected = _selectedCategory == key;
+          
+          return GestureDetector(
+            onTap: () {
+              setState(() {
+                _selectedCategory = key;
+                _isAiCategory = false;
+              });
+            },
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              margin: const EdgeInsets.only(right: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: isSelected ? style.color.withOpacity(0.2) : Colors.transparent,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: isSelected ? style.color : (isDark ? Colors.white10 : Colors.black12),
+                  width: isSelected ? 2 : 1,
+                ),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    style.icon,
+                    color: isSelected ? style.color : subTextColor,
+                    size: 24,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    key,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                      color: isSelected ? textColor : subTextColor,
                     ),
                   ),
                 ],
               ),
             ),
-            _buildInputCard(
-              label: "Merchant / Vendor",
-              child: TextField(
-                controller: _vendorController,
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                ),
-                decoration: InputDecoration(
-                  border: InputBorder.none,
-                  hintText: "e.g. Starbucks, Zus Coffee",
-                  hintStyle: TextStyle(
-                    color: isDark ? Colors.white24 : Colors.grey[400],
-                  ),
-                  icon: Icon(
-                    Icons.storefront,
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
-                ),
-              ),
-            ),
-            _buildInputCard(
-              label: "Date",
-              child: InkWell(
-                onTap: () => _selectDate(context),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.calendar_today_rounded,
-                      color: Theme.of(context).colorScheme.primary,
-                    ),
-                    const SizedBox(width: 15),
-                    Text(
-                      DateFormat('dd MMMM yyyy').format(_selectedDate),
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const Spacer(),
-                    const Icon(
-                      Icons.edit_outlined,
-                      size: 20,
-                      color: Colors.grey,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            _buildCategorySection(),
-            const SizedBox(height: 10),
-          ],
-        ),
+          );
+        }).toList(),
       ),
-      bottomNavigationBar: Container(
-        padding: EdgeInsets.only(
-          left: 20,
-          right: 20,
-          bottom: MediaQuery.of(context).padding.bottom + 10,
-          top: 10,
-        ),
-        decoration: BoxDecoration(
-          color: isDark
-              ? Theme.of(context).scaffoldBackgroundColor
-              : const Color(0xFFF3F7F8),
-          boxShadow: [
-            if (isDark)
-              BoxShadow(
-                color: Colors.black.withOpacity(0.2),
-                blurRadius: 10,
-                offset: const Offset(0, -2),
-              ),
-          ],
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
+    );
+  }
+
+  Widget _buildReceiptAttachmentSection(Color subTextColor) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
+            Text(
+              "Receipt Attachment",
+              style: TextStyle(
+                color: subTextColor,
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
             if (!kIsWeb && _selectedReceiptImage == null)
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 40),
-                child: ScanReceiptButton(),
-              ),
-            const SizedBox(height: 12),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: ReceiptPickerWidget(
-                selectedImage: _selectedReceiptImage,
-                isUploading: _isUploadingReceipt,
-                onPickImage: (source) async {
-                  final file = await _receiptUploadService.pickImage(source, context);
-                  if (file != null) {
-                    setState(() {
-                      _selectedReceiptImage = file;
-                      _uploadedReceiptUrl = null; // reset if they pick a new image
-                    });
-                  }
-                },
-                onRemoveImage: () {
-                  setState(() {
-                    _selectedReceiptImage = null;
-                    _uploadedReceiptUrl = null;
-                  });
-                },
-              ),
-            ),
-            const SizedBox(height: 24),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 40),
-              child: _buildGradientSaveButton(),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildInputCard({required String label, required Widget child}) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: isDark
-            ? Theme.of(context).colorScheme.surfaceContainerHighest
-            : Colors.white,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(
-          color: isDark ? Colors.transparent : const Color(0xFFE2E8F0),
-        ),
-        boxShadow: [
-          if (!isDark)
-            BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 12),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: const TextStyle(
-              color: Colors.grey,
-              fontWeight: FontWeight.w500,
-              fontSize: 13,
-            ),
-          ),
-          const SizedBox(height: 8),
-          child,
-        ],
-      ),
-    );
-  }
-
-  Widget _buildHeader() {
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.only(
-        top: MediaQuery.of(context).padding.top + 8,
-        left: 16,
-        right: 16,
-        bottom: 24,
-      ),
-      decoration: BoxDecoration(
-        gradient: context.brandHeaderGradient,
-        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(30)),
-      ),
-      child: Column(
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              SizedBox(
-                width: 48,
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: IconButton(
-                    icon: const Icon(Icons.close_rounded, color: Colors.white),
-                    onPressed: () {
-                      if (Navigator.canPop(context)) {
-                        Navigator.pop(context);
-                      } else {
-                        Navigator.of(context).pushReplacementNamed('/');
-                      }
-                    },
-                  ),
-                ),
-              ),
-              Expanded(
-                child: Text(
-                  widget.expenseIdToEdit != null
-                      ? "Edit Expense"
-                      : "Add Expense",
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 48),
-            ],
-          ),
-          const SizedBox(height: 20),
-
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCategorySection() {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: isDark
-            ? Theme.of(context).colorScheme.surfaceContainerHighest
-            : Colors.white,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(
-          color: isDark ? Colors.transparent : const Color(0xFFE2E8F0),
-        ),
-        boxShadow: [
-          if (!isDark)
-            BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 12),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Text(
-                "Category",
-                style: TextStyle(
-                  color: Colors.grey,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              if (_isAiCategory) ...[
-                const SizedBox(width: 8),
-                const Icon(Icons.auto_awesome, color: Colors.amber, size: 16),
-                const SizedBox(width: 4),
-                const Text(
-                  "Auto-filled",
-                  style: TextStyle(
-                    color: Colors.amber,
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ],
-          ),
-          const SizedBox(height: 15),
-          GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 3,
-              mainAxisSpacing: 12,
-              crossAxisSpacing: 12,
-              childAspectRatio: 1.0,
-            ),
-            itemCount: kCategories.length,
-            itemBuilder: (context, index) {
-              final key = kCategories[index];
-              final style = getCategoryStyle(key);
-              final isSelected = _selectedCategory == key;
-              return GestureDetector(
+              GestureDetector(
                 onTap: () {
-                  setState(() {
-                    _selectedCategory = key;
-                    _isAiCategory = false;
-                  });
+                  // Direct to scanner logic here
                 },
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  padding: const EdgeInsets.all(6),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
-                    color: isSelected
-                        ? style.color
-                        : (isDark
-                              ? style.color.withOpacity(0.12)
-                              : style.color.withOpacity(0.06)),
-                    border: Border.all(
-                      color: isSelected
-                          ? style.color
-                          : (isDark
-                                ? style.color.withOpacity(0.35)
-                                : style.color.withOpacity(0.18)),
-                    ),
+                    color: Theme.of(context).colorScheme.primary.withOpacity(0.2),
                     borderRadius: BorderRadius.circular(20),
-                    boxShadow: [
-                      BoxShadow(
-                        color: isSelected
-                            ? style.color.withOpacity(0.22)
-                            : Colors.black.withOpacity(0.02),
-                        blurRadius: isSelected ? 10 : 6,
-                        offset: const Offset(0, 3),
-                      ),
-                    ],
                   ),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(
-                        style.icon,
-                        color: isSelected ? Colors.white : style.color,
-                        size: 24,
-                      ),
-                      const SizedBox(height: 4),
+                      Icon(Icons.auto_awesome, color: Theme.of(context).colorScheme.primary, size: 14),
+                      const SizedBox(width: 4),
                       Text(
-                        key,
+                        "Scan AI",
                         style: TextStyle(
-                          fontSize: 11,
+                          color: Theme.of(context).colorScheme.primary,
+                          fontSize: 12,
                           fontWeight: FontWeight.bold,
-                          color: isSelected
-                              ? Colors.white
-                              : (isDark
-                                    ? style.color.withOpacity(0.9)
-                                    : style.color),
                         ),
                       ),
                     ],
                   ),
                 ),
-              );
-            },
-          ),
-        ],
-      ),
+              ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        ReusableInputContainer(
+          child: _selectedReceiptImage != null
+              ? Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: GestureDetector(
+                        onTap: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => _FullScreenImageViewer(
+                                imagePath: _selectedReceiptImage!.path,
+                              ),
+                            ),
+                          );
+                        },
+                        child: Image.file(
+                          _selectedReceiptImage!,
+                          width: double.infinity,
+                          height: 200,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            _selectedReceiptImage = null;
+                            _uploadedReceiptUrl = null;
+                          });
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(0.6),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.close, color: Colors.white, size: 18),
+                        ),
+                      ),
+                    ),
+                  ],
+                )
+              : SizedBox(
+                  height: 200,
+                  width: double.infinity,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: _initializeControllerFuture == null
+                        ? const Center(child: CircularProgressIndicator())
+                        : FutureBuilder<void>(
+                            future: _initializeControllerFuture,
+                            builder: (context, snapshot) {
+                              if (snapshot.connectionState == ConnectionState.done) {
+                                return Stack(
+                                  fit: StackFit.expand,
+                                  children: [
+                                    CameraPreview(_cameraController!),
+                                    Positioned(
+                                      bottom: 16,
+                                      left: 0,
+                                      right: 0,
+                                      child: Center(
+                                        child: GestureDetector(
+                                          onTap: () async {
+                                            try {
+                                              final image = await _cameraController!.takePicture();
+                                              setState(() {
+                                                _selectedReceiptImage = File(image.path);
+                                              });
+                                            } catch (e) {
+                                              debugPrint('Error taking picture: $e');
+                                            }
+                                          },
+                                          child: Container(
+                                            height: 50,
+                                            width: 50,
+                                            decoration: BoxDecoration(
+                                              shape: BoxShape.circle,
+                                              border: Border.all(color: Colors.white, width: 3),
+                                              color: Colors.white.withOpacity(0.3),
+                                            ),
+                                            child: Center(
+                                              child: Container(
+                                                height: 40,
+                                                width: 40,
+                                                decoration: const BoxDecoration(
+                                                  shape: BoxShape.circle,
+                                                  color: Colors.white,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                );
+                              } else {
+                                return const Center(child: CircularProgressIndicator());
+                              }
+                            },
+                          ),
+                  ),
+                ),
+        ),
+      ],
     );
   }
 
   Widget _buildGradientSaveButton() {
-    return SizedBox(
+    return Container(
       width: double.infinity,
-      height: 52,
-      child: FilledButton(
-        onPressed: _isSaving ? null : _submitData,
-        child: _isSaving
-            ? const SizedBox(
-                width: 24,
-                height: 24,
-                child: CircularProgressIndicator(
-                  color: Colors.white,
-                  strokeWidth: 2.5,
-                ),
-              )
-            : const Text(
-                "Save Expense",
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
+      height: 56,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF6366F1).withOpacity(0.5), // Neon indigo glow
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+          ),
+        ],
+        gradient: const LinearGradient(
+          colors: [Color(0xFF818CF8), Color(0xFF6366F1)], // Indigo gradients
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: _isSaving ? null : _submitData,
+          child: Center(
+            child: _isSaving
+                ? const SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(
+                      color: Colors.white,
+                      strokeWidth: 2.5,
+                    ),
+                  )
+                : const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.save_rounded, color: Colors.white, size: 20),
+                      SizedBox(width: 8),
+                      Text(
+                        "Save Expense",
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ],
+                  ),
+          ),
+        ),
       ),
     );
   }
@@ -688,3 +833,23 @@ class _FullScreenImageViewer extends StatelessWidget {
     );
   }
 }
+
+class ReusableInputContainer extends StatelessWidget {
+  final Widget child;
+  const ReusableInputContainer({super.key, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF0F172A).withOpacity(0.5) : Colors.black.withOpacity(0.03),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: isDark ? Colors.white10 : Colors.black12),
+      ),
+      child: child,
+    );
+  }
+}
+

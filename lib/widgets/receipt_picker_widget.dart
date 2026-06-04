@@ -86,11 +86,35 @@ class ReceiptPickerWidget extends StatelessWidget {
                     ? Stack(
                         fit: StackFit.expand,
                         children: [
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(16),
-                            child: Image.file(
-                              selectedImage!,
-                              fit: BoxFit.cover,
+                          GestureDetector(
+                            onTap: () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => Scaffold(
+                                    backgroundColor: Colors.black,
+                                    appBar: AppBar(
+                                      backgroundColor: Colors.black,
+                                      iconTheme: const IconThemeData(color: Colors.white),
+                                      title: const Text('Receipt', style: TextStyle(color: Colors.white)),
+                                    ),
+                                    body: Center(
+                                      child: InteractiveViewer(
+                                        minScale: 0.5,
+                                        maxScale: 5.0,
+                                        child: Image.file(selectedImage!),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(16),
+                              child: Image.file(
+                                selectedImage!,
+                                fit: BoxFit.cover,
+                                cacheWidth: 800,
+                              ),
                             ),
                           ),
                           Positioned(

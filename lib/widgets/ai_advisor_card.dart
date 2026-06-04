@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import '../../providers/expense_providers.dart';
 import '../../providers/budget_providers.dart';
 import 'dart:ui';
@@ -52,36 +55,90 @@ class AiAdvisorCard extends ConsumerWidget {
     }
     
     final localAdvice = _generateInsight(totalSpent, targetBudget);
-    
-    return _buildCard(
-      context, 
-      Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            "You have used RM ${totalSpent.toStringAsFixed(0)} of your RM ${targetBudget.toStringAsFixed(0)} monthly limit.\n",
-            style: TextStyle(
-              fontSize: 14,
-              color: Theme.of(context).brightness == Brightness.dark ? Colors.white70 : Colors.black87,
-              height: 1.4,
-              fontWeight: FontWeight.w500,
+    final userId = FirebaseAuth.instance.currentUser?.uid;
+    final todayStr = DateTime.now().toIso8601String().split('T').first;
+
+    if (userId == null) {
+      return _buildCard(
+        context,
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              "You have used RM ${totalSpent.toStringAsFixed(0)} of your RM ${targetBudget.toStringAsFixed(0)} monthly limit.\n",
+              style: TextStyle(
+                fontSize: 14,
+                color: Theme.of(context).brightness == Brightness.dark ? Colors.white70 : Colors.black87,
+                height: 1.4,
+                fontWeight: FontWeight.w500,
+              ),
             ),
-          ),
-          Text(
-            localAdvice,
-            style: TextStyle(
-              fontSize: 14,
-              color: Theme.of(context).brightness == Brightness.dark ? Colors.white70 : Colors.black87,
-              height: 1.4,
-              fontWeight: FontWeight.w500,
+            Text(
+              localAdvice,
+              style: TextStyle(
+                fontSize: 14,
+                color: Theme.of(context).brightness == Brightness.dark ? Colors.white70 : Colors.black87,
+                height: 1.4,
+                fontWeight: FontWeight.w500,
+              ),
             ),
-          ),
-        ],
-      ), 
-      totalSpent, 
-      targetBudget,
-      isDefaultBudget,
-      isEmpty: false,
+          ],
+        ),
+        totalSpent,
+        targetBudget,
+        isDefaultBudget,
+        isEmpty: false,
+      );
+    }
+
+    return StreamBuilder<DocumentSnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('users')
+          .doc(userId)
+          .collection('daily_insights')
+          .doc(todayStr)
+          .snapshots(),
+      builder: (context, snapshot) {
+        String displayInsight = localAdvice;
+        
+        if (snapshot.hasData && snapshot.data!.exists) {
+          final data = snapshot.data!.data() as Map<String, dynamic>?;
+          if (data != null && data['insight'] != null && data['insight'].toString().isNotEmpty) {
+            displayInsight = data['insight'];
+          }
+        }
+
+        return _buildCard(
+          context, 
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                "You have used RM ${totalSpent.toStringAsFixed(0)} of your RM ${targetBudget.toStringAsFixed(0)} monthly limit.\n",
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Theme.of(context).brightness == Brightness.dark ? Colors.white70 : Colors.black87,
+                  height: 1.4,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              Text(
+                displayInsight,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Theme.of(context).brightness == Brightness.dark ? Colors.white70 : Colors.black87,
+                  height: 1.4,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ), 
+          totalSpent, 
+          targetBudget,
+          isDefaultBudget,
+          isEmpty: false,
+        );
+      },
     );
   }
 
@@ -108,20 +165,35 @@ class AiAdvisorCard extends ConsumerWidget {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        Theme.of(context).colorScheme.primary,
-                        Theme.of(context).colorScheme.secondary,
-                      ],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
+                GestureDetector(
+                  onTap: () async {
+                    try {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Generating new AI insight...')),
+                      );
+                      final callable = FirebaseFunctions.instance.httpsCallable('generateDailyInsight');
+                      await callable.call();
+                    } catch (e) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Failed to generate insight: $e')),
+                      );
+                    }
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          Theme.of(context).colorScheme.primary,
+                          Theme.of(context).colorScheme.secondary,
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      shape: BoxShape.circle,
                     ),
-                    shape: BoxShape.circle,
+                    child: const Icon(Icons.auto_awesome, color: Colors.white, size: 24),
                   ),
-                  child: const Icon(Icons.auto_awesome, color: Colors.white, size: 24),
                 ),
                 const SizedBox(width: 15),
                 Expanded(

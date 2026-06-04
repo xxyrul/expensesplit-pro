@@ -4,8 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class DailyTipBentoCard extends StatefulWidget {
-  /// External refresh trigger — increment this from the pull-to-refresh
-  /// callback to cycle to a new tip and (every 3rd time) fetch a fresh AI tip.
+  /// Incremented by the dashboard's pull-to-refresh — triggers a new AI tip.
   final int refreshCount;
 
   const DailyTipBentoCard({super.key, this.refreshCount = 0});
@@ -16,30 +15,28 @@ class DailyTipBentoCard extends StatefulWidget {
 
 class _DailyTipBentoCardState extends State<DailyTipBentoCard>
     with SingleTickerProviderStateMixin {
-  final _rng = Random();
-  int _currentIndex = 0;
   int _lastRefreshCount = 0;
   bool _isGenerating = false;
+  Map<String, dynamic>? _displayedTip;
 
   late final AnimationController _animCtrl;
   late final Animation<double> _fadeAnim;
   late final Animation<Offset> _slideAnim;
-
-  // Cache the full tips list so we can cycle locally without re-fetching
-  List<Map<String, dynamic>> _cachedTips = [];
 
   @override
   void initState() {
     super.initState();
     _animCtrl = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 420),
+      duration: const Duration(milliseconds: 500),
     );
-    _fadeAnim = CurvedAnimation(parent: _animCtrl, curve: Curves.easeInOut);
+    _fadeAnim =
+        CurvedAnimation(parent: _animCtrl, curve: Curves.easeInOut);
     _slideAnim = Tween<Offset>(
-      begin: const Offset(0.08, 0),
+      begin: const Offset(0.06, 0),
       end: Offset.zero,
-    ).animate(CurvedAnimation(parent: _animCtrl, curve: Curves.easeOutCubic));
+    ).animate(
+        CurvedAnimation(parent: _animCtrl, curve: Curves.easeOutCubic));
     _animCtrl.forward();
   }
 
@@ -54,25 +51,6 @@ class _DailyTipBentoCardState extends State<DailyTipBentoCard>
     super.didUpdateWidget(old);
     if (widget.refreshCount != _lastRefreshCount) {
       _lastRefreshCount = widget.refreshCount;
-      _cycleToNextTip();
-    }
-  }
-
-  void _cycleToNextTip() {
-    if (_cachedTips.isEmpty) return;
-
-    // Pick a different random tip
-    int next = _currentIndex;
-    if (_cachedTips.length > 1) {
-      while (next == _currentIndex) {
-        next = _rng.nextInt(_cachedTips.length);
-      }
-    }
-    setState(() => _currentIndex = next);
-    _animCtrl.forward(from: 0);
-
-    // Every 3rd refresh → call Gemini to generate a brand-new tip
-    if (_lastRefreshCount > 0 && _lastRefreshCount % 3 == 0) {
       _generateNewTip();
     }
   }
@@ -82,18 +60,23 @@ class _DailyTipBentoCardState extends State<DailyTipBentoCard>
     setState(() => _isGenerating = true);
     try {
       final client = HttpClient();
-      client.connectionTimeout = const Duration(seconds: 8);
+      client.connectionTimeout = const Duration(seconds: 10);
       final req = await client.getUrl(
         Uri.parse(
             'https://us-central1-expensesplit-pro-9e1c8.cloudfunctions.net/generateNewDailyTip'),
       );
       final res = await req.close();
-      debugPrint('generateNewDailyTip status: ${res.statusCode}');
+      debugPrint('generateNewDailyTip → ${res.statusCode}');
+      // Firestore stream will auto-update with the new tip
     } catch (e) {
-      debugPrint('Error generating new tip: $e');
+      debugPrint('Error generating tip: $e');
     } finally {
       if (mounted) setState(() => _isGenerating = false);
     }
+  }
+
+  void _animateIn() {
+    _animCtrl.forward(from: 0);
   }
 
   @override
@@ -102,75 +85,70 @@ class _DailyTipBentoCardState extends State<DailyTipBentoCard>
       stream: FirebaseFirestore.instance
           .collection('daily_tips')
           .orderBy('generatedAt', descending: true)
-          .limit(30)
+          .limit(50)
           .snapshots(),
       builder: (context, snapshot) {
+        // Loading state
         if (snapshot.connectionState == ConnectionState.waiting &&
-            _cachedTips.isEmpty) {
-          return const _BentoSkeleton();
+            _displayedTip == null) {
+          return const _BentoSkeleton(message: 'Loading your daily nudge…');
         }
 
-        // Update cache when new data arrives
-        if (snapshot.hasData) {
-          final active = snapshot.data!.docs
-              .map((d) => d.data() as Map<String, dynamic>)
-              .where((d) => d['isActive'] == true)
-              .toList();
-          if (active.isNotEmpty) {
-            _cachedTips = active;
-            // Clamp index in case list shrank
-            if (_currentIndex >= _cachedTips.length) {
-              _currentIndex = 0;
-            }
-          }
+        // While generating — show skeleton with message
+        if (_isGenerating) {
+          return const _BentoSkeleton(
+              message: '✨ Generating a fresh tip with AI…');
         }
 
-        if (_cachedTips.isEmpty) return const SizedBox.shrink();
+        final docs = snapshot.data?.docs ?? [];
+        final tips = docs
+            .map((d) => d.data() as Map<String, dynamic>)
+            .where((d) => d['isActive'] == true)
+            .toList();
 
-        final tipData = _cachedTips[_currentIndex];
+        if (tips.isEmpty) return const SizedBox.shrink();
+
+        // When stream updates and we have a new tip, pick the latest one
+        final latestTip = tips.first;
+        if (_displayedTip == null ||
+            _displayedTip!['message'] != latestTip['message']) {
+          // Schedule animation after build
+          WidgetsBinding.instance
+              .addPostFrameCallback((_) => _animateIn());
+          _displayedTip = latestTip;
+        }
+
+        final tip = _displayedTip ?? latestTip;
         final message =
-            tipData['message'] as String? ?? 'Stay on top of your finances!';
-        final category = tipData['category'] as String? ?? 'wisdom';
+            tip['message'] as String? ?? 'Stay on top of your finances!';
+        final category = tip['category'] as String? ?? 'wisdom';
 
         return _TipCard(
           message: message,
           category: category,
-          isGenerating: _isGenerating,
           fadeAnim: _fadeAnim,
           slideAnim: _slideAnim,
-          tipCount: _cachedTips.length,
-          currentIndex: _currentIndex,
-          onTapRefresh: () {
-            setState(() {
-              _lastRefreshCount++;
-            });
-            _cycleToNextTip();
-          },
         );
       },
     );
   }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Card UI
+// ─────────────────────────────────────────────────────────────────────────────
+
 class _TipCard extends StatelessWidget {
   final String message;
   final String category;
-  final bool isGenerating;
   final Animation<double> fadeAnim;
   final Animation<Offset> slideAnim;
-  final int tipCount;
-  final int currentIndex;
-  final VoidCallback onTapRefresh;
 
   const _TipCard({
     required this.message,
     required this.category,
-    required this.isGenerating,
     required this.fadeAnim,
     required this.slideAnim,
-    required this.tipCount,
-    required this.currentIndex,
-    required this.onTapRefresh,
   });
 
   @override
@@ -185,7 +163,7 @@ class _TipCard extends StatelessWidget {
       case 'saving':
         catIcon = Icons.savings_rounded;
         catColor = const Color(0xFF10B981);
-        catLabel = 'Saving';
+        catLabel = 'Saving Tip';
         break;
       case 'security':
         catIcon = Icons.security_rounded;
@@ -195,13 +173,13 @@ class _TipCard extends StatelessWidget {
       case 'positive_reinforcement':
         catIcon = Icons.emoji_events_rounded;
         catColor = const Color(0xFFEC4899);
-        catLabel = 'Keep it up';
+        catLabel = 'Keep it up! 🎉';
         break;
       case 'wisdom':
       default:
         catIcon = Icons.lightbulb_outline_rounded;
         catColor = const Color(0xFFF59E0B);
-        catLabel = 'Wisdom';
+        catLabel = 'Financial Wisdom';
     }
 
     return Container(
@@ -209,18 +187,18 @@ class _TipCard extends StatelessWidget {
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            catColor.withOpacity(0.08),
+            catColor.withValues(alpha: 0.1),
             cs.surfaceContainerHigh,
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: catColor.withOpacity(0.25)),
+        border: Border.all(color: catColor.withValues(alpha: 0.3)),
         boxShadow: [
           BoxShadow(
-            color: catColor.withOpacity(0.07),
-            blurRadius: 16,
+            color: catColor.withValues(alpha: 0.08),
+            blurRadius: 18,
             offset: const Offset(0, 6),
           )
         ],
@@ -229,18 +207,18 @@ class _TipCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          // ── Header row ──────────────────────────────────────────────
+          // ── Header ──────────────────────────────────────────────────
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(8),
+                padding: const EdgeInsets.all(9),
                 decoration: BoxDecoration(
-                  color: catColor.withOpacity(0.18),
-                  borderRadius: BorderRadius.circular(12),
+                  color: catColor.withValues(alpha: 0.18),
+                  borderRadius: BorderRadius.circular(13),
                 ),
                 child: Icon(catIcon, color: catColor, size: 20),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 12),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -255,34 +233,39 @@ class _TipCard extends StatelessWidget {
                   Text(
                     catLabel,
                     style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w500,
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w600,
                       color: catColor,
                     ),
                   ),
                 ],
               ),
               const Spacer(),
-              // Tap-to-cycle button
-              GestureDetector(
-                onTap: onTapRefresh,
-                child: AnimatedRotation(
-                  turns: isGenerating ? 1.0 : 0.0,
-                  duration: const Duration(milliseconds: 800),
-                  child: Container(
-                    padding: const EdgeInsets.all(6),
-                    decoration: BoxDecoration(
-                      color: catColor.withOpacity(0.12),
-                      borderRadius: BorderRadius.circular(10),
+              // AI badge
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: catColor.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                      color: catColor.withValues(alpha: 0.3), width: 1),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.auto_awesome_rounded,
+                        size: 11, color: catColor),
+                    const SizedBox(width: 3),
+                    Text(
+                      'AI',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        color: catColor,
+                      ),
                     ),
-                    child: Icon(
-                      isGenerating
-                          ? Icons.auto_awesome_rounded
-                          : Icons.refresh_rounded,
-                      color: catColor,
-                      size: 18,
-                    ),
-                  ),
+                  ],
                 ),
               ),
             ],
@@ -290,7 +273,7 @@ class _TipCard extends StatelessWidget {
 
           const SizedBox(height: 14),
 
-          // ── Animated message ────────────────────────────────────────
+          // ── Animated message ─────────────────────────────────────────
           FadeTransition(
             opacity: fadeAnim,
             child: SlideTransition(
@@ -298,8 +281,8 @@ class _TipCard extends StatelessWidget {
               child: Text(
                 message,
                 style: TextStyle(
-                  fontSize: 13.5,
-                  height: 1.55,
+                  fontSize: 14,
+                  height: 1.6,
                   color: cs.onSurfaceVariant,
                   fontWeight: FontWeight.w500,
                 ),
@@ -309,42 +292,21 @@ class _TipCard extends StatelessWidget {
 
           const SizedBox(height: 12),
 
-          // ── Footer hint ─────────────────────────────────────────────
+          // ── Footer hint ──────────────────────────────────────────────
           Row(
             children: [
-              Icon(Icons.swipe_down_rounded,
-                  size: 13, color: cs.onSurfaceVariant.withOpacity(0.5)),
-              const SizedBox(width: 4),
+              Icon(Icons.swipe_down_alt_rounded,
+                  size: 13,
+                  color: cs.onSurfaceVariant.withValues(alpha: 0.45)),
+              const SizedBox(width: 5),
               Text(
-                isGenerating
-                    ? '✨ Generating a fresh tip with AI…'
-                    : 'Pull down or tap ↻ for a new nudge',
+                'Pull down to get a new AI tip',
                 style: TextStyle(
                   fontSize: 11,
-                  color: cs.onSurfaceVariant.withOpacity(0.55),
+                  color: cs.onSurfaceVariant.withValues(alpha: 0.5),
                   fontStyle: FontStyle.italic,
                 ),
               ),
-              const Spacer(),
-              // Dot indicators
-              if (tipCount > 1)
-                Row(
-                  children: List.generate(
-                    tipCount.clamp(0, 5),
-                    (i) => AnimatedContainer(
-                      duration: const Duration(milliseconds: 250),
-                      margin: const EdgeInsets.only(left: 3),
-                      width: i == currentIndex % 5 ? 14 : 5,
-                      height: 5,
-                      decoration: BoxDecoration(
-                        color: i == currentIndex % 5
-                            ? catColor
-                            : catColor.withOpacity(0.25),
-                        borderRadius: BorderRadius.circular(3),
-                      ),
-                    ),
-                  ),
-                ),
             ],
           ),
         ],
@@ -353,20 +315,48 @@ class _TipCard extends StatelessWidget {
   }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Skeleton / Loading state
+// ─────────────────────────────────────────────────────────────────────────────
+
 class _BentoSkeleton extends StatelessWidget {
-  const _BentoSkeleton();
+  final String message;
+  const _BentoSkeleton({this.message = ''});
+
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Container(
-      height: 130,
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Theme.of(context)
-            .colorScheme
-            .surfaceContainerHigh
-            .withOpacity(0.5),
+        color: cs.surfaceContainerHigh.withValues(alpha: 0.6),
         borderRadius: BorderRadius.circular(24),
+        border:
+            Border.all(color: cs.outlineVariant.withValues(alpha: 0.4)),
       ),
-      child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 22,
+            height: 22,
+            child: CircularProgressIndicator(
+              strokeWidth: 2.5,
+              color: cs.primary,
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Text(
+              message.isEmpty ? 'Loading…' : message,
+              style: TextStyle(
+                fontSize: 13,
+                color: cs.onSurfaceVariant,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

@@ -2,6 +2,7 @@ import 'dart:ui';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 
 final receiptScannerProvider = Provider<ReceiptScannerService>((ref) {
   return ReceiptScannerService();
@@ -83,296 +84,47 @@ class ReceiptScannerService {
 
       final inputImage = InputImage.fromFilePath(image.path);
       final RecognizedText recognizedText = await _textRecognizer.processImage(inputImage);
-      
-      return parseReceiptText(formatRecognizedText(recognizedText));
+      final String rawText = formatRecognizedText(recognizedText);
+
+      return await analyzeTextWithAI(rawText);
+
     } catch (e) {
-      print("Error scanning receipt: $e");
+      print("Error scanning receipt with Hybrid AI: $e");
       return null;
     }
   }
 
-  static Map<String, dynamic> parseReceiptText(String text) {
-    print("========== OCR TEXT ==========\n\$text\n==============================");
-    String? vendor;
-    double? amount;
+  static Future<Map<String, dynamic>?> analyzeTextWithAI(String rawText) async {
+    try {
+      if (rawText.trim().isEmpty) return null;
 
-    // Split text into lines, trimming whitespace
-    List<String> lines = text.split('\n').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
-
-    if (lines.isEmpty) {
-      return {'vendor': null, 'amount': null};
-    }
-
-    // --- 1. Extract Vendor Name ---
-    // Common words to skip when looking for the vendor name
-    final skipPatterns = [
-      'receipt', 'invoice', 'tax', 'cash', 'copy', 'duplicated', 'store',
-      'welcome', 'hello', 'merchant', 'terminal', 'pos', 'visa', 'mastercard',
-      'change', 'total', 'amount', 'date', 'time', 'card', 'auth'
-    ];
-    
-    for (String line in lines) {
-      final lowerLine = line.toLowerCase();
-      // Skip lines without alphabetic characters
-      if (!line.contains(RegExp(r'[a-zA-Z]'))) continue;
+      print("========== RAW OCR TEXT ==========\n$rawText\n==============================");
       
-      bool shouldSkip = false;
-      for (String pattern in skipPatterns) {
-        if (lowerLine.contains(pattern)) {
-          shouldSkip = true;
-          break;
-        }
-      }
+      // Call Hybrid AI Cloud Function
+      final callable = FirebaseFunctions.instance.httpsCallable('analyzeReceiptText');
+      final response = await callable.call({'rawText': rawText});
       
-      // Avoid lines that look like a date or time
-      if (RegExp(r'\d{2,4}[/.-]\d{2}[/.-]\d{2,4}').hasMatch(line) || 
-          RegExp(r'\d{2}:\d{2}').hasMatch(line) ||
-          RegExp(r'[\d-]{8,}').hasMatch(line)) {
-        shouldSkip = true;
+      final Map<String, dynamic> parsedData = Map<String, dynamic>.from(response.data);
+      
+      // Map JSON to the expected output format
+      DateTime? parsedDate;
+      if (parsedData['date'] != null) {
+        parsedDate = DateTime.tryParse(parsedData['date'].toString());
       }
 
-      if (!shouldSkip && line.length >= 3) {
-        vendor = line;
-        break;
-      }
+      return {
+        'vendor': parsedData['merchant'],
+        'amount': parsedData['total'] is int ? (parsedData['total'] as int).toDouble() : parsedData['total'],
+        'date': parsedDate,
+        'category': parsedData['category'],
+        'rawText': rawText,
+        'needsReview': true, // Always allow user to review AI output
+      };
+
+    } catch (e) {
+      print("Error analyzing text with Hybrid AI: $e");
+      return null;
     }
-    
-    // Fallback if all lines were skipped (rare, but possible)
-    vendor ??= lines.first;
-
-    // --- 2. Extract Amount ---
-    // Matches numbers with exactly 2 decimal places (e.g. 12.34, 1,234.56, 1.234,56)
-    final RegExp amountRegex = RegExp(r'([0-9]+(?:[,.][0-9]{3})*[.,][0-9]{2})');
-    double? foundTotal;
-    bool needsReview = false;
-
-    double? parseAmountString(String amtStr) {
-      amtStr = amtStr.replaceAll(' ', '');
-      final int lastComma = amtStr.lastIndexOf(',');
-      final int lastDot   = amtStr.lastIndexOf('.');
-      if (lastComma > lastDot) {
-        amtStr = amtStr.replaceAll('.', '').replaceAll(',', '.');
-      } else if (lastDot > lastComma) {
-        amtStr = amtStr.replaceAll(',', '');
-      } else if (lastComma != -1) {
-        amtStr = amtStr.replaceAll(',', '.');
-      }
-      return double.tryParse(amtStr);
-    }
-
-    // Post-total payment lines — skipped everywhere.
-    // NOTE: 'discount' intentionally removed because "TOTAL AFTER DISCOUNT" is valid.
-    final noisePatterns = [
-      'cash', 'change', 'rounding', 'tender', 'paid',
-      'bayaran tunai', 'baki', 'kembalian', 'duit balik',
-    ];
-    bool isNoise(String lowercaseLine) =>
-        noisePatterns.any((p) => lowercaseLine.contains(p));
-
-    // ── TIER 1: Keyword scan ──────────────────────────────────────────────────
-    // Highly resilient against OCR misreads for "TOTAL", "JUMLAH", "AMAUN"
-    final subtotalRegex = RegExp(r'\b(sub|tax|sst|gst)\b');
-
-    RecognizedTextLine? bestLine;
-    var bestScore = 0;
-    for (int i = 0; i < lines.length; i++) {
-      final candidate = RecognizedTextLine(
-        text: lines[i],
-        index: i,
-        totalLines: lines.length,
-      );
-      final score = calculateLineScore(candidate);
-      if (score > bestScore) {
-        bestScore = score;
-        bestLine = candidate;
-      }
-    }
-
-    if (bestLine != null && bestScore > 0) {
-      final line = bestLine.text.toLowerCase();
-
-      final lineAmounts = amountRegex
-          .allMatches(bestLine.text)
-          .map((m) => parseAmountString(m.group(1)!))
-          .whereType<double>()
-          .toList();
-
-      final bool isSubtotal = subtotalRegex.hasMatch(line);
-
-      if (!isNoise(line) && !isSubtotal) {
-        double? matched = lineAmounts.isNotEmpty ? lineAmounts.last : null;
-        if (matched == null && bestLine.index + 1 < lines.length) {
-          // Amount may be on the next line
-          final nextLine = lines[bestLine.index + 1].toLowerCase();
-          if (!isNoise(nextLine)) {
-            final nextAmts = amountRegex
-                .allMatches(nextLine)
-                .map((m) => parseAmountString(m.group(1)!))
-                .whereType<double>()
-                .toList();
-            if (nextAmts.isNotEmpty) matched = nextAmts.last;
-          }
-        }
-        // Always overwrite — last keyword match wins (grand total is last on receipts)
-        if (matched != null) foundTotal = matched;
-      }
-    }
-
-    // ── TIER 2: Position-based scan ───────────────────────────────────────────
-    // ONLY triggered if a noise section (CASH/CHANGE) WAS EXPLICITLY FOUND.
-    // If the receipt has a clear CASH boundary, the total is the last amount before it.
-    if (foundTotal == null) {
-      needsReview = true;
-      int noiseStart = -1;
-      for (int i = 0; i < lines.length; i++) {
-        if (isNoise(lines[i].toLowerCase())) { noiseStart = i; break; }
-      }
-
-      if (noiseStart != -1) { // Only do this if a boundary exists!
-        for (int i = noiseStart - 1; i >= 0; i--) {
-          final line = lines[i].toLowerCase();
-          if (subtotalRegex.hasMatch(line) || line.contains('discount')) continue;
-
-          final amts = amountRegex
-              .allMatches(line)
-              .map((m) => parseAmountString(m.group(1)!))
-              .whereType<double>()
-              .toList();
-          if (amts.isNotEmpty) {
-            foundTotal = amts.last;
-            break;
-          }
-        }
-      }
-    }
-
-    // ── TIER 3: Last-resort ───────────────────────────────────────────────────
-    // Take the highest amount. To avoid picking unlabelled "CASH 50.00" lines,
-    // we slightly penalize flat notes (10, 20, 50, 100) if a non-flat number exists.
-    if (foundTotal == null) {
-      final allAmounts = <double>[];
-      for (final ln in lines) {
-        final l = ln.toLowerCase();
-        if (isNoise(l)) continue;
-        for (final m in amountRegex.allMatches(l)) {
-          final a = parseAmountString(m.group(1)!);
-          if (a != null) allAmounts.add(a);
-        }
-      }
-      if (allAmounts.isNotEmpty) {
-        allAmounts.sort();
-        // If the highest amount is exactly 50.00 or 100.00 and there is another amount,
-        // it's highly likely cash tendered. Pick the highest non-flat amount.
-        double best = allAmounts.last;
-        if (allAmounts.length > 1 && (best == 10.0 || best == 20.0 || best == 50.0 || best == 100.0)) {
-          // Take the second highest
-          foundTotal = allAmounts[allAmounts.length - 2];
-        } else {
-          foundTotal = best;
-        }
-      }
-    }
-
-    amount = foundTotal;
-
-    // --- 3. Extract Date ---
-    final RegExp dateRegex = RegExp(r'(?<!\d)(\d{1,4})\s*[/.,|lI\-\\]\s*(\d{1,2})\s*[/.,|lI\-\\]\s*(\d{1,4})(?!\d)');
-    DateTime? receiptDate;
-
-    for (int i = 0; i < lines.length; i++) {
-        final match = dateRegex.firstMatch(lines[i]);
-        if (match != null) {
-            try {
-                int p1 = int.parse(match.group(1)!);
-                int p2 = int.parse(match.group(2)!);
-                int p3 = int.parse(match.group(3)!);
-                
-                int year, month, day;
-                if (p1 > 1000) { 
-                    year = p1; month = p2; day = p3;
-                } else if (p3 > 1000) { 
-                    year = p3; month = p2; day = p1;
-                } else { 
-                    year = 2000 + p3; month = p2; day = p1;
-                }
-                
-                // OCR often swaps DD and MM based on US vs Rest-of-World formats
-                if (month > 12 && day <= 12) {
-                    final temp = month;
-                    month = day;
-                    day = temp;
-                }
-                
-                if (month > 0 && month <= 12 && day > 0 && day <= 31) {
-                    receiptDate = DateTime(year, month, day);
-                    break;
-                }
-            } catch(e) {
-                // Ignore parsing issues and keep searching
-            }
-        }
-    }
-
-    print('--- RAW TEXT BEGIN ---');
-    print(text);
-    print('--- RAW TEXT END ---');
-    print('--- PARSED DATE: $receiptDate ---');
-
-    return {
-      'vendor': vendor,
-      'amount': amount,
-      'date': receiptDate,
-      'rawText': text,
-      'needsReview': needsReview,
-    };
-  }
-
-  /// Scores a single OCR line for likelihood of being the receipt grand total.
-  ///
-  /// Points are awarded for:
-  ///   +4  — keyword match ('total', 'jumlah', 'due', 'amaun', 'amount due')
-  ///   +2  — line is in the bottom 30 % of the receipt
-  ///   +1  — line contains at least one numeric value
-  ///
-  /// The caller selects the line with the highest score instead of the first
-  /// boolean keyword match, making extraction robust to partial OCR reads and
-  /// receipts where a label and its amount appear on separate lines.
-  static int calculateLineScore(RecognizedTextLine line) {
-    int score = 0;
-    final lower = line.text.toLowerCase();
-
-    // ── Keyword bonus ──────────────────────────────────────────────────────────
-    const keywordPoints = {
-      'total': 4,
-      'jumlah': 4,
-      'due': 4,
-      'amaun': 3,
-      'amount due': 4,
-      'grand total': 5,
-      'bayaran': 2,
-    };
-    for (final entry in keywordPoints.entries) {
-      if (lower.contains(entry.key)) {
-        score += entry.value;
-        break; // only award the first (highest-priority) keyword hit
-      }
-    }
-
-    // ── Position bonus ─────────────────────────────────────────────────────────
-    // Lines in the bottom 30 % of the receipt are more likely to hold the total.
-    if (line.totalLines > 0) {
-      final relativePosition = line.index / line.totalLines;
-      if (relativePosition >= 0.70) {
-        score += 2;
-      }
-    }
-
-    // ── Numeric content bonus ──────────────────────────────────────────────────
-    if (RegExp(r'[0-9]').hasMatch(line.text)) {
-      score += 1;
-    }
-
-    return score;
   }
 
   void dispose() {

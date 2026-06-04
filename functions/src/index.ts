@@ -5,6 +5,13 @@ import { onDocumentCreated } from 'firebase-functions/v2/firestore';
 
 admin.initializeApp();
 
+import { genkit, z } from 'genkit';
+import { gemini15Flash, googleAI } from '@genkit-ai/googleai';
+
+const aiInstance = genkit({
+  plugins: [googleAI({ apiKey: process.env.GEMINI_API_KEY })],
+});
+
 const BATCH_LIMIT = 500;
 
 type OcrLearningData = Record<string, unknown>;
@@ -130,7 +137,9 @@ export const sendSystemBroadcast = onDocumentCreated(
   }
 );
 
-export const sendDailyFinancialNudge = functions.pubsub.schedule('0 9 * * *')
+export const sendDailyFinancialNudge = functions
+  .runWith({ secrets: ['GEMINI_API_KEY'] })
+  .pubsub.schedule('0 9 * * *')
   .timeZone('Asia/Kuala_Lumpur')
   .onRun(async (context) => {
     const db = admin.firestore();
@@ -140,7 +149,7 @@ export const sendDailyFinancialNudge = functions.pubsub.schedule('0 9 * * *')
     let tipCategory = 'wisdom';
     let isDynamic = false;
 
-    const apiKey = process.env.GEMINI_API_KEY;
+    const apiKey = process.env.GEMINI_API_KEY?.replace(/^\uFEFF/, '').trim();
     if (apiKey) {
       try {
         const { GoogleGenAI } = require('@google/genai');
@@ -155,7 +164,7 @@ Choose one of the following categories:
 Return the response as a JSON object with 'message' and 'category' fields.`;
 
         const response = await ai.models.generateContent({
-          model: 'gemini-2.0-flash',
+          model: 'gemini-2.5-flash',
           contents: prompt,
           config: {
             responseMimeType: 'application/json',
@@ -273,12 +282,14 @@ export const seedDailyTips = functions.https.onRequest(async (req, res) => {
   }
 });
 
-export const generateNewDailyTip = functions.https.onRequest(async (req, res) => {
+export const generateNewDailyTip = functions
+  .runWith({ secrets: ['GEMINI_API_KEY'] })
+  .https.onRequest(async (req, res) => {
   const db = admin.firestore();
   let tipMessage = 'Stay on top of your finances!';
   let tipCategory = 'wisdom';
 
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = process.env.GEMINI_API_KEY?.replace(/^\uFEFF/, '').trim();
   if (apiKey) {
     try {
       const { GoogleGenAI } = require('@google/genai');
@@ -293,7 +304,7 @@ Choose one of the following categories:
 Return the response as a JSON object with 'message' and 'category' fields.`;
 
       const response = await ai.models.generateContent({
-        model: 'gemini-2.0-flash',
+        model: 'gemini-2.5-flash',
         contents: prompt,
         config: {
           responseMimeType: 'application/json',
@@ -349,5 +360,127 @@ Return the response as a JSON object with 'message' and 'category' fields.`;
   } catch (err: any) {
     res.status(500).send("Error: " + err.message);
   }
+});
+
+function calculateVelocity(spent: number, limit: number): string {
+  const today = new Date().getDate();
+  const daysInMonth = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate();
+  const monthProgress = today / daysInMonth;
+  const budgetProgress = spent / limit;
+  
+  if (budgetProgress > monthProgress + 0.1) return 'High - spending faster than time elapsed';
+  if (budgetProgress < monthProgress - 0.1) return 'Low - spending slower than time elapsed';
+  return 'On Track';
+}
+
+export const generateDailyInsight = functions
+  .runWith({ secrets: ['GEMINI_API_KEY'] })
+  .https.onCall(async (data, context) => {
+    if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Requires authentication.');
+    
+    const db = admin.firestore();
+    const userId = context.auth.uid;
+    const todayStr = new Date().toISOString().split('T')[0];
+
+    try {
+      const userDoc = await db.collection('users').doc(userId).get();
+      const userData = userDoc.data() || {};
+      
+      const currentMonthSpent = userData.currentMonthSpent || 0;
+      const monthlyBudget = userData.monthlyBudget || 3000;
+      const lastMonthSpent = userData.lastMonthSpent || 0;
+      
+      const payload = {
+        currentMonthSpent,
+        monthlyBudget,
+        lastMonthSpent,
+        velocity: calculateVelocity(currentMonthSpent, monthlyBudget),
+        dayOfMonth: new Date().getDate()
+      };
+
+      const promptText = `
+        You are an empathetic, professional Financial Coach. 
+        Analyze the following user financial data:
+        - Current Month Spent: RM ${payload.currentMonthSpent}
+        - Monthly Budget: RM ${payload.monthlyBudget}
+        - Spending Velocity: ${payload.velocity}
+        - Day of Month: ${payload.dayOfMonth}
+        - Last Month Spent: RM ${payload.lastMonthSpent}
+
+        Provide exactly one specific, actionable nudge in under 200 characters. 
+        Focus on their spending velocity. Be encouraging but firm.
+      `;
+
+      const llmResponse = await aiInstance.generate({
+        model: gemini15Flash,
+        prompt: promptText,
+      });
+
+      const insightText = llmResponse.text.trim();
+
+      const insightData = {
+        insight: insightText,
+        date: todayStr,
+        generatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        usedBudget: currentMonthSpent,
+        totalBudget: monthlyBudget
+      };
+
+      await db.collection('users').doc(userId)
+              .collection('daily_insights').doc(todayStr)
+              .set(insightData);
+
+      return insightData;
+
+    } catch (error) {
+      console.error('Failed to generate insight:', error);
+      throw new functions.https.HttpsError('internal', 'AI Generation failed');
+    }
+});
+
+const ReceiptSchema = z.object({
+  merchant: z.string().describe("The name of the store or vendor."),
+  total: z.number().describe("The final grand total amount paid. Do not include currency symbols."),
+  date: z.string().describe("The date of the transaction in YYYY-MM-DD format."),
+  category: z.enum(["Food", "Transport", "Groceries", "Utilities", "Entertainment", "Other", "Shopping", "Health"])
+    .describe("Categorize the receipt based on the merchant and items."),
+});
+
+export const analyzeReceiptText = functions
+  .runWith({ secrets: ['GEMINI_API_KEY'] })
+  .https.onCall(async (data, context) => {
+    if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Requires auth.');
+    
+    const rawText = data.rawText;
+    if (!rawText) throw new functions.https.HttpsError('invalid-argument', 'Missing rawText');
+
+    try {
+      const prompt = `
+        Analyze the following raw OCR text extracted from a receipt.
+        Extract the merchant name, grand total, date, and infer the category.
+        If a value cannot be confidently found, do your best to infer it from context.
+        
+        Raw OCR Text:
+        """
+        ${rawText}
+        """
+      `;
+
+      const llmResponse = await aiInstance.generate({
+        model: gemini15Flash,
+        prompt: prompt,
+        output: {
+          schema: ReceiptSchema,
+        },
+      });
+
+      const parsedData = llmResponse.output;
+
+      return parsedData;
+
+    } catch (error) {
+      console.error("AI Parsing Error:", error);
+      throw new functions.https.HttpsError('internal', 'Failed to parse receipt text.');
+    }
 });
 
