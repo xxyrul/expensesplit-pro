@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.0.11+13] - 2026-06-05
+### Added
+- Implemented a new sleek Month Selector in the Expenses view, replacing the Category Filter based on the Stitch design mockup.
+- Grouped transactions in the Expenses view by relative dates (e.g. "Today", "Yesterday").
+### Changed
+- Dramatically improved "Add Expense" performance by decoupling blocking AI network calls from the UI thread.
+- Updated the AI Advisor loading toast notification to use consistent dark-theme styling instead of the default Android pink color.
+### Fixed
+- Fixed AI Advisor insight generation to accurately pull statistics for the selected historical month instead of strictly the current month.
 ## [1.0.10+12] - 2026-06-05
 ### Fixed
 - Fixed timezone parsing bug in AI Insights generation function.

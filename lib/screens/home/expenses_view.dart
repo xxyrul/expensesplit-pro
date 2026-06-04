@@ -30,7 +30,9 @@ class ExpensesView extends ConsumerStatefulWidget {
 }
 
 class _ExpensesViewState extends ConsumerState<ExpensesView> {
-  String _selectedCategory = 'All';
+  late String _selectedMonth;
+  late List<DateTime> _availableMonthsDates;
+
   String _searchQuery = '';
   bool _showSearch = false;
   String? _highlightedExpenseId;
@@ -39,19 +41,19 @@ class _ExpensesViewState extends ConsumerState<ExpensesView> {
   final ScrollController _listScrollController = ScrollController();
   final Map<String, GlobalKey> _expenseItemKeys = {};
 
-  final List<String> _categories = ['All', ...kCategories];
-  final Map<String, GlobalKey> _categoryKeys = {};
-  final ScrollController _categoryScrollController = ScrollController();
-
   Stream<QuerySnapshot<Map<String, dynamic>>>? _cachedExpensesStream;
   String? _cachedUserUid;
 
   @override
   void initState() {
     super.initState();
-    for (var cat in _categories) {
-      _categoryKeys[cat] = GlobalKey(debugLabel: 'category_$cat');
+    _availableMonthsDates = [];
+    final now = DateTime.now();
+    for (int i = 0; i < 6; i++) {
+      _availableMonthsDates.add(DateTime(now.year, now.month - i, 1));
     }
+    _availableMonthsDates = _availableMonthsDates.reversed.toList();
+    _selectedMonth = DateFormat('MMMM yyyy').format(_availableMonthsDates.last);
     _highlightedExpenseId = widget.focusExpenseId;
     _pendingFocusScroll = widget.focusExpenseId != null;
   }
@@ -63,7 +65,6 @@ class _ExpensesViewState extends ConsumerState<ExpensesView> {
         widget.focusExpenseId != oldWidget.focusExpenseId) {
       _highlightedExpenseId = widget.focusExpenseId;
       _pendingFocusScroll = true;
-      _selectedCategory = 'All';
       _searchQuery = '';
       _searchController.clear();
     }
@@ -237,16 +238,15 @@ class _ExpensesViewState extends ConsumerState<ExpensesView> {
                           0,
                         ),
                         if (_showSearch) _buildSearchBar(),
-                        _buildCategoryFilter(),
+                        _buildMonthSelector(),
                         Expanded(child: _buildTransactionList(const [])),
                       ],
                     );
                   }
 
                   final expenses = _mapExpenseDocs(snapshot.data!.docs);
-                  final now = DateTime.now();
                   var allMonthExpenses = expenses.where((e) {
-                    return e.date.year == now.year && e.date.month == now.month;
+                    return DateFormat('MMMM yyyy').format(e.date) == _selectedMonth;
                   }).toList();
 
                   final globalTotalSpent = allMonthExpenses.fold(
@@ -256,12 +256,6 @@ class _ExpensesViewState extends ConsumerState<ExpensesView> {
                   final globalLimit = budgetLimits['Total'] ?? 0.0;
 
                   var filteredExpenses = allMonthExpenses;
-
-                  if (_selectedCategory != 'All') {
-                    filteredExpenses = filteredExpenses
-                        .where((e) => e.category == _selectedCategory)
-                        .toList();
-                  }
 
                   if (_searchQuery.isNotEmpty) {
                     final q = _searchQuery.toLowerCase();
@@ -292,7 +286,7 @@ class _ExpensesViewState extends ConsumerState<ExpensesView> {
                         globalTotalSpent,
                       ),
                       if (_showSearch) _buildSearchBar(),
-                      _buildCategoryFilter(),
+                      _buildMonthSelector(),
                       Expanded(child: _buildTransactionList(filteredExpenses)),
                     ],
                   );
@@ -432,9 +426,9 @@ class _ExpensesViewState extends ConsumerState<ExpensesView> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  "Total Spent",
-                  style: TextStyle(
+                Text(
+                  "Total Spent (${_selectedMonth.split(' ')[0]})",
+                  style: const TextStyle(
                     color: Colors.white70,
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
@@ -487,91 +481,68 @@ class _ExpensesViewState extends ConsumerState<ExpensesView> {
     );
   }
 
-  Widget _buildCategoryFilter() {
-    final colorScheme = Theme.of(context).colorScheme;
+  Widget _buildMonthSelector() {
+    final now = DateTime.now();
     return Container(
-      height: 70,
       margin: const EdgeInsets.only(top: 20, bottom: 10),
-      child: ListView.builder(
-        controller: _categoryScrollController,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
-        itemCount: _categories.length,
-        itemBuilder: (context, index) {
-          final category = _categories[index];
-          final isSelected = _selectedCategory == category;
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        child: Row(
+          children: _availableMonthsDates.map((date) {
+            final fullLabel = DateFormat('MMMM yyyy').format(date);
+            final isSelected = _selectedMonth == fullLabel;
 
-          return GestureDetector(
-            onTap: () {
-              setState(() {
-                _selectedCategory = category;
-              });
-              
-              // Animate to center the tapped item
-              final key = _categoryKeys[category];
-              if (key != null && key.currentContext != null) {
-                Scrollable.ensureVisible(
-                  key.currentContext!,
-                  duration: const Duration(milliseconds: 350),
-                  curve: Curves.easeOutCubic,
-                  alignment: 0.5, // 0.5 means center it in the viewport
-                );
-              }
-            },
-            child: Container(
-              key: _categoryKeys[category],
-              margin: const EdgeInsets.symmetric(horizontal: 6, vertical: 12),
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: isSelected ? null : colorScheme.surfaceContainer,
-                gradient: isSelected
-                    ? LinearGradient(
-                        colors: [
-                          colorScheme.primary,
-                          colorScheme.primary.withOpacity(0.85),
-                        ],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      )
-                    : null,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: isSelected
-                      ? colorScheme.primary
-                      : colorScheme.outlineVariant,
-                ),
-                boxShadow: isSelected
-                    ? [
-                        BoxShadow(
-                          color: colorScheme.primary.withOpacity(0.2),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
-                        ),
-                      ]
-                    : [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.015),
-                          blurRadius: 4,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-              ),
-              child: Text(
-                category,
-                style: TextStyle(
-                  color: isSelected
-                      ? Colors.white
-                      : colorScheme.onSurfaceVariant,
-                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                  fontSize: 15,
+            String label = DateFormat('MMM').format(date).toUpperCase();
+            if (date.year != now.year) {
+              label = '$label${DateFormat('yy').format(date)}';
+            }
+
+            return GestureDetector(
+              onTap: () => setState(() => _selectedMonth = fullLabel),
+              child: Container(
+                margin: const EdgeInsets.only(right: 24),
+                child: Column(
+                  children: [
+                    Text(
+                      label,
+                      style: TextStyle(
+                        color: isSelected ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.onSurfaceVariant,
+                        fontWeight: isSelected
+                            ? FontWeight.bold
+                            : FontWeight.w500,
+                        fontSize: 14,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Container(
+                      height: 3,
+                      width: 28,
+                      color: isSelected ? Theme.of(context).colorScheme.primary : Colors.transparent,
+                    ),
+                  ],
                 ),
               ),
-            ),
-          );
-        },
+            );
+          }).toList(),
+        ),
       ),
     );
+  }
+
+  String _getRelativeDateHeader(DateTime date) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final yesterday = today.subtract(const Duration(days: 1));
+    final expenseDate = DateTime(date.year, date.month, date.day);
+
+    if (expenseDate == today) {
+      return 'Today, ${DateFormat('MMMM d').format(date)}';
+    } else if (expenseDate == yesterday) {
+      return 'Yesterday, ${DateFormat('MMMM d').format(date)}';
+    } else {
+      return DateFormat('MMMM d, yyyy').format(date);
+    }
   }
 
   Widget _buildTransactionList(List<ExpenseModel> expenses) {
@@ -597,8 +568,6 @@ class _ExpensesViewState extends ConsumerState<ExpensesView> {
             Text(
               _searchQuery.isNotEmpty
                   ? 'No results for "$_searchQuery"'
-                  : _selectedCategory != 'All'
-                  ? 'No $_selectedCategory expenses this month'
                   : 'No expenses yet this month',
               style: const TextStyle(
                 color: Color(0xFF64748B),
@@ -618,14 +587,59 @@ class _ExpensesViewState extends ConsumerState<ExpensesView> {
       );
     }
 
-    return ListView.builder(
+    final Map<String, List<ExpenseModel>> grouped = {};
+    for (var e in expenses) {
+      final header = _getRelativeDateHeader(e.date);
+      grouped.putIfAbsent(header, () => []).add(e);
+    }
+
+    final children = <Widget>[];
+    children.add(const SizedBox(height: 10));
+    children.add(const Padding(
+      padding: EdgeInsets.symmetric(horizontal: 20),
+      child: Text(
+        'Transactions',
+        style: TextStyle(
+          fontSize: 20,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    ));
+    children.add(const SizedBox(height: 16));
+
+    for (var entry in grouped.entries) {
+      children.add(
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+          child: Text(
+            entry.key,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
+        )
+      );
+      
+      final groupExpenses = entry.value;
+      final cardList = <Widget>[];
+      for (var expense in groupExpenses) {
+        cardList.add(_buildExpenseCard(expense));
+      }
+
+      children.add(
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Column(children: cardList),
+        )
+      );
+    }
+
+    return ListView(
       controller: _listScrollController,
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-      itemCount: expenses.length,
-      itemBuilder: (context, index) {
-        final expense = expenses[index];
-        return _buildExpenseCard(expense);
-      },
+      padding: const EdgeInsets.only(bottom: 100),
+      children: children,
     );
   }
 

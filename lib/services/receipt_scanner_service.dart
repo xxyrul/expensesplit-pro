@@ -94,6 +94,19 @@ class ReceiptScannerService {
     }
   }
 
+  Future<Map<String, dynamic>?> processImageFile(String filePath) async {
+    try {
+      final inputImage = InputImage.fromFilePath(filePath);
+      final RecognizedText recognizedText = await _textRecognizer.processImage(inputImage);
+      final String rawText = formatRecognizedText(recognizedText);
+
+      return await analyzeTextWithAI(rawText);
+    } catch (e) {
+      print("Error processing image file with Hybrid AI: $e");
+      return null;
+    }
+  }
+
   static Future<Map<String, dynamic>?> analyzeTextWithAI(String rawText) async {
     try {
       if (rawText.trim().isEmpty) return null;

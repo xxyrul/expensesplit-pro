@@ -116,7 +116,10 @@ class _ReportsViewState extends ConsumerState<ReportsView> {
                         },
                       ),
                       const SizedBox(height: 15),
-                      const AiAdvisorCard(),
+                      AiAdvisorCard(
+                        totalSpent: filtered.fold(0.0, (s, e) => s + e.amount),
+                        dateStr: DateFormat('yyyy-MM-dd').format(DateFormat('MMMM yyyy').parse(_selectedMonth)),
+                      ),
                       const SizedBox(height: 40),
                     ],
                   ),

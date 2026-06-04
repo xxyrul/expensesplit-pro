@@ -386,8 +386,8 @@ export const generateDailyInsight = functions
       const userDoc = await db.collection('users').doc(userId).get();
       const userData = userDoc.data() || {};
       
-      const currentMonthSpent = userData.currentMonthSpent || 0;
-      const monthlyBudget = userData.monthlyBudget || 3000;
+      const currentMonthSpent = data?.currentMonthSpent ?? (userData.currentMonthSpent || 0);
+      const monthlyBudget = data?.monthlyBudget ?? (userData.monthlyBudget || 3000);
       const lastMonthSpent = userData.lastMonthSpent || 0;
       
       const payload = {

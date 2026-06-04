@@ -6,9 +6,17 @@ import 'package:cloud_functions/cloud_functions.dart';
 import '../../providers/expense_providers.dart';
 import '../../providers/budget_providers.dart';
 import 'dart:ui';
+import 'modern_bottom_toast.dart';
 
 class AiAdvisorCard extends ConsumerWidget {
-  const AiAdvisorCard({super.key});
+  final double totalSpent;
+  final String dateStr;
+  
+  const AiAdvisorCard({
+    super.key,
+    required this.totalSpent,
+    required this.dateStr,
+  });
 
   String _generateInsight(double totalSpent, double targetBudget) {
     if (totalSpent == 0) return "Start tracking your first expense to get tips!";
@@ -32,8 +40,6 @@ class AiAdvisorCard extends ConsumerWidget {
       data: (budgets) => (budgets['Total'] == null || budgets['Total'] == 0),
       orElse: () => true,
     );
-
-    final totalSpent = trendData.isEmpty ? 0.0 : trendData.values.fold(0.0, (a, b) => a + b);
     
     if (totalSpent == 0.0) {
       return _buildCard(
@@ -56,7 +62,7 @@ class AiAdvisorCard extends ConsumerWidget {
     
     final localAdvice = _generateInsight(totalSpent, targetBudget);
     final userId = FirebaseAuth.instance.currentUser?.uid;
-    final todayStr = DateTime.now().toIso8601String().split('T').first;
+    final todayStr = dateStr;
 
     if (userId == null) {
       return _buildCard(
@@ -168,33 +174,23 @@ class AiAdvisorCard extends ConsumerWidget {
                 GestureDetector(
                   onTap: () async {
                     try {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            'Generating new AI insight...', 
-                            style: TextStyle(color: Theme.of(context).colorScheme.primary, fontWeight: FontWeight.w600)
-                          ),
-                          backgroundColor: Theme.of(context).brightness == Brightness.dark 
-                              ? const Color(0xFF2A2A2C) 
-                              : Colors.white,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                          behavior: SnackBarBehavior.floating,
-                        ),
+                      ModernBottomToast.show(
+                        context,
+                        message: 'Generating new AI insight...',
+                        type: ModernToastType.info,
                       );
                       final callable = FirebaseFunctions.instance.httpsCallable('generateDailyInsight');
-                      final dateStr = DateTime.now().toIso8601String().split('T').first;
-                      await callable.call({'dateStr': dateStr});
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                      }
+                      await callable.call({
+                        'dateStr': dateStr,
+                        'currentMonthSpent': totalSpent,
+                        'monthlyBudget': targetBudget
+                      });
                     } catch (e) {
                       if (context.mounted) {
-                        ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: const Text('Failed to fetch AI insight. Try again later.'),
-                            backgroundColor: Theme.of(context).colorScheme.error,
-                          ),
+                        ModernBottomToast.show(
+                          context,
+                          message: 'Failed to fetch AI insight. Try again later.',
+                          type: ModernToastType.error,
                         );
                       }
                     }

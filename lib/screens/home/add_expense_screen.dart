@@ -11,6 +11,7 @@ import '../../widgets/scan_receipt_button.dart';
 import '../../utils/category_styles.dart';
 import '../../widgets/modern_bottom_toast.dart';
 import '../../services/receipt_upload_service.dart';
+import '../../services/receipt_scanner_service.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../theme/brand_theme.dart';
@@ -205,7 +206,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
       }
 
       final vendorService = ref.read(vendorIntelligenceServiceProvider);
-      await vendorService.saveVendorCategory(enteredVendor, _selectedCategory);
+      vendorService.saveVendorCategory(enteredVendor, _selectedCategory);
 
       // AI Logic: Check for OCR corrections (amount and/or vendor)
       if (widget.rawText != null) {
@@ -217,7 +218,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
             widget.initialVendor != enteredVendor;
 
         if (amountChanged || vendorChanged) {
-          await vendorService.logOcrCorrection(
+          vendorService.logOcrCorrection(
             rawText: widget.rawText!,
             systemSuggestedAmount: widget.initialAmount ?? enteredAmount,
             userCorrectedAmount: enteredAmount,
@@ -613,9 +614,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                     final picker = ImagePicker();
                     final pickedFile = await picker.pickImage(source: ImageSource.camera);
                     if (pickedFile != null) {
-                      setState(() {
-                        _selectedReceiptImage = File(pickedFile.path);
-                      });
+                      _processSelectedImage(pickedFile.path);
                     }
                   },
                 ),
@@ -627,9 +626,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                     final picker = ImagePicker();
                     final pickedFile = await picker.pickImage(source: ImageSource.gallery);
                     if (pickedFile != null) {
-                      setState(() {
-                        _selectedReceiptImage = File(pickedFile.path);
-                      });
+                      _processSelectedImage(pickedFile.path);
                     }
                   },
                 ),
@@ -639,6 +636,51 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
         );
       },
     );
+  }
+
+  Future<void> _processSelectedImage(String filePath) async {
+    setState(() {
+      _selectedReceiptImage = File(filePath);
+    });
+
+    // Show processing toast
+    ModernBottomToast.show(
+      context,
+      message: 'Scanning receipt with AI...',
+      type: ModernToastType.info,
+    );
+
+    final scanner = ref.read(receiptScannerProvider);
+    final result = await scanner.processImageFile(filePath);
+
+    if (result != null && mounted) {
+      setState(() {
+        if (result['amount'] != null) {
+          _amountController.text = result['amount'].toString();
+        }
+        if (result['vendor'] != null) {
+          _vendorController.text = result['vendor'].toString();
+        }
+        if (result['category'] != null && kCategories.contains(result['category'])) {
+          _selectedCategory = result['category'];
+          _isAiCategory = true;
+        }
+        if (result['date'] != null) {
+          _selectedDate = result['date'];
+        }
+      });
+      ModernBottomToast.show(
+        context,
+        message: 'Receipt parsed successfully',
+        type: ModernToastType.success,
+      );
+    } else if (mounted) {
+      ModernBottomToast.show(
+        context,
+        message: 'Could not read receipt details',
+        type: ModernToastType.error,
+      );
+    }
   }
 
   Widget _buildReceiptAttachmentSection(Color subTextColor) {
