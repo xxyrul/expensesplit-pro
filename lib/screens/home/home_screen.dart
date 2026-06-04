@@ -3,6 +3,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/auth_service.dart';
 import 'dashboard_view.dart';
@@ -28,6 +30,26 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    _syncFcmToken();
+  }
+
+  Future<void> _syncFcmToken() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+
+      final messaging = FirebaseMessaging.instance;
+      final token = await messaging.getToken();
+      if (token == null) return;
+
+      final userRef = FirebaseFirestore.instance.collection('users').doc(user.uid);
+      await userRef.set({
+        'fcmTokens': FieldValue.arrayUnion([token])
+      }, SetOptions(merge: true));
+      debugPrint('Sync FCM Token successfully: $token');
+    } catch (e) {
+      debugPrint('Failed to sync FCM Token: $e');
+    }
   }
 
   @override

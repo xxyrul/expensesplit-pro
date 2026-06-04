@@ -25,6 +25,17 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
   debugPrint("Handling a background message: ${message.messageId}");
+
+  final title = message.data['title'] ?? message.data['notification_title'];
+  final body = message.data['body'] ?? message.data['notification_body'] ?? message.data['message'];
+
+  if (title != null && body != null) {
+    await NotificationService.instance.initialize();
+    await NotificationService.instance.showSystemBroadcast(
+      title: title,
+      body: body,
+    );
+  }
 }
 
 void main() async {
@@ -84,12 +95,22 @@ void main() async {
   await NotificationService.instance.initialize();
 
   FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-    final notification = message.notification;
-    if (notification == null) return;
+    String? title;
+    String? body;
+
+    if (message.notification != null) {
+      title = message.notification!.title;
+      body = message.notification!.body;
+    } else {
+      title = message.data['title'];
+      body = message.data['body'] ?? message.data['message'];
+    }
+
+    if (title == null || body == null) return;
 
     NotificationService.instance.showSystemBroadcast(
-      title: notification.title ?? 'ExpenseSplit Pro Alert',
-      body: notification.body ?? '',
+      title: title,
+      body: body,
     );
   });
 

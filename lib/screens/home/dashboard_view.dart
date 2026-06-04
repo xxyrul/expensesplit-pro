@@ -13,6 +13,7 @@ import '../home/set_budget_screen.dart';
 import '../goals/financial_goals_view.dart';
 import '../debts/debt_management_view.dart';
 import '../../widgets/notifications_sheet.dart';
+import '../../widgets/daily_tip_bento_card.dart';
 
 class DashboardStats {
   final List<ExpenseModel> recentExpenses;
@@ -54,8 +55,7 @@ final dashboardStatsProvider = FutureProvider.autoDispose<DashboardStats>((ref) 
     );
   });
 });
-class DashboardView extends ConsumerWidget {
-  // NEW: Add the onSettingsPressed callback
+class DashboardView extends ConsumerStatefulWidget {
   final VoidCallback? onSettingsPressed;
   final VoidCallback? onViewAllPressed;
   final void Function(ExpenseModel expense)? onExpenseTap;
@@ -68,7 +68,14 @@ class DashboardView extends ConsumerWidget {
   });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<DashboardView> createState() => _DashboardViewState();
+}
+
+class _DashboardViewState extends ConsumerState<DashboardView> {
+  int _nudgeRefreshCount = 0;
+
+  @override
+  Widget build(BuildContext context) {
     final budgetsAsync = ref.watch(budgetsStreamProvider);
     final statsAsync = ref.watch(dashboardStatsProvider);
 
@@ -79,16 +86,35 @@ class DashboardView extends ConsumerWidget {
           final double totalLimit = budgetLimits['Total'] ?? 0.0;
           return statsAsync.when(
             data: (stats) {
-              return Column(
-                children: [
-                  _buildHeader(context, ref, totalLimit, stats.totalSpent, stats.projectedSpending),
-                  _buildQuickActions(context, ref),
-                  Expanded(
-                    child: SingleChildScrollView(
-                      child: _buildRecentExpenses(context, stats.recentExpenses),
-                    ),
+              return RefreshIndicator(
+                onRefresh: () async {
+                  // Invalidate stats/expenses/budgets
+                  ref.invalidate(expensesStreamProvider);
+                  ref.invalidate(budgetsStreamProvider);
+                  ref.invalidate(dashboardStatsProvider);
+
+                  // Cycle the financial nudge card to a new tip
+                  setState(() => _nudgeRefreshCount++);
+
+                  // Smooth visual delay
+                  await Future.delayed(const Duration(milliseconds: 350));
+                },
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  child: Column(
+                    children: [
+                      _buildHeader(context, ref, totalLimit, stats.totalSpent, stats.projectedSpending),
+                      _buildQuickActions(context, ref),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        child: DailyTipBentoCard(refreshCount: _nudgeRefreshCount),
+                      ),
+                      const SizedBox(height: 8),
+                      _buildRecentExpenses(context, stats.recentExpenses),
+                      const SizedBox(height: 110), // Bottom padding to prevent overlap with the floating bottom nav bar
+                    ],
                   ),
-                ],
+                ),
               );
             },
             loading: () => const Center(child: CircularProgressIndicator()),
@@ -169,7 +195,7 @@ class DashboardView extends ConsumerWidget {
                     ),
                     child: IconButton(
                       icon: const Icon(Icons.settings, color: Colors.white),
-                      onPressed: onSettingsPressed, // UPDATED: Calls the callback
+                      onPressed: widget.onSettingsPressed, // UPDATED: Calls the callback
                     ),
                   ),
                 ],
@@ -455,7 +481,7 @@ class DashboardView extends ConsumerWidget {
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
               ),
               TextButton(
-                onPressed: onViewAllPressed,
+                onPressed: widget.onViewAllPressed,
                 child: Text(
                   "View All",
                   style: TextStyle(color: Theme.of(context).colorScheme.primary),
@@ -493,7 +519,7 @@ class DashboardView extends ConsumerWidget {
         ),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
-          onTap: () => onExpenseTap?.call(expense),
+          onTap: () => widget.onExpenseTap?.call(expense),
           child: Padding(
             padding: const EdgeInsets.all(14),
             child: Row(

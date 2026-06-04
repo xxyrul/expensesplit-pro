@@ -60,5 +60,13 @@ service cloud.firestore {
       allow write: if exists(/databases/$(database)/documents/admins/$(request.auth.uid));
     }
 
+    // Financial Nudges (Tip of the Day) security rules
+    match /daily_tips/{tipId} {
+      // Anyone authenticated can read the financial nudges
+      allow read: if request.auth != null;
+      
+      // Only admins can create, update, or delete tips
+      allow write: if isAdmin();
+    }
   }
 }

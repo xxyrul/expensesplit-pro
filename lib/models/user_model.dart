@@ -6,6 +6,8 @@ class UserModel {
   final String displayName; // This is the field your UI is looking for
   final String email;
   final double? monthlyBudget;
+  final bool isNotificationsEnabled;
+  final bool isDailyTipsEnabled;
 
   UserModel({
     required this.id, 
@@ -13,6 +15,8 @@ class UserModel {
     required this.email,
     required this.displayName,
     this.monthlyBudget,
+    this.isNotificationsEnabled = true,
+    this.isDailyTipsEnabled = true,
   });
 
   // Factory constructor for creating a UserModel from a Firestore document
@@ -31,6 +35,8 @@ class UserModel {
       // This is what the UI wants
       displayName: data['displayName'] ?? data['name'] ?? 'User',
       monthlyBudget: data['monthlyBudget']?.toDouble(),
+      isNotificationsEnabled: data['isNotificationsEnabled'] ?? true,
+      isDailyTipsEnabled: data['isDailyTipsEnabled'] ?? true,
     );
   }
 
@@ -42,6 +48,8 @@ class UserModel {
       "displayName": displayName,
       "email": email,
       "monthlyBudget": monthlyBudget,
+      "isNotificationsEnabled": isNotificationsEnabled,
+      "isDailyTipsEnabled": isDailyTipsEnabled,
       "createdAt": FieldValue.serverTimestamp(),
     };
   }

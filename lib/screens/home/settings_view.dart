@@ -34,6 +34,7 @@ class _SettingsViewState extends ConsumerState<SettingsView>
 
   bool _notificationsEnabled = true;
   bool _categoryAlertsEnabled = true;
+  bool _dailyTipsEnabled = true;
   double _alertThreshold = 0.8;
   String _currency = 'RM';
   bool _weekStartsMonday = true;
@@ -82,6 +83,8 @@ class _SettingsViewState extends ConsumerState<SettingsView>
           prefs.getBool(kSettingsNotificationsEnabled) ?? true;
       _categoryAlertsEnabled =
           prefs.getBool(kSettingsCategoryAlertsEnabled) ?? true;
+      _dailyTipsEnabled =
+          prefs.getBool(kSettingsDailyTipsEnabled) ?? true;
       _alertThreshold = prefs.getDouble(kSettingsAlertThreshold) ?? 0.8;
       _currency = prefs.getString(kSettingsCurrency) ?? 'RM';
       _weekStartsMonday = prefs.getBool(kSettingsWeekStartsMonday) ?? true;
@@ -211,69 +214,6 @@ class _SettingsViewState extends ConsumerState<SettingsView>
     }
   }
 
-  Future<void> _linkPhoneNumber(String verificationId, String smsCode) async {
-    try {
-      final authService = ref.read(authServiceProvider);
-      await authService.linkPhoneNumber(verificationId, smsCode);
-
-      final user = FirebaseAuth.instance.currentUser;
-      if (user != null) {
-        await FirebaseFirestore.instance
-            .collection('users')
-            .doc(user.uid)
-            .update({'phoneNumber': user.phoneNumber});
-      }
-
-      if (!mounted) return;
-      ModernBottomToast.show(
-        context,
-        message: 'Phone number linked successfully.',
-        type: ModernToastType.success,
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ModernBottomToast.show(
-        context,
-        message: 'Failed to link phone number: $e',
-        type: ModernToastType.error,
-      );
-      rethrow;
-    } finally {
-      await _refreshAuthProviderState();
-    }
-  }
-
-  Future<void> _unlinkPhoneNumber() async {
-    try {
-      final authService = ref.read(authServiceProvider);
-      await authService.unlinkPhoneNumber();
-
-      final user = FirebaseAuth.instance.currentUser;
-      if (user != null) {
-        await FirebaseFirestore.instance
-            .collection('users')
-            .doc(user.uid)
-            .update({'phoneNumber': FieldValue.delete()});
-      }
-
-      if (!mounted) return;
-      ModernBottomToast.show(
-        context,
-        message: 'Phone number unlinked successfully.',
-        type: ModernToastType.success,
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ModernBottomToast.show(
-        context,
-        message: 'Failed to unlink phone number: $e',
-        type: ModernToastType.error,
-      );
-      rethrow;
-    } finally {
-      await _refreshAuthProviderState();
-    }
-  }
 
   Future<void> _setPasswordForGoogleUser() async {
     final user = FirebaseAuth.instance.currentUser;
@@ -520,7 +460,6 @@ class _SettingsViewState extends ConsumerState<SettingsView>
           initialDisplayName: name,
           initialUsername: rawUsername,
           email: email,
-          phoneNumber: FirebaseAuth.instance.currentUser?.phoneNumber,
           isGoogleUser: _isGoogleUser,
           hasPasswordProvider: _hasPasswordProvider,
           onSaveProfile: _saveProfileDetails,
@@ -530,8 +469,6 @@ class _SettingsViewState extends ConsumerState<SettingsView>
           onDeleteAccount: _deleteAccount,
           onLinkGoogle: _linkGoogleAccount,
           onUnlinkGoogle: _unlinkGoogleAccount,
-          onLinkPhoneNumber: _linkPhoneNumber,
-          onUnlinkPhoneNumber: _unlinkPhoneNumber,
         ),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           final slide =
@@ -1012,6 +949,17 @@ class _SettingsViewState extends ConsumerState<SettingsView>
                                 kSettingsNotificationsEnabled,
                                 value,
                               );
+                              final user = FirebaseAuth.instance.currentUser;
+                              if (user != null) {
+                                try {
+                                  await FirebaseFirestore.instance
+                                      .collection('users')
+                                      .doc(user.uid)
+                                      .update({'isNotificationsEnabled': value});
+                                } catch (e) {
+                                  debugPrint('Error updating notifications setting in Firestore: $e');
+                                }
+                              }
                             },
                           ),
                           const Divider(height: 1),
@@ -1031,6 +979,31 @@ class _SettingsViewState extends ConsumerState<SettingsView>
                                     );
                                   }
                                 : null,
+                          ),
+                          const Divider(height: 1),
+                          _buildSwitchTile(
+                            Icons.lightbulb_outline_rounded,
+                            'Daily Financial Tips',
+                            colorScheme.primary,
+                            value: _dailyTipsEnabled,
+                            onChanged: (value) async {
+                              setState(() => _dailyTipsEnabled = value);
+                              await _persistBool(
+                                kSettingsDailyTipsEnabled,
+                                value,
+                              );
+                              final user = FirebaseAuth.instance.currentUser;
+                              if (user != null) {
+                                try {
+                                  await FirebaseFirestore.instance
+                                      .collection('users')
+                                      .doc(user.uid)
+                                      .update({'isDailyTipsEnabled': value});
+                                } catch (e) {
+                                  debugPrint('Error updating daily tips setting in Firestore: $e');
+                                }
+                              }
+                            },
                           ),
                           const Divider(height: 1),
                           _buildListTile(
