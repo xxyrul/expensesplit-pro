@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.0.10+12] - 2026-06-05
+### Fixed
+- Fixed timezone parsing bug in AI Insights generation function.
+- Fixed UI inconsistencies with the Add Expense screen's Merchant vendor field inner border.
+- Corrected text wrapping issues on long Category tags (e.g., "Entertainment").
+### Changed
+- Replaced the live-view camera for receipt attachment with an interactive bottom sheet modal supporting both Camera and Gallery inputs.
+- Redesigned the snackbar notifications in Reports & Insights for higher contrast and readability.
+
 ## [1.0.7+9] - 2026-06-04
 ### Added
 - Integrated Firebase Storage for Receipt Image Uploads directly into the mobile application.

@@ -6,7 +6,7 @@ import { onDocumentCreated } from 'firebase-functions/v2/firestore';
 admin.initializeApp();
 
 import { genkit, z } from 'genkit';
-import { gemini15Flash, googleAI } from '@genkit-ai/googleai';
+import { gemini20Flash, googleAI } from '@genkit-ai/googleai';
 
 const aiInstance = genkit({
   plugins: [googleAI({ apiKey: process.env.GEMINI_API_KEY })],
@@ -380,7 +380,7 @@ export const generateDailyInsight = functions
     
     const db = admin.firestore();
     const userId = context.auth.uid;
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = data?.dateStr || new Date().toISOString().split('T')[0];
 
     try {
       const userDoc = await db.collection('users').doc(userId).get();
@@ -412,7 +412,7 @@ export const generateDailyInsight = functions
       `;
 
       const llmResponse = await aiInstance.generate({
-        model: gemini15Flash,
+        model: 'googleai/gemini-2.5-flash',
         prompt: promptText,
       });
 
@@ -467,7 +467,7 @@ export const analyzeReceiptText = functions
       `;
 
       const llmResponse = await aiInstance.generate({
-        model: gemini15Flash,
+        model: 'googleai/gemini-2.5-flash',
         prompt: prompt,
         output: {
           schema: ReceiptSchema,

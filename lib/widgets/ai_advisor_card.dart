@@ -169,14 +169,34 @@ class AiAdvisorCard extends ConsumerWidget {
                   onTap: () async {
                     try {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Generating new AI insight...')),
+                        SnackBar(
+                          content: Text(
+                            'Generating new AI insight...', 
+                            style: TextStyle(color: Theme.of(context).colorScheme.primary, fontWeight: FontWeight.w600)
+                          ),
+                          backgroundColor: Theme.of(context).brightness == Brightness.dark 
+                              ? const Color(0xFF2A2A2C) 
+                              : Colors.white,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                          behavior: SnackBarBehavior.floating,
+                        ),
                       );
                       final callable = FirebaseFunctions.instance.httpsCallable('generateDailyInsight');
-                      await callable.call();
+                      final dateStr = DateTime.now().toIso8601String().split('T').first;
+                      await callable.call({'dateStr': dateStr});
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                      }
                     } catch (e) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Failed to generate insight: $e')),
-                      );
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: const Text('Failed to fetch AI insight. Try again later.'),
+                            backgroundColor: Theme.of(context).colorScheme.error,
+                          ),
+                        );
+                      }
                     }
                   },
                   child: Container(

@@ -13,7 +13,6 @@ import '../../widgets/modern_bottom_toast.dart';
 import '../../services/receipt_upload_service.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:camera/camera.dart';
 import '../../theme/brand_theme.dart';
 
 class AddExpenseScreen extends ConsumerStatefulWidget {
@@ -57,9 +56,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
   String? _uploadedReceiptUrl;
   final ReceiptUploadService _receiptUploadService = ReceiptUploadService();
 
-  CameraController? _cameraController;
-  Future<void>? _initializeControllerFuture;
-  bool _isCameraReady = false;
+
 
   @override
   void initState() {
@@ -98,30 +95,6 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
         }
       });
     }
-
-    _initializeCamera();
-  }
-
-  Future<void> _initializeCamera() async {
-    try {
-      final cameras = await availableCameras();
-      if (cameras.isEmpty) return;
-      final firstCamera = cameras.first;
-      _cameraController = CameraController(
-        firstCamera,
-        ResolutionPreset.medium,
-        enableAudio: false,
-      );
-      _initializeControllerFuture = _cameraController!.initialize();
-      await _initializeControllerFuture;
-      if (mounted) {
-        setState(() {
-          _isCameraReady = true;
-        });
-      }
-    } catch (e) {
-      debugPrint('Error initializing camera: $e');
-    }
   }
 
   Future<void> _checkSmartVendor() async {
@@ -144,7 +117,6 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
   void dispose() {
     _amountController.dispose();
     _vendorController.dispose();
-    _cameraController?.dispose();
     super.dispose();
   }
 
@@ -297,6 +269,17 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
 
     return Scaffold(
       backgroundColor: bgColor,
+      floatingActionButton: FloatingActionButton(
+        onPressed: _isSaving ? null : _submitData,
+        backgroundColor: Theme.of(context).colorScheme.primary,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        elevation: 8,
+        child: _isSaving 
+            ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5))
+            : const Icon(Icons.check_rounded, color: Colors.white, size: 28),
+      ),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -338,129 +321,134 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
           )
         ],
       ),
-      body: CustomScrollView(
-        slivers: [
-          SliverFillRemaining(
-            hasScrollBody: false,
+      body: SingleChildScrollView(
+        physics: const BouncingScrollPhysics(),
+        child: Padding(
+          padding: EdgeInsets.only(top: MediaQuery.of(context).size.height * 0.05),
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+            decoration: BoxDecoration(
+              color: sheetColor,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.5),
+                  blurRadius: 20,
+                  offset: const Offset(0, -5),
+                ),
+              ],
+            ),
             child: Column(
-              mainAxisAlignment: MainAxisAlignment.end,
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
-                  decoration: BoxDecoration(
-                    color: sheetColor,
-                    borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.5),
-                        blurRadius: 20,
-                        offset: const Offset(0, -5),
-                      ),
-                    ],
+                // --- RECEIPT ATTACHMENT / CAMERA (Top) ---
+                _buildReceiptAttachmentSection(subTextColor),
+                const SizedBox(height: 32),
+                
+                // --- TOTAL AMOUNT ---
+                Text(
+                  "TOTAL AMOUNT",
+                  style: TextStyle(
+                    color: subTextColor,
+                    fontSize: 12,
+                    letterSpacing: 1.2,
+                    fontWeight: FontWeight.w600,
                   ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Center(
-                        child: Column(
-                          children: [
-                            Text(
-                              "TOTAL AMOUNT",
-                              style: TextStyle(
-                                color: subTextColor,
-                                fontSize: 12,
-                                letterSpacing: 1.2,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              crossAxisAlignment: CrossAxisAlignment.baseline,
-                              textBaseline: TextBaseline.alphabetic,
-                              children: [
-                                Text(
-                                  "RM ",
-                                  style: TextStyle(
-                                    color: subTextColor,
-                                    fontSize: 24,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                IntrinsicWidth(
-                                  child: TextField(
-                                    controller: _amountController,
-                                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                                    textAlign: TextAlign.center,
-                                    style: TextStyle(
-                                      color: textColor,
-                                      fontSize: 48,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                    decoration: InputDecoration(
-                                      border: InputBorder.none,
-                                      hintText: "0.00",
-                                      hintStyle: TextStyle(color: subTextColor.withOpacity(0.5)),
-                                      isDense: true,
-                                      contentPadding: EdgeInsets.zero,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 16),
-                            Container(
-                              width: 40,
-                              height: 4,
-                              decoration: BoxDecoration(
-                                color: Theme.of(context).colorScheme.primary,
-                                borderRadius: BorderRadius.circular(2),
-                              ),
-                            ),
-                          ],
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.baseline,
+                  textBaseline: TextBaseline.alphabetic,
+                  children: [
+                    Text(
+                      "RM ",
+                      style: TextStyle(
+                        color: subTextColor,
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    IntrinsicWidth(
+                      child: TextField(
+                        controller: _amountController,
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: textColor,
+                          fontSize: 48,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        decoration: InputDecoration(
+                          border: InputBorder.none,
+                          hintText: "0.00",
+                          hintStyle: TextStyle(color: subTextColor.withOpacity(0.5)),
+                          isDense: true,
+                          contentPadding: EdgeInsets.zero,
                         ),
                       ),
-                      const SizedBox(height: 32),
-                      _buildInputField(
-                        label: "Merchant / Vendor",
-                        icon: Icons.storefront_rounded,
-                        textColor: textColor,
-                        subTextColor: subTextColor,
-                        child: TextField(
-                          controller: _vendorController,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.primary,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(height: 32),
+                
+                // --- FORM FIELDS (Merchant & Date) ---
+                _buildInputField(
+                  label: "Merchant / Vendor",
+                  icon: Icons.storefront_rounded,
+                  textColor: textColor,
+                  subTextColor: subTextColor,
+                  child: TextField(
+                    controller: _vendorController,
+                    style: TextStyle(color: textColor, fontSize: 16),
+                    decoration: InputDecoration(
+                      filled: false,
+                      border: InputBorder.none,
+                      enabledBorder: InputBorder.none,
+                      focusedBorder: InputBorder.none,
+                      errorBorder: InputBorder.none,
+                      disabledBorder: InputBorder.none,
+                      hintText: "e.g. Village Grocer",
+                      hintStyle: TextStyle(color: subTextColor.withOpacity(0.5)),
+                      isDense: true,
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                _buildInputField(
+                  label: "Transaction Date",
+                  icon: Icons.calendar_today_rounded,
+                  textColor: textColor,
+                  subTextColor: subTextColor,
+                  child: InkWell(
+                    onTap: () => _selectDate(context),
+                    child: Row(
+                      children: [
+                        Text(
+                          DateFormat('dd MMMM yyyy').format(_selectedDate),
                           style: TextStyle(color: textColor, fontSize: 16),
-                          decoration: InputDecoration(
-                            border: InputBorder.none,
-                            hintText: "e.g. Village Grocer",
-                            hintStyle: TextStyle(color: subTextColor.withOpacity(0.5)),
-                            isDense: true,
-                            contentPadding: EdgeInsets.zero,
-                          ),
                         ),
-                      ),
-                      const SizedBox(height: 20),
-                      _buildInputField(
-                        label: "Transaction Date",
-                        icon: Icons.calendar_today_rounded,
-                        textColor: textColor,
-                        subTextColor: subTextColor,
-                        child: InkWell(
-                          onTap: () => _selectDate(context),
-                          child: Row(
-                            children: [
-                              Text(
-                                DateFormat('dd MMMM yyyy').format(_selectedDate),
-                                style: TextStyle(color: textColor, fontSize: 16),
-                              ),
-                              const Spacer(),
-                              Icon(Icons.chevron_right_rounded, color: subTextColor),
-                            ],
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 24),
+                        const Spacer(),
+                        Icon(Icons.chevron_right_rounded, color: subTextColor),
+                      ],
+                    ),
+                  ),
+                ),
+                      const SizedBox(height: 32),
+                      
+                      // --- CATEGORY GRID ---
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
@@ -484,20 +472,15 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                         ],
                       ),
                       const SizedBox(height: 16),
-                      _buildCategorySection(isDark, textColor, subTextColor),
-                      const SizedBox(height: 24),
-                      _buildReceiptAttachmentSection(subTextColor),
-                      const SizedBox(height: 32),
-                      _buildGradientSaveButton(),
+                      _buildCategoryGrid(isDark, textColor, subTextColor),
+                      
+                      const SizedBox(height: 80),
                       SizedBox(height: MediaQuery.of(context).padding.bottom),
                     ],
                   ),
                 ),
-              ],
+              ),
             ),
-          ),
-        ],
-      ),
     );
   }
 
@@ -520,7 +503,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
           ),
         ),
         const SizedBox(height: 8),
-        ReusableInputContainer(
+        FormFieldWrapper(
           child: Row(
             children: [
               Icon(icon, color: subTextColor, size: 20),
@@ -533,273 +516,235 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
     );
   }
 
-  Widget _buildCategorySection(bool isDark, Color textColor, Color subTextColor) {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      physics: const BouncingScrollPhysics(),
-      child: Row(
-        children: kCategories.map((key) {
-          final style = getCategoryStyle(key);
-          final isSelected = _selectedCategory == key;
-          
-          return GestureDetector(
-            onTap: () {
-              setState(() {
-                _selectedCategory = key;
-                _isAiCategory = false;
-              });
-            },
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              margin: const EdgeInsets.only(right: 12),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              decoration: BoxDecoration(
-                color: isSelected ? style.color.withOpacity(0.2) : Colors.transparent,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: isSelected ? style.color : (isDark ? Colors.white10 : Colors.black12),
-                  width: isSelected ? 2 : 1,
+  Widget _buildCategoryGrid(bool isDark, Color textColor, Color subTextColor) {
+    return GridView.count(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      crossAxisCount: 4,
+      mainAxisSpacing: 20,
+      crossAxisSpacing: 8,
+      childAspectRatio: 0.7, // Fixes the "Bottom Overflowed" error
+      children: kCategories.map((key) {
+        final style = getCategoryStyle(key);
+        final isSelected = _selectedCategory == key;
+        
+        return GestureDetector(
+          onTap: () {
+            setState(() {
+              _selectedCategory = key;
+              _isAiCategory = false;
+            });
+          },
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  color: isSelected ? Theme.of(context).colorScheme.primary : (isDark ? const Color(0xFF1E293B) : Colors.white),
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: isSelected ? Theme.of(context).colorScheme.primary : (isDark ? Colors.white10 : Colors.black12),
+                    width: isSelected ? 2 : 1,
+                  ),
+                  boxShadow: isSelected ? [
+                    BoxShadow(
+                      color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    )
+                  ] : [],
                 ),
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
+                child: Center(
+                  child: Icon(
                     style.icon,
-                    color: isSelected ? style.color : subTextColor,
+                    color: isSelected ? Colors.white : subTextColor,
                     size: 24,
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    key,
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                      color: isSelected ? textColor : subTextColor,
-                    ),
-                  ),
-                ],
+                ),
               ),
+              const SizedBox(height: 8),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  key,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                    color: isSelected ? Theme.of(context).colorScheme.primary : subTextColor,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  void _showImagePickerModal() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF1E1E1E) : Colors.white,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (BuildContext context) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  "Add Receipt",
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                ListTile(
+                  leading: const Icon(Icons.camera_alt_rounded),
+                  title: const Text("Take a Picture"),
+                  onTap: () async {
+                    Navigator.pop(context);
+                    final picker = ImagePicker();
+                    final pickedFile = await picker.pickImage(source: ImageSource.camera);
+                    if (pickedFile != null) {
+                      setState(() {
+                        _selectedReceiptImage = File(pickedFile.path);
+                      });
+                    }
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.photo_library_rounded),
+                  title: const Text("Choose from Gallery"),
+                  onTap: () async {
+                    Navigator.pop(context);
+                    final picker = ImagePicker();
+                    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
+                    if (pickedFile != null) {
+                      setState(() {
+                        _selectedReceiptImage = File(pickedFile.path);
+                      });
+                    }
+                  },
+                ),
+              ],
             ),
-          );
-        }).toList(),
-      ),
+          ),
+        );
+      },
     );
   }
 
   Widget _buildReceiptAttachmentSection(Color subTextColor) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              "Receipt Attachment",
+        SizedBox(
+          width: double.infinity,
+          child: GestureDetector(
+            onTap: () {
+              if (_selectedReceiptImage != null) {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => _FullScreenImageViewer(imagePath: _selectedReceiptImage!.path),
+                  ),
+                );
+              } else {
+                _showImagePickerModal();
+              }
+            },
+            child: Stack(
+              clipBehavior: Clip.none,
+              alignment: Alignment.center,
+              children: [
+                Container(
+                  height: 180,
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF2A2A2C) : Colors.black.withOpacity(0.05),
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(color: Theme.of(context).brightness == Brightness.dark ? Colors.white10 : Colors.black12),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(24),
+                    child: _selectedReceiptImage != null
+                        ? Stack(
+                            fit: StackFit.expand,
+                            children: [
+                              Image.file(
+                                _selectedReceiptImage!,
+                                fit: BoxFit.cover,
+                              ),
+                              Container(
+                                color: Colors.black.withOpacity(0.2),
+                                child: const Center(
+                                  child: Icon(Icons.visibility, color: Colors.white, size: 32),
+                                ),
+                              )
+                            ],
+                          )
+                        : Center(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.add_a_photo_rounded, size: 40, color: subTextColor.withOpacity(0.5)),
+                                const SizedBox(height: 12),
+                                Text(
+                                  "Attach Receipt",
+                                  style: TextStyle(
+                                    color: subTextColor,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                  ),
+                ),
+                if (_selectedReceiptImage != null)
+                  Positioned(
+                    top: -10,
+                    right: -10,
+                    child: GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          _selectedReceiptImage = null;
+                          _uploadedReceiptUrl = null;
+                        });
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: const BoxDecoration(
+                          color: Colors.black87,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.close, color: Colors.white, size: 16),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+        if (_selectedReceiptImage != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 12),
+            child: Text(
+              "Tap to preview receipt",
               style: TextStyle(
                 color: subTextColor,
                 fontSize: 12,
                 fontWeight: FontWeight.w500,
               ),
             ),
-            if (!kIsWeb && _selectedReceiptImage == null)
-              GestureDetector(
-                onTap: () {
-                  // Direct to scanner logic here
-                },
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.primary.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.auto_awesome, color: Theme.of(context).colorScheme.primary, size: 14),
-                      const SizedBox(width: 4),
-                      Text(
-                        "Scan AI",
-                        style: TextStyle(
-                          color: Theme.of(context).colorScheme.primary,
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        ReusableInputContainer(
-          child: _selectedReceiptImage != null
-              ? Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: GestureDetector(
-                        onTap: () {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => _FullScreenImageViewer(
-                                imagePath: _selectedReceiptImage!.path,
-                              ),
-                            ),
-                          );
-                        },
-                        child: Image.file(
-                          _selectedReceiptImage!,
-                          width: double.infinity,
-                          height: 200,
-                          fit: BoxFit.cover,
-                        ),
-                      ),
-                    ),
-                    Positioned(
-                      top: 8,
-                      right: 8,
-                      child: GestureDetector(
-                        onTap: () {
-                          setState(() {
-                            _selectedReceiptImage = null;
-                            _uploadedReceiptUrl = null;
-                          });
-                        },
-                        child: Container(
-                          padding: const EdgeInsets.all(6),
-                          decoration: BoxDecoration(
-                            color: Colors.black.withOpacity(0.6),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(Icons.close, color: Colors.white, size: 18),
-                        ),
-                      ),
-                    ),
-                  ],
-                )
-              : SizedBox(
-                  height: 200,
-                  width: double.infinity,
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: _initializeControllerFuture == null
-                        ? const Center(child: CircularProgressIndicator())
-                        : FutureBuilder<void>(
-                            future: _initializeControllerFuture,
-                            builder: (context, snapshot) {
-                              if (snapshot.connectionState == ConnectionState.done) {
-                                return Stack(
-                                  fit: StackFit.expand,
-                                  children: [
-                                    CameraPreview(_cameraController!),
-                                    Positioned(
-                                      bottom: 16,
-                                      left: 0,
-                                      right: 0,
-                                      child: Center(
-                                        child: GestureDetector(
-                                          onTap: () async {
-                                            try {
-                                              final image = await _cameraController!.takePicture();
-                                              setState(() {
-                                                _selectedReceiptImage = File(image.path);
-                                              });
-                                            } catch (e) {
-                                              debugPrint('Error taking picture: $e');
-                                            }
-                                          },
-                                          child: Container(
-                                            height: 50,
-                                            width: 50,
-                                            decoration: BoxDecoration(
-                                              shape: BoxShape.circle,
-                                              border: Border.all(color: Colors.white, width: 3),
-                                              color: Colors.white.withOpacity(0.3),
-                                            ),
-                                            child: Center(
-                                              child: Container(
-                                                height: 40,
-                                                width: 40,
-                                                decoration: const BoxDecoration(
-                                                  shape: BoxShape.circle,
-                                                  color: Colors.white,
-                                                ),
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                );
-                              } else {
-                                return const Center(child: CircularProgressIndicator());
-                              }
-                            },
-                          ),
-                  ),
-                ),
-        ),
+          ),
       ],
-    );
-  }
-
-  Widget _buildGradientSaveButton() {
-    return Container(
-      width: double.infinity,
-      height: 56,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF6366F1).withOpacity(0.5), // Neon indigo glow
-            blurRadius: 20,
-            offset: const Offset(0, 8),
-          ),
-        ],
-        gradient: const LinearGradient(
-          colors: [Color(0xFF818CF8), Color(0xFF6366F1)], // Indigo gradients
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(16),
-          onTap: _isSaving ? null : _submitData,
-          child: Center(
-            child: _isSaving
-                ? const SizedBox(
-                    width: 24,
-                    height: 24,
-                    child: CircularProgressIndicator(
-                      color: Colors.white,
-                      strokeWidth: 2.5,
-                    ),
-                  )
-                : const Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.save_rounded, color: Colors.white, size: 20),
-                      SizedBox(width: 8),
-                      Text(
-                        "Save Expense",
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 0.5,
-                        ),
-                      ),
-                    ],
-                  ),
-          ),
-        ),
-      ),
     );
   }
 }
@@ -834,9 +779,9 @@ class _FullScreenImageViewer extends StatelessWidget {
   }
 }
 
-class ReusableInputContainer extends StatelessWidget {
+class FormFieldWrapper extends StatelessWidget {
   final Widget child;
-  const ReusableInputContainer({super.key, required this.child});
+  const FormFieldWrapper({super.key, required this.child});
 
   @override
   Widget build(BuildContext context) {
@@ -844,8 +789,8 @@ class ReusableInputContainer extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF0F172A).withOpacity(0.5) : Colors.black.withOpacity(0.03),
-        borderRadius: BorderRadius.circular(16),
+        color: isDark ? const Color(0xFF2A2A2C) : Colors.black.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(24),
         border: Border.all(color: isDark ? Colors.white10 : Colors.black12),
       ),
       child: child,
