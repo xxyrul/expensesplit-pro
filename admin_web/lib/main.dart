@@ -6,6 +6,7 @@ import 'screens/auth/admin_login_screen.dart';
 import 'services/auth_service.dart';
 import 'screens/dashboard_layout.dart';
 import 'theme/expressive_theme.dart';
+import 'router/admin_router.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -20,42 +21,15 @@ class AdminWebApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return MaterialApp(
+    final router = ref.watch(routerProvider);
+    
+    return MaterialApp.router(
       title: 'ExpenseSplit Pro - Admin Dashboard',
       debugShowCheckedModeBanner: false,
       themeMode: ThemeMode.dark,
       theme: ExpressiveTheme.light(),
       darkTheme: ExpressiveTheme.dark(),
-      home: const _AuthGate(),
-    );
-  }
-}
-
-/// Top-level gate: watches [verifiedAdminProvider] and routes accordingly.
-class _AuthGate extends ConsumerWidget {
-  const _AuthGate();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final adminState = ref.watch(verifiedAdminProvider);
-
-    return adminState.when(
-      loading: () => const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      ),
-      error: (_, __) => const AdminLoginScreen(),
-      data: (state) {
-        switch (state) {
-          case AdminAuthState.loading:
-            return const Scaffold(
-              body: Center(child: CircularProgressIndicator()),
-            );
-          case AdminAuthState.admin:
-            return const DashboardLayout();
-          case AdminAuthState.unauthorized:
-            return const AdminLoginScreen();
-        }
-      },
+      routerConfig: router,
     );
   }
 }

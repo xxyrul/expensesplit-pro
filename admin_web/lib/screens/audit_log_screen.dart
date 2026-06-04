@@ -69,102 +69,63 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // ── Page header ─────────────────────────────────
-                      Flex(
-                        direction: isMobile ? Axis.vertical : Axis.horizontal,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          if (isMobile)
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'System Security Audit Trail',
-                                  style: TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                    height: 1.15,
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  'Immutably logged actions for system '
-                                  'accountability, access controls, and '
-                                  'policy compliance verification.',
-                                  style: TextStyle(
-                                    color: colorScheme.onSurfaceVariant,
-                                    fontSize: 13.5,
-                                    height: 1.35,
-                                  ),
-                                ),
-                              ],
-                            )
-                          else
-                            Expanded(
+                      // ── Page header (Banner) ─────────────────────────
+                      Container(
+                        width: double.infinity,
+                        constraints: const BoxConstraints(minHeight: 192),
+                        decoration: BoxDecoration(
+                          color: colorScheme.surfaceContainer,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: colorScheme.outlineVariant),
+                          image: const DecorationImage(
+                            image: NetworkImage('https://lh3.googleusercontent.com/aida-public/AB6AXuB-g0GXcIXDK0Pe2VB2CHkb1aUMUriNNcsPCYJjPXFizXMHEoSg5xm5uhP54rjBI7hDsVxt_d_TSM2_pejL6f3Z8M_bqZ2yS1rHTec-KHZowBaQQyH7ZpqfOim_56H-Gd2f0vD0gNd2T7j0ijlBOGZRk2TXgLmepKQhzOCUw0u37tL5aLMfRAUi9B-JssAZFHEeaBD2NbaRkWzf-thml_vsTEQJz9cACGIAgXxvhIv809JN7ctbEWJe_2VKN1eyUYa0WOZMqiPf-z0'),
+                            fit: BoxFit.cover,
+                            opacity: 0.3,
+                          ),
+                        ),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(12),
+                            gradient: LinearGradient(
+                              colors: [colorScheme.surface.withOpacity(0.8), Colors.transparent],
+                              stops: const [0.0, 1.0],
+                            ),
+                          ),
+                          padding: const EdgeInsets.all(24.0),
+                          child: Align(
+                            alignment: Alignment.centerLeft,
+                            child: ConstrainedBox(
+                              constraints: const BoxConstraints(maxWidth: 600),
                               child: Column(
+                                mainAxisSize: MainAxisSize.min,
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  const Text(
-                                    'System Security Audit Trail',
+                                  Text(
+                                    'System Activity Monitoring',
                                     style: TextStyle(
+                                      fontFamily: 'Hanken Grotesk',
                                       fontSize: 32,
                                       fontWeight: FontWeight.bold,
-                                      height: 1.15,
+                                      color: colorScheme.onSurface,
+                                      letterSpacing: -0.02,
                                     ),
                                   ),
                                   const SizedBox(height: 8),
                                   Text(
-                                    'Immutably logged actions for system '
-                                    'accountability, access controls, and '
-                                    'policy compliance verification.',
+                                    'Immutably logged actions for system accountability, access controls, and policy compliance verification.',
                                     style: TextStyle(
-                                      color: colorScheme.onSurfaceVariant,
+                                      fontFamily: 'Inter',
                                       fontSize: 16,
-                                      height: 1.35,
+                                      color: colorScheme.onSurfaceVariant,
                                     ),
                                   ),
                                 ],
                               ),
                             ),
-                          SizedBox(
-                            width: isMobile ? 0 : 16,
-                            height: isMobile ? 12 : 0,
                           ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 6,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.green.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(
-                                color: Colors.green.withOpacity(0.3),
-                              ),
-                            ),
-                            child: const Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  Icons.verified_user,
-                                  color: Colors.green,
-                                  size: 16,
-                                ),
-                                SizedBox(width: 8),
-                                Text(
-                                  'Append-only governance trail',
-                                  style: TextStyle(
-                                    color: Colors.green,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
+                        ),
                       ),
-                      const SizedBox(height: 28),
+                      const SizedBox(height: 40),
 
                       // ── Filter bar ──────────────────────────────────
                       _buildFilterBar(colorScheme),
@@ -210,36 +171,55 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   // Table header bar
-                                  Padding(
-                                    padding: const EdgeInsets.fromLTRB(
-                                      20,
-                                      18,
-                                      20,
-                                      14,
+                                  Container(
+                                    padding: const EdgeInsets.all(16),
+                                    decoration: BoxDecoration(
+                                      color: colorScheme.surfaceContainerHigh,
+                                      borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+                                      border: Border(bottom: BorderSide(color: colorScheme.outlineVariant)),
                                     ),
                                     child: Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.spaceBetween,
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                       children: [
                                         Text(
-                                          'Administrative Entries: '
-                                          '${filteredLogs.length}',
-                                          style: const TextStyle(
-                                            fontSize: 18,
-                                            fontWeight: FontWeight.bold,
+                                          'Activity Log',
+                                          style: TextStyle(
+                                            fontFamily: 'Hanken Grotesk',
+                                            fontSize: 20,
+                                            fontWeight: FontWeight.w600,
+                                            color: colorScheme.onSurface,
                                           ),
                                         ),
-                                        Text(
-                                          'Showing newest first',
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            color: colorScheme.onSurfaceVariant,
-                                          ),
+                                        Row(
+                                          children: [
+                                            Text(
+                                              'Showing ${filteredLogs.length} entries',
+                                              style: TextStyle(
+                                                fontFamily: 'Inter',
+                                                fontSize: 14,
+                                                color: colorScheme.onSurfaceVariant,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 16),
+                                            Row(
+                                              children: [
+                                                IconButton(
+                                                  icon: const Icon(Icons.chevron_left, size: 20),
+                                                  onPressed: () {},
+                                                  visualDensity: VisualDensity.compact,
+                                                ),
+                                                IconButton(
+                                                  icon: const Icon(Icons.chevron_right, size: 20),
+                                                  onPressed: () {},
+                                                  visualDensity: VisualDensity.compact,
+                                                ),
+                                              ],
+                                            ),
+                                          ],
                                         ),
                                       ],
                                     ),
                                   ),
-                                  const Divider(height: 1),
 
                                   // Table body
                                   Expanded(
@@ -405,93 +385,60 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
                                                     child: DataTable(
                                                       columnSpacing: 24,
                                                       horizontalMargin: 20,
-                                                      headingRowColor:
-                                                          WidgetStateProperty.all(
-                                                            colorScheme
-                                                                .surfaceContainerHighest,
-                                                          ),
-                                                      columns: const [
-                                                        DataColumn(
-                                                          label: Text(
-                                                            'Timestamp',
-                                                          ),
-                                                        ),
-                                                        DataColumn(
-                                                          label: Text(
-                                                            'Operator',
-                                                          ),
-                                                        ),
-                                                        DataColumn(
-                                                          label: Text(
-                                                            'Event Action',
-                                                          ),
-                                                        ),
-                                                        DataColumn(
-                                                          label: Text(
-                                                            'Target Info',
-                                                          ),
-                                                        ),
-                                                        DataColumn(
-                                                          label: Text(
-                                                            'Event Details',
-                                                          ),
-                                                        ),
+                                                      headingRowColor: WidgetStateProperty.all(
+                                                        colorScheme.surfaceContainerLowest,
+                                                      ),
+                                                      dividerThickness: 1,
+                                                      dataRowMinHeight: 72,
+                                                      dataRowMaxHeight: 72,
+                                                      columns: [
+                                                        DataColumn(label: Text('TIMESTAMP', style: _headerStyle(colorScheme))),
+                                                        DataColumn(label: Text('OPERATOR', style: _headerStyle(colorScheme))),
+                                                        DataColumn(label: Text('EVENT ACTION', style: _headerStyle(colorScheme))),
+                                                        DataColumn(label: Text('TARGET INFO', style: _headerStyle(colorScheme))),
+                                                        DataColumn(label: Text('EVENT DETAILS', style: _headerStyle(colorScheme))),
                                                       ],
-                                                      rows: filteredLogs.map((
-                                                        doc,
-                                                      ) {
-                                                        final data =
-                                                            doc.data()
-                                                                as Map<
-                                                                  String,
-                                                                  dynamic
-                                                                >;
-                                                        final adminEmail =
-                                                            data['adminEmail'] ??
-                                                            'Unknown Admin';
-                                                        final action =
-                                                            data['action'] ??
-                                                            'Unknown Action';
-                                                        final targetType =
-                                                            data['targetType'] ??
-                                                            'System';
-                                                        final targetId =
-                                                            data['targetId'] ??
-                                                            '';
-                                                        final detail =
-                                                            data['detail'] ??
-                                                            '';
+                                                      rows: filteredLogs.map((doc) {
+                                                        final data = doc.data() as Map<String, dynamic>;
+                                                        final adminEmail = data['adminEmail'] ?? 'Unknown Admin';
+                                                        final action = data['action'] ?? 'Unknown Action';
+                                                        final targetType = data['targetType'] ?? 'System';
+                                                        final targetId = data['targetId'] ?? '';
+                                                        final detail = data['detail'] ?? '';
 
-                                                        String timestampStr =
-                                                            'N/A';
-                                                        if (data['timestamp'] !=
-                                                                null &&
-                                                            data['timestamp']
-                                                                is Timestamp) {
-                                                          final date =
-                                                              (data['timestamp']
-                                                                      as Timestamp)
-                                                                  .toDate();
-                                                          timestampStr = DateFormat(
-                                                            'yyyy-MM-dd HH:mm:ss',
-                                                          ).format(date);
+                                                        DateTime? date;
+                                                        if (data['timestamp'] != null && data['timestamp'] is Timestamp) {
+                                                          date = (data['timestamp'] as Timestamp).toDate();
                                                         }
+                                                        
+                                                        final dateStr = date != null ? DateFormat('yyyy-MM-dd').format(date) : 'N/A';
+                                                        final timeStr = date != null ? '${DateFormat('HH:mm:ss').format(date)} UTC' : '';
 
-                                                        final actionColor =
-                                                            _getActionColor(
-                                                              action,
-                                                            );
+                                                        final actionColor = _getActionColor(action);
 
                                                         return DataRow(
+                                                          color: WidgetStateProperty.resolveWith<Color?>((states) {
+                                                            if (states.contains(WidgetState.hovered)) {
+                                                              return colorScheme.surfaceContainerHighest.withOpacity(0.5);
+                                                            }
+                                                            if (actionColor == Colors.red || actionColor == Colors.redAccent) {
+                                                              return colorScheme.error.withOpacity(0.05);
+                                                            }
+                                                            if (actionColor == Colors.orange) {
+                                                              return colorScheme.secondary.withOpacity(0.05);
+                                                            }
+                                                            return null;
+                                                          }),
                                                           cells: [
                                                             DataCell(
-                                                              Text(
-                                                                timestampStr,
-                                                                style: const TextStyle(
-                                                                  fontFamily:
-                                                                      'monospace',
-                                                                  fontSize: 13,
-                                                                ),
+                                                              Column(
+                                                                mainAxisAlignment: MainAxisAlignment.center,
+                                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                                children: [
+                                                                  Text(dateStr, style: const TextStyle(fontFamily: 'Inter', fontSize: 14)),
+                                                                  if (timeStr.isNotEmpty)
+                                                                    Text(timeStr, style: TextStyle(fontFamily: 'Inter', fontSize: 12, color: colorScheme.onSurfaceVariant)),
+                                                                ],
                                                               ),
                                                             ),
                                                             DataCell(
@@ -500,36 +447,26 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
                                                                 child: Text(
                                                                   adminEmail,
                                                                   maxLines: 1,
-                                                                  overflow:
-                                                                      TextOverflow
-                                                                          .ellipsis,
+                                                                  overflow: TextOverflow.ellipsis,
+                                                                  style: TextStyle(fontFamily: 'monospace', fontSize: 13, color: colorScheme.onSurfaceVariant),
                                                                 ),
                                                               ),
                                                             ),
                                                             DataCell(
-                                                              Chip(
-                                                                label: Text(
+                                                              Container(
+                                                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                                                decoration: BoxDecoration(
+                                                                  color: actionColor.withOpacity(0.2),
+                                                                  borderRadius: BorderRadius.circular(12),
+                                                                ),
+                                                                child: Text(
                                                                   action,
                                                                   style: TextStyle(
-                                                                    color:
-                                                                        actionColor,
-                                                                    fontSize:
-                                                                        10,
-                                                                    fontWeight:
-                                                                        FontWeight
-                                                                            .bold,
+                                                                    color: actionColor,
+                                                                    fontSize: 11,
+                                                                    fontWeight: FontWeight.w600,
+                                                                    letterSpacing: 0.05,
                                                                   ),
-                                                                ),
-                                                                backgroundColor:
-                                                                    actionColor
-                                                                        .withOpacity(
-                                                                          0.1,
-                                                                        ),
-                                                                side: BorderSide(
-                                                                  color: actionColor
-                                                                      .withOpacity(
-                                                                        0.2,
-                                                                      ),
                                                                 ),
                                                               ),
                                                             ),
@@ -539,34 +476,21 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
                                                                 child: Text(
                                                                   '$targetType ($targetId)',
                                                                   maxLines: 1,
-                                                                  overflow:
-                                                                      TextOverflow
-                                                                          .ellipsis,
-                                                                  style:
-                                                                      const TextStyle(
-                                                                        fontSize:
-                                                                            12,
-                                                                      ),
+                                                                  overflow: TextOverflow.ellipsis,
+                                                                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
                                                                 ),
                                                               ),
                                                             ),
                                                             DataCell(
                                                               SizedBox(
-                                                                width:
-                                                                    detailsColWidth,
+                                                                width: detailsColWidth,
                                                                 child: Tooltip(
-                                                                  message:
-                                                                      detail,
+                                                                  message: detail,
                                                                   child: Text(
                                                                     detail,
-                                                                    maxLines: 1,
-                                                                    overflow:
-                                                                        TextOverflow
-                                                                            .ellipsis,
-                                                                    style: const TextStyle(
-                                                                      fontSize:
-                                                                          13,
-                                                                    ),
+                                                                    maxLines: 2,
+                                                                    overflow: TextOverflow.ellipsis,
+                                                                    style: TextStyle(fontSize: 14, color: colorScheme.onSurface),
                                                                   ),
                                                                 ),
                                                               ),
@@ -601,96 +525,206 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
   // ── Filter bar ────────────────────────────────────────────────────────────
   Widget _buildFilterBar(ColorScheme colorScheme) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: colorScheme.surfaceContainer,
-        borderRadius: BorderRadius.circular(16),
+        color: colorScheme.surfaceContainerHigh,
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: colorScheme.outlineVariant),
       ),
-      child: Wrap(
-        crossAxisAlignment: WrapCrossAlignment.center,
-        spacing: 16,
-        runSpacing: 12,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.filter_list, color: colorScheme.primary),
-          const Text(
-            'Filter by Event Type:',
-            style: TextStyle(fontWeight: FontWeight.bold),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.filter_list, color: colorScheme.primary, size: 24),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Global Filters',
+                    style: TextStyle(
+                      fontFamily: 'Hanken Grotesk',
+                      fontSize: 20,
+                      fontWeight: FontWeight.w600,
+                      color: colorScheme.onSurface,
+                    ),
+                  ),
+                ],
+              ),
+              Row(
+                children: [
+                  OutlinedButton(
+                    onPressed: () {
+                      setState(() => _selectedActionFilter = 'All');
+                    },
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: colorScheme.onSurface,
+                      side: BorderSide(color: colorScheme.outlineVariant),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      textStyle: const TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.w600, fontSize: 12),
+                    ),
+                    child: const Text('Reset'),
+                  ),
+                  const SizedBox(width: 12),
+                  FilledButton(
+                    onPressed: () {},
+                    style: FilledButton.styleFrom(
+                      backgroundColor: colorScheme.primary,
+                      foregroundColor: colorScheme.onPrimaryContainer,
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      textStyle: const TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold, fontSize: 12),
+                    ),
+                    child: const Text('Apply Filters'),
+                  ),
+                ],
+              ),
+            ],
           ),
+          const SizedBox(height: 24),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final isMobile = constraints.maxWidth < 600;
+              final colWidth = isMobile ? constraints.maxWidth : (constraints.maxWidth - 48) / 4;
+              
+              return Wrap(
+                spacing: 16,
+                runSpacing: 16,
+                children: [
+                  _buildFilterDropdown(
+                    label: 'Event Action',
+                    width: colWidth,
+                    value: _selectedActionFilter,
+                    items: const [
+                      'All',
+                      'DELETE_EXPENSE',
+                      'EDIT_EXPENSE',
+                      'OCR_REVIEW',
+                      'ACTIVATE_USER',
+                      'DEACTIVATE_USER',
+                      'CHANGE_USER_ROLE',
+                      'EXPORT_EXPENSES',
+                      'LEARN_OCR_MAPPING',
+                      'UPDATE_PRIVACY_POLICY',
+                      'OCR_RESOLVE_ANOMALY',
+                      'SUSPEND_USER_ANOMALY',
+                      'DELETE_VENDOR_MAPPING',
+                    ],
+                    onChanged: (val) => setState(() => _selectedActionFilter = val ?? 'All'),
+                    colorScheme: colorScheme,
+                  ),
+                  _buildFilterDropdown(
+                    label: 'Date Range',
+                    width: colWidth,
+                    value: 'Last 7 Days',
+                    items: const ['Last 7 Days', 'Last 30 Days', 'This Month', 'Custom Range...'],
+                    onChanged: (val) {},
+                    colorScheme: colorScheme,
+                  ),
+                  _buildFilterDropdown(
+                    label: 'Status',
+                    width: colWidth,
+                    value: 'All Statuses',
+                    items: const ['All Statuses', 'Success', 'Failed', 'Warning'],
+                    onChanged: (val) {},
+                    colorScheme: colorScheme,
+                  ),
+                  SizedBox(
+                    width: colWidth,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Search', style: TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.w600, color: colorScheme.onSurfaceVariant)),
+                        const SizedBox(height: 4),
+                        TextField(
+                          decoration: InputDecoration(
+                            isDense: true,
+                            hintText: 'User, ID...',
+                            hintStyle: TextStyle(color: colorScheme.onSurfaceVariant.withOpacity(0.5)),
+                            prefixIcon: Icon(Icons.search, size: 20, color: colorScheme.onSurfaceVariant),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: BorderSide(color: colorScheme.outlineVariant),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: BorderSide(color: colorScheme.outlineVariant),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: BorderSide(color: colorScheme.primary),
+                            ),
+                            filled: true,
+                            fillColor: colorScheme.surface,
+                            contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                          ),
+                          style: TextStyle(fontFamily: 'Inter', fontSize: 14, color: colorScheme.onSurface),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFilterDropdown({
+    required String label,
+    required double width,
+    required String value,
+    required List<String> items,
+    required ValueChanged<String?> onChanged,
+    required ColorScheme colorScheme,
+  }) {
+    return SizedBox(
+      width: width,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.w600, color: colorScheme.onSurfaceVariant)),
+          const SizedBox(height: 4),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 12),
             decoration: BoxDecoration(
-              color: colorScheme.surfaceContainerHighest.withOpacity(0.5),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: colorScheme.outlineVariant, width: 1.5),
+              color: colorScheme.surface,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: colorScheme.outlineVariant),
             ),
             child: DropdownButtonHideUnderline(
               child: DropdownButton<String>(
-                value: _selectedActionFilter,
+                value: value,
+                isExpanded: true,
                 dropdownColor: colorScheme.surfaceContainerHigh,
-                borderRadius: BorderRadius.circular(12),
-                icon: Icon(
-                  Icons.keyboard_arrow_down,
-                  color: colorScheme.primary,
-                ),
-                items: const [
-                  DropdownMenuItem(value: 'All', child: Text('All Events')),
-                  DropdownMenuItem(
-                    value: 'DELETE_EXPENSE',
-                    child: Text('DELETE_EXPENSE'),
-                  ),
-                  DropdownMenuItem(
-                    value: 'EDIT_EXPENSE',
-                    child: Text('EDIT_EXPENSE'),
-                  ),
-                  DropdownMenuItem(
-                    value: 'OCR_REVIEW',
-                    child: Text('OCR_REVIEW'),
-                  ),
-                  DropdownMenuItem(
-                    value: 'ACTIVATE_USER',
-                    child: Text('ACTIVATE_USER'),
-                  ),
-                  DropdownMenuItem(
-                    value: 'DEACTIVATE_USER',
-                    child: Text('DEACTIVATE_USER'),
-                  ),
-                  DropdownMenuItem(
-                    value: 'CHANGE_USER_ROLE',
-                    child: Text('CHANGE_USER_ROLE'),
-                  ),
-                  DropdownMenuItem(
-                    value: 'EXPORT_EXPENSES',
-                    child: Text('EXPORT_EXPENSES'),
-                  ),
-                  DropdownMenuItem(
-                    value: 'LEARN_OCR_MAPPING',
-                    child: Text('LEARN_OCR_MAPPING'),
-                  ),
-                  DropdownMenuItem(
-                    value: 'UPDATE_PRIVACY_POLICY',
-                    child: Text('UPDATE_PRIVACY_POLICY'),
-                  ),
-                  DropdownMenuItem(
-                    value: 'OCR_RESOLVE_ANOMALY',
-                    child: Text('OCR_RESOLVE_ANOMALY'),
-                  ),
-                  DropdownMenuItem(
-                    value: 'SUSPEND_USER_ANOMALY',
-                    child: Text('SUSPEND_USER_ANOMALY'),
-                  ),
-                  DropdownMenuItem(
-                    value: 'DELETE_VENDOR_MAPPING',
-                    child: Text('DELETE_VENDOR_MAPPING'),
-                  ),
-                ],
-                onChanged: (val) =>
-                    setState(() => _selectedActionFilter = val ?? 'All'),
+                icon: Icon(Icons.arrow_drop_down, color: colorScheme.onSurfaceVariant),
+                style: TextStyle(fontFamily: 'Inter', fontSize: 14, color: colorScheme.onSurface),
+                items: items.map((item) {
+                  return DropdownMenuItem(
+                    value: item,
+                    child: Text(item == 'All' ? 'All Events' : item),
+                  );
+                }).toList(),
+                onChanged: onChanged,
               ),
             ),
           ),
         ],
       ),
+    );
+  }
+
+  TextStyle _headerStyle(ColorScheme cs) {
+    return TextStyle(
+      fontFamily: 'Inter',
+      fontSize: 12,
+      fontWeight: FontWeight.w600,
+      letterSpacing: 0.05,
+      color: cs.onSurfaceVariant,
     );
   }
 }

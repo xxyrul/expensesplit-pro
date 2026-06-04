@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import '../services/audit_log_service.dart';
+import '../widgets/modern_bottom_toast.dart';
 
 class UserManagementScreen extends ConsumerStatefulWidget {
   const UserManagementScreen({super.key});
@@ -57,51 +58,89 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Header (with revalidate button)
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'User Account Governance',
-                            style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
+                      // ── Page header (Banner) ─────────────────────────
+                      Container(
+                        width: double.infinity,
+                        constraints: const BoxConstraints(minHeight: 192),
+                        decoration: BoxDecoration(
+                          color: colorScheme.surfaceContainer,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: colorScheme.outlineVariant),
+                          image: const DecorationImage(
+                            image: NetworkImage('https://lh3.googleusercontent.com/aida-public/AB6AXuB-g0GXcIXDK0Pe2VB2CHkb1aUMUriNNcsPCYJjPXFizXMHEoSg5xm5uhP54rjBI7hDsVxt_d_TSM2_pejL6f3Z8M_bqZ2yS1rHTec-KHZowBaQQyH7ZpqfOim_56H-Gd2f0vD0gNd2T7j0ijlBOGZRk2TXgLmepKQhzOCUw0u37tL5aLMfRAUi9B-JssAZFHEeaBD2NbaRkWzf-thml_vsTEQJz9cACGIAgXxvhIv809JN7ctbEWJe_2VKN1eyUYa0WOZMqiPf-z0'),
+                            fit: BoxFit.cover,
+                            opacity: 0.3,
                           ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Control access policies, toggle account statuses, and configure system administrator privileges.',
-                            style: TextStyle(color: colorScheme.onSurfaceVariant, fontSize: 16),
+                        ),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(16),
+                            gradient: LinearGradient(
+                              colors: [colorScheme.surface.withOpacity(0.8), Colors.transparent],
+                              stops: const [0.0, 1.0],
+                            ),
                           ),
-                        ],
+                          padding: const EdgeInsets.all(32.0),
+                          child: Align(
+                            alignment: Alignment.centerLeft,
+                            child: ConstrainedBox(
+                              constraints: const BoxConstraints(maxWidth: 600),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'User Account Governance',
+                                    style: TextStyle(
+                                      fontFamily: 'Hanken Grotesk',
+                                      fontSize: 32,
+                                      fontWeight: FontWeight.bold,
+                                      color: colorScheme.onSurface,
+                                      letterSpacing: -0.02,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    'Control access policies, toggle account statuses, and configure system administrator privileges.',
+                                    style: TextStyle(
+                                      fontFamily: 'Inter',
+                                      fontSize: 16,
+                                      color: colorScheme.onSurfaceVariant,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  ElevatedButton.icon(
+                                    icon: const Icon(Icons.refresh),
+                                    label: const Text('Revalidate Admin Session'),
+                                    onPressed: () async {
+                                      final user = FirebaseAuth.instance.currentUser;
+                                      if (user == null) {
+                                        if (context.mounted) ModernBottomToast.show(context, message: 'No signed-in user to revalidate.', type: ModernToastType.error);
+                                        return;
+                                      }
+                                      try {
+                                        final doc = await _firestore.collection('admins').doc(user.uid).get();
+                                        if (doc.exists) {
+                                          if (context.mounted) ModernBottomToast.show(context, message: 'Current session is a verified admin.', type: ModernToastType.success);
+                                        } else {
+                                          if (context.mounted) ModernBottomToast.show(context, message: 'Current account is NOT listed in admins. Signing out.', type: ModernToastType.error);
+                                          await FirebaseAuth.instance.signOut();
+                                        }
+                                      } catch (e) {
+                                        if (context.mounted) ModernBottomToast.show(context, message: 'Revalidation failed: $e', type: ModernToastType.error);
+                                      }
+                                    },
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: colorScheme.primary,
+                                      foregroundColor: colorScheme.onPrimary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
                       ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.refresh),
-                      tooltip: 'Revalidate admin session',
-                      onPressed: () async {
-                        final user = FirebaseAuth.instance.currentUser;
-                        if (user == null) {
-                          if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No signed-in user to revalidate.')));
-                          return;
-                        }
-                        try {
-                          final doc = await _firestore.collection('admins').doc(user.uid).get();
-                          if (doc.exists) {
-                            if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Current session is a verified admin.')));
-                          } else {
-                            if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Current account is NOT listed in admins. Signing out.')));
-                            await FirebaseAuth.instance.signOut();
-                          }
-                        } catch (e) {
-                          if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Revalidation failed: $e')));
-                        }
-                      },
-                    ),
-                  ],
-                ),
                 const SizedBox(height: 32),
 
                 // Table Container
@@ -120,21 +159,35 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
 
                       return Container(
                         decoration: BoxDecoration(
-                          color: colorScheme.surfaceContainer,
+                          color: colorScheme.surface,
                           borderRadius: BorderRadius.circular(16),
                           border: Border.all(color: colorScheme.outlineVariant),
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Padding(
-                              padding: const EdgeInsets.all(20),
-                              child: Text(
-                                'Total Managed Accounts: ${docs.length}',
-                                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                            Container(
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: colorScheme.surfaceContainerHigh,
+                                borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                                border: Border(bottom: BorderSide(color: colorScheme.outlineVariant)),
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    'Total Managed Accounts: ${docs.length}',
+                                    style: TextStyle(
+                                      fontFamily: 'Hanken Grotesk',
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.w600,
+                                      color: colorScheme.onSurface,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
-                            const Divider(height: 1),
                             Expanded(
                               child: docs.isEmpty
                                   ? const Center(child: Text('No registered users found.'))
@@ -279,14 +332,15 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                                                     scrollDirection: Axis.vertical,
                                                     child: DataTable(
                                                       headingRowColor: WidgetStateProperty.all(
-                                                        colorScheme.surfaceContainerHighest,
+                                                        colorScheme.surfaceContainerLowest,
                                                       ),
-                                                      columns: const [
-                                                        DataColumn(label: Text('Display Name')),
-                                                        DataColumn(label: Text('Email')),
-                                                        DataColumn(label: Text('Role')),
-                                                        DataColumn(label: Text('Status')),
-                                                        DataColumn(label: Text('Actions')),
+                                                      dividerThickness: 1,
+                                                      columns: [
+                                                        DataColumn(label: Text('DISPLAY NAME', style: TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.w600, letterSpacing: 0.05, color: colorScheme.onSurfaceVariant))),
+                                                        DataColumn(label: Text('EMAIL', style: TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.w600, letterSpacing: 0.05, color: colorScheme.onSurfaceVariant))),
+                                                        DataColumn(label: Text('ROLE', style: TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.w600, letterSpacing: 0.05, color: colorScheme.onSurfaceVariant))),
+                                                        DataColumn(label: Text('STATUS', style: TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.w600, letterSpacing: 0.05, color: colorScheme.onSurfaceVariant))),
+                                                        DataColumn(label: Text('ACTIONS', style: TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.w600, letterSpacing: 0.05, color: colorScheme.onSurfaceVariant))),
                                                       ],
                                                       rows: docs.map((doc) {
                                                         final data = doc.data() as Map<String, dynamic>;

@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../widgets/modern_bottom_toast.dart';
 
 class AdminActionNotifier extends Notifier<Set<String>> {
   @override
@@ -36,34 +37,18 @@ class AdminActionNotifier extends Notifier<Set<String>> {
       });
 
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Row(
-              children: [
-                Icon(Icons.check_circle, color: Colors.white),
-                SizedBox(width: 8),
-                Text('Expense Approved and Audited successfully!'),
-              ],
-            ),
-            backgroundColor: Colors.green[800],
-            behavior: SnackBarBehavior.floating,
-          ),
+        ModernBottomToast.show(
+          context,
+          message: 'Expense Approved and Audited successfully!',
+          type: ModernToastType.success,
         );
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.error, color: Colors.white),
-                const SizedBox(width: 8),
-                Expanded(child: Text('Approval failed: $e')),
-              ],
-            ),
-            backgroundColor: Colors.red[800],
-            behavior: SnackBarBehavior.floating,
-          ),
+        ModernBottomToast.show(
+          context,
+          message: 'Approval failed: $e',
+          type: ModernToastType.error,
         );
       }
     } finally {
@@ -94,28 +79,18 @@ class AdminActionNotifier extends Notifier<Set<String>> {
       });
 
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Row(
-              children: [
-                Icon(Icons.history, color: Colors.white),
-                SizedBox(width: 8),
-                Text('Record reverted to Pending for Re-evaluation.'),
-              ],
-            ),
-            backgroundColor: Colors.orange[800],
-            behavior: SnackBarBehavior.floating,
-          ),
+        ModernBottomToast.show(
+          context,
+          message: 'Record reverted to Pending for Re-evaluation.',
+          type: ModernToastType.info,
         );
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Revert failed: $e'),
-            backgroundColor: Colors.red[800],
-            behavior: SnackBarBehavior.floating,
-          ),
+        ModernBottomToast.show(
+          context,
+          message: 'Revert failed: $e',
+          type: ModernToastType.error,
         );
       }
     } finally {

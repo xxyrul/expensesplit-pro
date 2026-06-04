@@ -193,106 +193,83 @@ class _AnomalyAlertsScreenState extends ConsumerState<AnomalyAlertsScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (isMobile)
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Anomalies & Integrity Monitor',
-                            style: TextStyle(
-                              fontSize: isMobile ? 24 : 32,
-                              fontWeight: FontWeight.bold,
-                              height: 1.1,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Rule-based scanner with explainable reasons for each flag — suitable for governance review and thesis demonstration.',
-                            style: TextStyle(
-                              color: colorScheme.onSurfaceVariant,
-                              fontSize: isMobile ? 14 : 16,
-                              height: 1.35,
-                            ),
-                          ),
-                        ],
+                // ── Page header (Banner) ─────────────────────────
+                Container(
+                  width: double.infinity,
+                  constraints: const BoxConstraints(minHeight: 192),
+                  decoration: BoxDecoration(
+                    color: colorScheme.surfaceContainer,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: colorScheme.outlineVariant),
+                    image: const DecorationImage(
+                      image: NetworkImage('https://lh3.googleusercontent.com/aida-public/AB6AXuB-g0GXcIXDK0Pe2VB2CHkb1aUMUriNNcsPCYJjPXFizXMHEoSg5xm5uhP54rjBI7hDsVxt_d_TSM2_pejL6f3Z8M_bqZ2yS1rHTec-KHZowBaQQyH7ZpqfOim_56H-Gd2f0vD0gNd2T7j0ijlBOGZRk2TXgLmepKQhzOCUw0u37tL5aLMfRAUi9B-JssAZFHEeaBD2NbaRkWzf-thml_vsTEQJz9cACGIAgXxvhIv809JN7ctbEWJe_2VKN1eyUYa0WOZMqiPf-z0'),
+                      fit: BoxFit.cover,
+                      opacity: 0.3,
+                    ),
+                  ),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(16),
+                      gradient: LinearGradient(
+                        colors: [colorScheme.surface.withOpacity(0.8), Colors.transparent],
+                        stops: const [0.0, 1.0],
                       ),
-                      const SizedBox(height: 12),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: [
-                          OutlinedButton.icon(
-                            onPressed: _showRulesReference,
-                            icon: const Icon(Icons.menu_book_outlined),
-                            label: const Text('Rule reference'),
-                          ),
-                          ElevatedButton.icon(
-                            onPressed: _loadReferenceData,
-                            icon: const Icon(Icons.refresh),
-                            label: const Text('Refresh data'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: colorScheme.primaryContainer,
-                              foregroundColor: colorScheme.onPrimaryContainer,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  )
-                else
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
+                    ),
+                    padding: const EdgeInsets.all(32.0),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 600),
                         child: Column(
+                          mainAxisSize: MainAxisSize.min,
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
+                            Text(
                               'Anomalies & Integrity Monitor',
                               style: TextStyle(
+                                fontFamily: 'Hanken Grotesk',
                                 fontSize: 32,
                                 fontWeight: FontWeight.bold,
-                                height: 1.1,
+                                color: colorScheme.onSurface,
+                                letterSpacing: -0.02,
                               ),
                             ),
                             const SizedBox(height: 8),
                             Text(
                               'Rule-based scanner with explainable reasons for each flag — suitable for governance review and thesis demonstration.',
                               style: TextStyle(
-                                color: colorScheme.onSurfaceVariant,
+                                fontFamily: 'Inter',
                                 fontSize: 16,
-                                height: 1.35,
+                                color: colorScheme.onSurfaceVariant,
                               ),
+                            ),
+                            const SizedBox(height: 16),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: [
+                                OutlinedButton.icon(
+                                  onPressed: _showRulesReference,
+                                  icon: const Icon(Icons.menu_book_outlined),
+                                  label: const Text('Rule reference'),
+                                ),
+                                ElevatedButton.icon(
+                                  onPressed: _loadReferenceData,
+                                  icon: const Icon(Icons.refresh),
+                                  label: const Text('Refresh data'),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: colorScheme.primary,
+                                    foregroundColor: colorScheme.onPrimary,
+                                  ),
+                                ),
+                              ],
                             ),
                           ],
                         ),
                       ),
-                      const SizedBox(width: 12),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: [
-                          OutlinedButton.icon(
-                            onPressed: _showRulesReference,
-                            icon: const Icon(Icons.menu_book_outlined),
-                            label: const Text('Rule reference'),
-                          ),
-                          ElevatedButton.icon(
-                            onPressed: _loadReferenceData,
-                            icon: const Icon(Icons.refresh),
-                            label: const Text('Refresh data'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: colorScheme.primaryContainer,
-                              foregroundColor: colorScheme.onPrimaryContainer,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
+                    ),
                   ),
+                ),
                 const SizedBox(height: 20),
                 Wrap(
                   spacing: 12,
@@ -459,19 +436,20 @@ class _AnomalyAlertsScreenState extends ConsumerState<AnomalyAlertsScreen> {
       child: Container(
         padding: EdgeInsets.all(isMobile ? 16 : 24),
         decoration: BoxDecoration(
-          color: colorScheme.surfaceContainer,
+          color: colorScheme.surfaceContainerHigh,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: colorScheme.outlineVariant),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(label, style: const TextStyle(fontSize: 13, color: Colors.grey)),
+            Text(label, style: TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.w600, color: colorScheme.onSurfaceVariant)),
             const SizedBox(height: 10),
             Text(
               value,
               style: TextStyle(
-                fontSize: isMobile ? 26 : 32,
+                fontFamily: 'Hanken Grotesk',
+                fontSize: isMobile ? 26 : 36,
                 fontWeight: FontWeight.bold,
                 color: activeColor,
               ),
@@ -629,7 +607,7 @@ class _AnomalyAlertCard extends StatelessWidget {
     return Card(
       elevation: 0,
       margin: const EdgeInsets.only(bottom: 16),
-      color: colorScheme.surfaceContainer,
+      color: colorScheme.surfaceContainerHigh,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
         side: BorderSide(color: colorScheme.outlineVariant),

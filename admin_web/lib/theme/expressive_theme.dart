@@ -4,18 +4,42 @@ import 'package:google_fonts/google_fonts.dart';
 
 /// Material 3 Expressive theming for the admin governance dashboard.
 abstract final class ExpressiveTheme {
-  static const Color seedColor = Color(0xFF115E59);
+  static const Color seedColor = Color(0xFF4edea3); // Stitch Primary Emerald Green
 
   static ThemeData light() => _build(Brightness.light);
 
   static ThemeData dark() => _build(Brightness.dark);
 
   static ThemeData _build(Brightness brightness) {
-    final colorScheme = ColorScheme.fromSeed(
-      seedColor: seedColor,
-      brightness: brightness,
-      dynamicSchemeVariant: DynamicSchemeVariant.expressive,
-    );
+    final colorScheme = brightness == Brightness.dark 
+      ? const ColorScheme.dark(
+          primary: Color(0xFF4edea3),
+          onPrimary: Color(0xFF003824),
+          primaryContainer: Color(0xFF10b981),
+          onPrimaryContainer: Color(0xFF00422b),
+          secondary: Color(0xFFffb95f),
+          onSecondary: Color(0xFF472a00),
+          secondaryContainer: Color(0xFFee9800),
+          onSecondaryContainer: Color(0xFF5b3800),
+          tertiary: Color(0xFFd0bcff),
+          onTertiary: Color(0xFF3c0091),
+          error: Color(0xFFffb4ab),
+          onError: Color(0xFF690005),
+          surface: Color(0xFF0b1326), // Stitch bg-surface
+          onSurface: Color(0xFFdae2fd),
+          surfaceContainerHighest: Color(0xFF2d3449),
+          surfaceContainerHigh: Color(0xFF222a3d),
+          surfaceContainer: Color(0xFF171f33),
+          surfaceContainerLow: Color(0xFF131b2e),
+          surfaceContainerLowest: Color(0xFF060e20),
+          onSurfaceVariant: Color(0xFFbbcabf),
+          outline: Color(0xFF86948a),
+          outlineVariant: Color(0xFF3c4a42),
+        )
+      : ColorScheme.fromSeed(
+          seedColor: seedColor,
+          brightness: Brightness.light,
+        );
 
     final textTheme = _textTheme(brightness, colorScheme);
     final shapes = _shapes();
@@ -129,7 +153,7 @@ abstract final class ExpressiveTheme {
     final base = brightness == Brightness.dark
         ? ThemeData(brightness: Brightness.dark).textTheme
         : ThemeData(brightness: Brightness.light).textTheme;
-    return GoogleFonts.interTextTheme(base).apply(
+    return GoogleFonts.plusJakartaSansTextTheme(base).apply(
       bodyColor: scheme.onSurface,
       displayColor: scheme.onSurface,
     );

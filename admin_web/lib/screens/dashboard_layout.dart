@@ -1,14 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/auth_service.dart';
-import 'global_analytics.dart';
-import 'expense_management.dart';
-import 'ocr_review_queue.dart';
-import 'anomaly_alerts.dart';
-import 'user_management.dart';
-import 'audit_log_screen.dart';
-import 'privacy_settings.dart';
-import 'vendor_intelligence_hub.dart';
+import 'package:go_router/go_router.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Nav item data model
@@ -19,6 +12,7 @@ class _NavItem {
   final IconData activeIcon;
   final String label;
   final String section;
+  final String path;
 
   const _NavItem({
     required this.index,
@@ -26,6 +20,7 @@ class _NavItem {
     required this.activeIcon,
     required this.label,
     required this.section,
+    required this.path,
   });
 }
 
@@ -36,6 +31,7 @@ const List<_NavItem> _kNavItems = [
     activeIcon: Icons.dashboard,
     label: 'Dashboard',
     section: 'Overview',
+    path: '/overview',
   ),
   _NavItem(
     index: 1,
@@ -43,6 +39,7 @@ const List<_NavItem> _kNavItems = [
     activeIcon: Icons.receipt_long,
     label: 'Expenses',
     section: 'Operations',
+    path: '/expenses',
   ),
   _NavItem(
     index: 2,
@@ -50,6 +47,7 @@ const List<_NavItem> _kNavItems = [
     activeIcon: Icons.remove_red_eye,
     label: 'OCR Review',
     section: 'Operations',
+    path: '/ocr-review',
   ),
   _NavItem(
     index: 3,
@@ -57,6 +55,7 @@ const List<_NavItem> _kNavItems = [
     activeIcon: Icons.hub,
     label: 'Vendor Hub',
     section: 'Operations',
+    path: '/vendor-hub',
   ),
   _NavItem(
     index: 4,
@@ -64,6 +63,7 @@ const List<_NavItem> _kNavItems = [
     activeIcon: Icons.notifications_active,
     label: 'Alerts',
     section: 'Operations',
+    path: '/alerts',
   ),
   _NavItem(
     index: 5,
@@ -71,6 +71,7 @@ const List<_NavItem> _kNavItems = [
     activeIcon: Icons.people,
     label: 'User Management',
     section: 'Governance',
+    path: '/users',
   ),
   _NavItem(
     index: 6,
@@ -78,6 +79,7 @@ const List<_NavItem> _kNavItems = [
     activeIcon: Icons.history_edu,
     label: 'Audit Log',
     section: 'Governance',
+    path: '/audit-log',
   ),
   _NavItem(
     index: 7,
@@ -85,6 +87,7 @@ const List<_NavItem> _kNavItems = [
     activeIcon: Icons.security,
     label: 'Privacy Settings',
     section: 'Governance',
+    path: '/privacy',
   ),
 ];
 
@@ -92,7 +95,8 @@ const List<_NavItem> _kNavItems = [
 // DashboardLayout
 // ─────────────────────────────────────────────────────────────────────────────
 class DashboardLayout extends ConsumerStatefulWidget {
-  const DashboardLayout({super.key});
+  final Widget child;
+  const DashboardLayout({super.key, required this.child});
 
   @override
   ConsumerState<DashboardLayout> createState() => _DashboardLayoutState();
@@ -100,37 +104,21 @@ class DashboardLayout extends ConsumerStatefulWidget {
 
 class _DashboardLayoutState extends ConsumerState<DashboardLayout> {
   // ── State variables ────────────────────────────────────────────────────────
-  int _selectedIndex = 0;
   bool _isExpanded = true;
-  // Mobile-specific bottom nav index (tracks 0..4). This allows showing
-  // governance screens (>=5) while leaving the bottom nav highlight on the
-  // last mobile tab or previous tab.
-  int _mobileNavIndex = 0;
+  
+  int get _selectedIndex {
+    final location = GoRouterState.of(context).uri.path;
+    final item = _kNavItems.firstWhere(
+      (item) => location.startsWith(item.path),
+      orElse: () => _kNavItems.first,
+    );
+    return item.index;
+  }
 
-  // ── Screen cache (build lazily to reduce initial workload) ─────────────
-  static final List<Widget?> _screensCache = List<Widget?>.filled(8, null);
-
-  Widget _buildScreenByIndex(int index) {
-    switch (index) {
-      case 0:
-        return const GlobalAnalyticsScreen();
-      case 1:
-        return const ExpenseManagementScreen();
-      case 2:
-        return const OcrReviewQueueScreen();
-      case 3:
-        return const VendorIntelligenceHub();
-      case 4:
-        return const AnomalyAlertsScreen();
-      case 5:
-        return const UserManagementScreen();
-      case 6:
-        return const AuditLogScreen();
-      case 7:
-        return const PrivacySettingsScreen();
-      default:
-        return const SizedBox.shrink();
-    }
+  // Mobile-specific bottom nav index (tracks 0..4). 
+  int get _mobileNavIndex {
+    final idx = _selectedIndex;
+    return idx < 5 ? idx : 0; // Default to 0 if governance
   }
 
   /// Label for the currently active governance screen (index >= 5).
@@ -152,9 +140,7 @@ class _DashboardLayoutState extends ConsumerState<DashboardLayout> {
 
   // ── Screen router ──────────────────────────────────────────────────────────
   Widget get _activeScreen {
-    // Build the selected screen lazily and cache it to avoid
-    // constructing all screens on startup which hurts mobile web.
-    return _screensCache[_selectedIndex] ??= _buildScreenByIndex(_selectedIndex);
+    return widget.child;
   }
 
   // ── Logout confirmation ────────────────────────────────────────────────────
@@ -251,17 +237,14 @@ class _DashboardLayoutState extends ConsumerState<DashboardLayout> {
           // ── Vertical divider ──────────────────────────────────────────
           VerticalDivider(thickness: 1, width: 1, color: cs.outlineVariant),
 
-          // ── Main content (IndexedStack caches all screens) ──────────
+          // ── Main content (ShellRoute child) ──────────
           Expanded(
             child: LayoutBuilder(
               builder: (context, contentConstraints) {
                 return SizedBox(
                   width: contentConstraints.maxWidth,
                   child: ClipRect(
-                    child: IndexedStack(
-                      index: _selectedIndex,
-                      children: List.generate(8, (i) => _buildScreenByIndex(i)),
-                    ),
+                    child: _activeScreen,
                   ),
                 );
               },
@@ -307,10 +290,7 @@ class _DashboardLayoutState extends ConsumerState<DashboardLayout> {
         unselectedItemColor: cs.onSurfaceVariant,
         selectedFontSize: 11.5,
         unselectedFontSize: 11.5,
-        onTap: (i) => setState(() {
-          _mobileNavIndex = i;
-          _selectedIndex = i;
-        }),
+        onTap: (i) => context.go(_kNavItems[i].path),
         items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.dashboard_outlined),
@@ -415,7 +395,7 @@ class _DashboardLayoutState extends ConsumerState<DashboardLayout> {
       return;
     }
 
-    setState(() => _selectedIndex = picked);
+    context.go(_kNavItems[picked].path);
   }
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -539,7 +519,7 @@ class _DashboardLayoutState extends ConsumerState<DashboardLayout> {
           showLabel: showLabels,
           cs: cs,
           onTap: () {
-            setState(() => _selectedIndex = item.index);
+            context.go(item.path);
             if (isMobile) Navigator.of(context).pop();
           },
         ),

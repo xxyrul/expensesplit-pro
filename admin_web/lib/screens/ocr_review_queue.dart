@@ -105,61 +105,61 @@ class _OcrReviewQueueScreenState extends ConsumerState<OcrReviewQueueScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      if (isNarrow)
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'OCR Review Queue',
-                            style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
+                      // ── Page header (Banner) ─────────────────────────
+                      Container(
+                        width: double.infinity,
+                        constraints: const BoxConstraints(minHeight: 192),
+                        decoration: BoxDecoration(
+                          color: colorScheme.surfaceContainer,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: colorScheme.outlineVariant),
+                          image: const DecorationImage(
+                            image: NetworkImage('https://lh3.googleusercontent.com/aida-public/AB6AXuB-g0GXcIXDK0Pe2VB2CHkb1aUMUriNNcsPCYJjPXFizXMHEoSg5xm5uhP54rjBI7hDsVxt_d_TSM2_pejL6f3Z8M_bqZ2yS1rHTec-KHZowBaQQyH7ZpqfOim_56H-Gd2f0vD0gNd2T7j0ijlBOGZRk2TXgLmepKQhzOCUw0u37tL5aLMfRAUi9B-JssAZFHEeaBD2NbaRkWzf-thml_vsTEQJz9cACGIAgXxvhIv809JN7ctbEWJe_2VKN1eyUYa0WOZMqiPf-z0'),
+                            fit: BoxFit.cover,
+                            opacity: 0.3,
                           ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Review and correct low-confidence OCR transcriptions. Feed adjustments back to the global learning dictionary.',
-                            style: TextStyle(color: colorScheme.onSurfaceVariant, fontSize: 16),
-                          ),
-                          const SizedBox(height: 16),
-                          ElevatedButton.icon(
-                            onPressed: _loadUserCache,
-                            icon: const Icon(Icons.refresh),
-                            label: const Text('Refresh Data'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: colorScheme.primaryContainer,
-                              foregroundColor: colorScheme.onPrimaryContainer,
+                        ),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(16),
+                            gradient: LinearGradient(
+                              colors: [colorScheme.surface.withOpacity(0.8), Colors.transparent],
+                              stops: const [0.0, 1.0],
                             ),
                           ),
-                        ],
-                      )
-                    else
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text(
-                                  'OCR Review Queue',
-                                  style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  'Review and correct low-confidence OCR transcriptions. Feed adjustments back to the global learning dictionary.',
-                                  style: TextStyle(color: colorScheme.onSurfaceVariant, fontSize: 16),
-                                ),
-                              ],
+                          padding: const EdgeInsets.all(32.0),
+                          child: Align(
+                            alignment: Alignment.centerLeft,
+                            child: ConstrainedBox(
+                              constraints: const BoxConstraints(maxWidth: 600),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'OCR Review Queue',
+                                    style: TextStyle(
+                                      fontFamily: 'Hanken Grotesk',
+                                      fontSize: 32,
+                                      fontWeight: FontWeight.bold,
+                                      color: colorScheme.onSurface,
+                                      letterSpacing: -0.02,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    'Review and correct low-confidence OCR transcriptions. Feed adjustments back to the global learning dictionary.',
+                                    style: TextStyle(
+                                      fontFamily: 'Inter',
+                                      fontSize: 16,
+                                      color: colorScheme.onSurfaceVariant,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
-                          ElevatedButton.icon(
-                            onPressed: _loadUserCache,
-                            icon: const Icon(Icons.refresh),
-                            label: const Text('Refresh Data'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: colorScheme.primaryContainer,
-                              foregroundColor: colorScheme.onPrimaryContainer,
-                            ),
-                          ),
-                        ],
+                        ),
                       ),
                     const SizedBox(height: 32),
                     _buildFilterBar(colorScheme),
@@ -197,21 +197,35 @@ class _OcrReviewQueueScreenState extends ConsumerState<OcrReviewQueueScreen> {
 
                           return Container(
                             decoration: BoxDecoration(
-                              color: colorScheme.surfaceContainer,
+                              color: colorScheme.surface,
                               borderRadius: BorderRadius.circular(16),
                               border: Border.all(color: colorScheme.outlineVariant),
                             ),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Padding(
-                                  padding: const EdgeInsets.all(20),
-                                  child: Text(
-                                    'Pending Actions: ${filteredDocs.where((d) => (d.data() as Map)['adminStatus'] == null || (d.data() as Map)['adminStatus'] == 'Pending').length}',
-                                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                                Container(
+                                  padding: const EdgeInsets.all(16),
+                                  decoration: BoxDecoration(
+                                    color: colorScheme.surfaceContainerHigh,
+                                    borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                                    border: Border(bottom: BorderSide(color: colorScheme.outlineVariant)),
+                                  ),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(
+                                        'Pending Actions: ${filteredDocs.where((d) => (d.data() as Map)['adminStatus'] == null || (d.data() as Map)['adminStatus'] == 'Pending').length}',
+                                        style: TextStyle(
+                                          fontFamily: 'Hanken Grotesk',
+                                          fontSize: 20,
+                                          fontWeight: FontWeight.w600,
+                                          color: colorScheme.onSurface,
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
-                                const Divider(height: 1),
                                 Expanded(
                                   child: filteredDocs.isEmpty
                                       ? const Center(
@@ -467,45 +481,46 @@ class _OcrReviewQueueScreenState extends ConsumerState<OcrReviewQueueScreen> {
                                                     columnSpacing: tableColumnSpacing,
                                                     horizontalMargin: tableHorizontalMargin,
                                                     headingRowColor: WidgetStateProperty.all(
-                                                      colorScheme.surfaceContainerHighest,
+                                                      colorScheme.surfaceContainerLowest,
                                                     ),
+                                                    dividerThickness: 1,
                                                     columns: [
                                                       DataColumn(
                                                         label: SizedBox(
                                                           width: timestampColumnWidth,
-                                                          child: const Text('Timestamp'),
+                                                          child: Text('TIMESTAMP', style: TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.w600, letterSpacing: 0.05, color: colorScheme.onSurfaceVariant)),
                                                         ),
                                                       ),
                                                       DataColumn(
                                                         label: SizedBox(
                                                           width: userColumnWidth,
-                                                          child: const Text('User'),
+                                                          child: Text('USER', style: TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.w600, letterSpacing: 0.05, color: colorScheme.onSurfaceVariant)),
                                                         ),
                                                       ),
                                                       DataColumn(
                                                         label: SizedBox(
                                                           width: vendorColumnWidth,
-                                                          child: const Text('Vendor'),
+                                                          child: Text('VENDOR', style: TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.w600, letterSpacing: 0.05, color: colorScheme.onSurfaceVariant)),
                                                         ),
                                                       ),
                                                       DataColumn(
                                                         label: SizedBox(
                                                           width: amountColumnWidth,
-                                                          child: const Text('System Amt'),
+                                                          child: Text('SYSTEM AMT', style: TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.w600, letterSpacing: 0.05, color: colorScheme.onSurfaceVariant)),
                                                         ),
                                                       ),
                                                       DataColumn(
                                                         label: SizedBox(
                                                           width: amountColumnWidth,
-                                                          child: const Text('User Amt'),
+                                                          child: Text('USER AMT', style: TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.w600, letterSpacing: 0.05, color: colorScheme.onSurfaceVariant)),
                                                         ),
                                                       ),
-                                                      const DataColumn(label: Text('Confidence')),
-                                                      const DataColumn(label: Text('Status')),
+                                                      DataColumn(label: Text('CONFIDENCE', style: TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.w600, letterSpacing: 0.05, color: colorScheme.onSurfaceVariant))),
+                                                      DataColumn(label: Text('STATUS', style: TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.w600, letterSpacing: 0.05, color: colorScheme.onSurfaceVariant))),
                                                       DataColumn(
                                                         label: SizedBox(
                                                           width: actionsColumnWidth,
-                                                          child: const Text('Actions'),
+                                                          child: Text('ACTIONS', style: TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.w600, letterSpacing: 0.05, color: colorScheme.onSurfaceVariant)),
                                                         ),
                                                       ),
                                                     ],
@@ -786,7 +801,7 @@ class _OcrReviewQueueScreenState extends ConsumerState<OcrReviewQueueScreen> {
         return Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            color: colorScheme.surfaceContainer,
+            color: colorScheme.surfaceContainerHigh,
             borderRadius: BorderRadius.circular(16),
             border: Border.all(color: colorScheme.outlineVariant),
           ),

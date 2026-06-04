@@ -668,88 +668,16 @@ class _GoogleButtonState extends State<_GoogleButton> {
   }
 }
 
-/// Renders the Google 'G' icon using CustomPaint (no asset required).
+/// Renders the Google 'G' icon using the asset image.
 class _GoogleLogo extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
+    return Image.asset(
+      'assets/google_logo.png',
       width: 22,
       height: 22,
-      child: CustomPaint(painter: _GoogleLogoPainter()),
     );
   }
-}
-
-class _GoogleLogoPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final cx = size.width / 2;
-    final cy = size.height / 2;
-    final r = size.width / 2;
-
-    // Draw the four coloured arcs of the Google 'G'.
-    final paint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = size.width * 0.18
-      ..strokeCap = StrokeCap.round;
-
-    // Red (top)
-    paint.color = const Color(0xFFEA4335);
-    canvas.drawArc(
-      Rect.fromCircle(center: Offset(cx, cy), radius: r * 0.78),
-      -2.3,
-      1.6,
-      false,
-      paint,
-    );
-    // Blue (left)
-    paint.color = const Color(0xFF4285F4);
-    canvas.drawArc(
-      Rect.fromCircle(center: Offset(cx, cy), radius: r * 0.78),
-      -0.7,
-      1.6,
-      false,
-      paint,
-    );
-    // Yellow (bottom)
-    paint.color = const Color(0xFFFBBC05);
-    canvas.drawArc(
-      Rect.fromCircle(center: Offset(cx, cy), radius: r * 0.78),
-      0.9,
-      1.5,
-      false,
-      paint,
-    );
-    // Green (right-top)
-    paint.color = const Color(0xFF34A853);
-    canvas.drawArc(
-      Rect.fromCircle(center: Offset(cx, cy), radius: r * 0.78),
-      2.4,
-      1.0,
-      false,
-      paint,
-    );
-
-    // Draw the horizontal bar of the 'G'
-    paint
-      ..color = const Color(0xFF4285F4)
-      ..style = PaintingStyle.fill;
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromLTWH(
-          cx - 0.5,
-          cy - size.height * 0.09,
-          r * 0.82,
-          size.height * 0.18,
-        ),
-        const Radius.circular(2),
-      ),
-      paint,
-    );
-  }
-
-  @override
-  bool shouldRepaint(_GoogleLogoPainter old) => false;
 }
 
 /// Subtle animated background gradient.

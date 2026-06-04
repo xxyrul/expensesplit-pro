@@ -205,75 +205,63 @@ class _ExpenseManagementScreenState extends ConsumerState<ExpenseManagementScree
                   child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Header
-                    isNarrow
-                        ? Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                'Expense Management',
-                                style: TextStyle(
-                                  fontSize: 32,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                'Inspect, filter, edit, and moderate expense records across all system users.',
-                                style: TextStyle(color: colorScheme.onSurfaceVariant, fontSize: 16),
-                              ),
-                              const SizedBox(height: 16),
-                              Row(
-                                children: [
-                                  ElevatedButton.icon(
-                                    onPressed: () => _loadUserCache(),
-                                    icon: const Icon(Icons.refresh),
-                                    label: const Text('Sync Cache'),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: colorScheme.primaryContainer,
-                                      foregroundColor: colorScheme.onPrimaryContainer,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          )
-                        : Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const Text(
-                                    'Expense Management',
-                                    style: TextStyle(
-                                      fontSize: 32,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    'Inspect, filter, edit, and moderate expense records across all system users.',
-                                    style: TextStyle(color: colorScheme.onSurfaceVariant, fontSize: 16),
-                                  ),
-                                ],
-                              ),
-                              Row(
-                                children: [
-                                  ElevatedButton.icon(
-                                    onPressed: () => _loadUserCache(),
-                                    icon: const Icon(Icons.refresh),
-                                    label: const Text('Sync Cache'),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: colorScheme.primaryContainer,
-                                      foregroundColor: colorScheme.onPrimaryContainer,
-                                    ),
-                                  ),
-                                ],
-                              )
-                            ],
+                    // ── Page header (Banner) ─────────────────────────
+                    Container(
+                      width: double.infinity,
+                      constraints: const BoxConstraints(minHeight: 192),
+                      decoration: BoxDecoration(
+                        color: colorScheme.surfaceContainer,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: colorScheme.outlineVariant),
+                        image: const DecorationImage(
+                          image: NetworkImage('https://lh3.googleusercontent.com/aida-public/AB6AXuB-g0GXcIXDK0Pe2VB2CHkb1aUMUriNNcsPCYJjPXFizXMHEoSg5xm5uhP54rjBI7hDsVxt_d_TSM2_pejL6f3Z8M_bqZ2yS1rHTec-KHZowBaQQyH7ZpqfOim_56H-Gd2f0vD0gNd2T7j0ijlBOGZRk2TXgLmepKQhzOCUw0u37tL5aLMfRAUi9B-JssAZFHEeaBD2NbaRkWzf-thml_vsTEQJz9cACGIAgXxvhIv809JN7ctbEWJe_2VKN1eyUYa0WOZMqiPf-z0'),
+                          fit: BoxFit.cover,
+                          opacity: 0.3,
+                        ),
+                      ),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(16),
+                          gradient: LinearGradient(
+                            colors: [colorScheme.surface.withOpacity(0.8), Colors.transparent],
+                            stops: const [0.0, 1.0],
                           ),
-                    const SizedBox(height: 32),
+                        ),
+                        padding: const EdgeInsets.all(32.0),
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 600),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Global Expense Ledger',
+                                  style: TextStyle(
+                                    fontFamily: 'Hanken Grotesk',
+                                    fontSize: 32,
+                                    fontWeight: FontWeight.bold,
+                                    color: colorScheme.onSurface,
+                                    letterSpacing: -0.02,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  'Inspect, filter, edit, and moderate expense records across all system users.',
+                                  style: TextStyle(
+                                    fontFamily: 'Inter',
+                                    fontSize: 16,
+                                    color: colorScheme.onSurfaceVariant,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 40),
 
                     // Filters panel card
                     _buildFiltersCard(colorScheme),
@@ -297,7 +285,7 @@ class _ExpenseManagementScreenState extends ConsumerState<ExpenseManagementScree
 
                       return Container(
                         decoration: BoxDecoration(
-                          color: colorScheme.surfaceContainer,
+                          color: colorScheme.surface,
                           borderRadius: BorderRadius.circular(16),
                           border: Border.all(color: colorScheme.outlineVariant),
                         ),
@@ -305,14 +293,24 @@ class _ExpenseManagementScreenState extends ConsumerState<ExpenseManagementScree
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             // Table Header / Actions bar
-                            Padding(
-                              padding: const EdgeInsets.all(20),
+                            Container(
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: colorScheme.surfaceContainerHigh,
+                                borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                                border: Border(bottom: BorderSide(color: colorScheme.outlineVariant)),
+                              ),
                               child: Row(
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
                                   Text(
                                     'Records Found: ${filteredDocs.length}',
-                                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                                    style: TextStyle(
+                                      fontFamily: 'Hanken Grotesk',
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.w600,
+                                      color: colorScheme.onSurface,
+                                    ),
                                   ),
                                   if (filteredDocs.isNotEmpty)
                                     ElevatedButton.icon(
@@ -327,7 +325,6 @@ class _ExpenseManagementScreenState extends ConsumerState<ExpenseManagementScree
                                 ],
                               ),
                             ),
-                            const Divider(height: 1),
 
                             // Table body
                             Expanded(
@@ -514,22 +511,26 @@ class _ExpenseManagementScreenState extends ConsumerState<ExpenseManagementScree
                                                 scrollDirection: Axis.horizontal,
                                                 child: DataTable(
                                                   headingRowColor: WidgetStateProperty.all(
-                                                    colorScheme.surfaceContainerHighest,
+                                                    colorScheme.surfaceContainerLowest,
                                                   ),
+                                                  dividerThickness: 1,
                                                   columns: [
-                                                    const DataColumn(label: Text('Date')),
-                                                    const DataColumn(label: Text('User')),
-                                                    const DataColumn(label: Text('Vendor')),
-                                                    const DataColumn(label: Text('Category')),
-                                                    const DataColumn(label: Text('Amount')),
+                                                    DataColumn(label: Text('DATE', style: TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.w600, letterSpacing: 0.05, color: colorScheme.onSurfaceVariant))),
+                                                    DataColumn(label: Text('USER', style: TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.w600, letterSpacing: 0.05, color: colorScheme.onSurfaceVariant))),
+                                                    DataColumn(label: Text('VENDOR', style: TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.w600, letterSpacing: 0.05, color: colorScheme.onSurfaceVariant))),
+                                                    DataColumn(label: Text('CATEGORY', style: TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.w600, letterSpacing: 0.05, color: colorScheme.onSurfaceVariant))),
+                                                    DataColumn(label: Text('AMOUNT', style: TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.w600, letterSpacing: 0.05, color: colorScheme.onSurfaceVariant))),
                                                     DataColumn(
                                                       label: SizedBox(
                                                         width: 150,
                                                         child: Text(
-                                                          'Actions',
+                                                          'ACTIONS',
                                                           style: TextStyle(
-                                                            color: colorScheme.onSurface,
-                                                            fontWeight: FontWeight.bold,
+                                                            fontFamily: 'Inter',
+                                                            fontSize: 12,
+                                                            fontWeight: FontWeight.w600,
+                                                            letterSpacing: 0.05,
+                                                            color: colorScheme.onSurfaceVariant,
                                                           ),
                                                         ),
                                                       ),
@@ -658,9 +659,9 @@ class _ExpenseManagementScreenState extends ConsumerState<ExpenseManagementScree
 
   Widget _buildFiltersCard(ColorScheme colorScheme) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: colorScheme.surfaceContainer,
+        color: colorScheme.surfaceContainerHigh,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: colorScheme.outlineVariant),
       ),

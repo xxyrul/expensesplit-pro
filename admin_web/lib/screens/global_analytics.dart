@@ -133,24 +133,66 @@ class _GlobalAnalyticsScreenState
               padding: contentPadding,
               child: ListView(
                 children: [
-                  // ── Page header ─────────────────────────────────────
-                  Text(
-                    'Platform Command Center',
-                    style: TextStyle(
-                      fontSize: 32,
-                      fontWeight: FontWeight.bold,
-                      color: colorScheme.onSurface,
+                  // ── Page header (Banner) ─────────────────────────
+                  Container(
+                    width: double.infinity,
+                    constraints: const BoxConstraints(minHeight: 192),
+                    decoration: BoxDecoration(
+                      color: colorScheme.surfaceContainer,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: colorScheme.outlineVariant),
+                      image: const DecorationImage(
+                        image: NetworkImage('https://lh3.googleusercontent.com/aida-public/AB6AXuB-g0GXcIXDK0Pe2VB2CHkb1aUMUriNNcsPCYJjPXFizXMHEoSg5xm5uhP54rjBI7hDsVxt_d_TSM2_pejL6f3Z8M_bqZ2yS1rHTec-KHZowBaQQyH7ZpqfOim_56H-Gd2f0vD0gNd2T7j0ijlBOGZRk2TXgLmepKQhzOCUw0u37tL5aLMfRAUi9B-JssAZFHEeaBD2NbaRkWzf-thml_vsTEQJz9cACGIAgXxvhIv809JN7ctbEWJe_2VKN1eyUYa0WOZMqiPf-z0'),
+                        fit: BoxFit.cover,
+                        opacity: 0.3,
+                      ),
+                    ),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(16),
+                        gradient: LinearGradient(
+                          colors: [colorScheme.surface.withOpacity(0.8), Colors.transparent],
+                          stops: const [0.0, 1.0],
+                        ),
+                      ),
+                      padding: const EdgeInsets.all(32.0),
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 600),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Platform Command Center',
+                                style: TextStyle(
+                                  fontFamily: 'Hanken Grotesk',
+                                  fontSize: 32,
+                                  fontWeight: FontWeight.bold,
+                                  color: colorScheme.onSurface,
+                                  letterSpacing: -0.02,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Global Analytics, Spending Trends & governance controls.',
+                                style: TextStyle(
+                                  fontFamily: 'Inter',
+                                  fontSize: 16,
+                                  color: colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Global Analytics, Spending Trends & governance controls.',
-                    style: TextStyle(
-                      color: colorScheme.onSurfaceVariant,
-                      fontSize: 16,
-                    ),
-                  ),
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 24),
+                  // ── Live Broadcast card ──────────────────────────────
+                  _buildBroadcastCard(colorScheme, isMobile),
+                  const SizedBox(height: 24),
 
                   // ── Top KPI stat cards ───────────────────────────────
                   if (isNarrow)
@@ -311,10 +353,6 @@ class _GlobalAnalyticsScreenState
                   // ── Recent governance + CSV export (responsive) ──────
                   if (isMobile) ..._buildBottomCardsMobile(colorScheme)
                   else _buildBottomCardsDesktop(colorScheme),
-                  const SizedBox(height: 16),
-
-                  // ── Live Broadcast card ──────────────────────────────
-                  _buildBroadcastCard(colorScheme, isMobile),
                 ],
               ),
             ),
@@ -346,11 +384,11 @@ class _GlobalAnalyticsScreenState
 
   Widget _buildGovernanceCard(ColorScheme cs) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: cs.surfaceContainer,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.15), blurRadius: 20, offset: const Offset(0, 6))],
+        color: cs.surfaceContainerHigh,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: cs.outlineVariant),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -363,7 +401,7 @@ class _GlobalAnalyticsScreenState
               Expanded(
                 child: Text(
                   'Recent Governance Actions',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: cs.onSurface),
+                  style: TextStyle(fontFamily: 'Hanken Grotesk', fontSize: 18, fontWeight: FontWeight.bold, color: cs.onSurface),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
@@ -412,10 +450,10 @@ class _GlobalAnalyticsScreenState
                   return Container(
                     width: double.infinity,
                     margin: const EdgeInsets.only(bottom: 10),
-                    padding: const EdgeInsets.all(10),
+                    padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: cs.surfaceContainerHighest.withValues(alpha: 0.4),
-                      borderRadius: BorderRadius.circular(8),
+                      color: cs.surfaceContainerHighest.withOpacity(0.5),
+                      borderRadius: BorderRadius.circular(12),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -453,11 +491,11 @@ class _GlobalAnalyticsScreenState
 
   Widget _buildCsvCard(ColorScheme cs) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: cs.surfaceContainer,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.15), blurRadius: 20, offset: const Offset(0, 6))],
+        color: cs.surfaceContainerHigh,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: cs.outlineVariant),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -470,7 +508,7 @@ class _GlobalAnalyticsScreenState
               Expanded(
                 child: Text(
                   'FYP Research Data Export',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: cs.onSurface),
+                  style: TextStyle(fontFamily: 'Hanken Grotesk', fontSize: 18, fontWeight: FontWeight.bold, color: cs.onSurface),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
@@ -505,11 +543,11 @@ class _GlobalAnalyticsScreenState
 
   Widget _buildBroadcastCard(ColorScheme cs, bool isMobile) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: cs.surfaceContainer,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.15), blurRadius: 20, offset: const Offset(0, 6))],
+        color: cs.surfaceContainerHigh,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: cs.outlineVariant),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -518,7 +556,7 @@ class _GlobalAnalyticsScreenState
             children: [
               const Icon(Icons.campaign, color: Color(0xFFF59E0B), size: 20),
               const SizedBox(width: 8),
-              const Text('Live System Broadcast', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              const Text('Live System Broadcast', style: TextStyle(fontFamily: 'Hanken Grotesk', fontSize: 18, fontWeight: FontWeight.bold)),
             ],
           ),
           const SizedBox(height: 6),
@@ -539,17 +577,27 @@ class _GlobalAnalyticsScreenState
             const SizedBox(height: 10),
             SizedBox(
               width: double.infinity,
-              height: 44,
-              child: ElevatedButton.icon(
-                onPressed: _isBroadcasting ? null : _pushBroadcast,
-                icon: _isBroadcasting
-                    ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                    : const Icon(Icons.send, size: 18),
-                label: const Text('Push Live'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFF59E0B),
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              height: 48,
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(colors: [Color(0xFFF59E0B), Color(0xFFD97706)]),
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(color: const Color(0xFFF59E0B).withOpacity(0.3), blurRadius: 12, offset: const Offset(0, 4)),
+                  ],
+                ),
+                child: FilledButton.icon(
+                  onPressed: _isBroadcasting ? null : _pushBroadcast,
+                  icon: _isBroadcasting
+                      ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                      : const Icon(Icons.podcasts, size: 18),
+                  label: const Text('📢 [Live Broadcast] Push Live', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: Colors.transparent,
+                    shadowColor: Colors.transparent,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
                 ),
               ),
             ),
@@ -570,16 +618,26 @@ class _GlobalAnalyticsScreenState
                 const SizedBox(width: 14),
                 SizedBox(
                   height: 48,
-                  child: ElevatedButton.icon(
-                    onPressed: _isBroadcasting ? null : _pushBroadcast,
-                    icon: _isBroadcasting
-                        ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                        : const Icon(Icons.send),
-                    label: const Text('Push Live'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFF59E0B),
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(colors: [Color(0xFFF59E0B), Color(0xFFD97706)]),
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(color: const Color(0xFFF59E0B).withOpacity(0.3), blurRadius: 12, offset: const Offset(0, 4)),
+                      ],
+                    ),
+                    child: FilledButton.icon(
+                      onPressed: _isBroadcasting ? null : _pushBroadcast,
+                      icon: _isBroadcasting
+                          ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                          : const Icon(Icons.podcasts, size: 18),
+                      label: const Text('📢 [Live Broadcast] Push Live', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: Colors.transparent,
+                        shadowColor: Colors.transparent,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
                     ),
                   ),
                 ),
@@ -616,15 +674,9 @@ class _GlobalAnalyticsScreenState
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: colorScheme.surfaceContainer,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.2),
-            blurRadius: 24,
-            offset: const Offset(0, 8),
-          ),
-        ],
+        color: colorScheme.surfaceContainerHigh,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: colorScheme.outlineVariant),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -646,6 +698,7 @@ class _GlobalAnalyticsScreenState
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
+                    fontFamily: 'Inter',
                     color: colorScheme.onSurfaceVariant,
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
@@ -673,6 +726,7 @@ class _GlobalAnalyticsScreenState
               return Text(
                 formatter(snapshot.data!),
                 style: TextStyle(
+                  fontFamily: 'Hanken Grotesk',
                   fontSize: 36,
                   fontWeight: FontWeight.bold,
                   color: colorScheme.onSurface,
@@ -697,15 +751,9 @@ class _GlobalAnalyticsScreenState
       height: height,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: colorScheme.surfaceContainer,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.2),
-            blurRadius: 24,
-            offset: const Offset(0, 8),
-          ),
-        ],
+        color: colorScheme.surfaceContainerHigh,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: colorScheme.outlineVariant),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

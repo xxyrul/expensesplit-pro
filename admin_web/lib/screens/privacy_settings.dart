@@ -246,21 +246,60 @@ class _PrivacySettingsScreenState
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // ── Page header ───────────────────────────────────────
-                  Text(
-                    'Privacy & Data Governance',
-                    style: TextStyle(
-                      fontSize: isMobile ? 24 : 32,
-                      fontWeight: FontWeight.bold,
+                  // ── Page header (Banner) ─────────────────────────
+                  Container(
+                    width: double.infinity,
+                    constraints: const BoxConstraints(minHeight: 192),
+                    decoration: BoxDecoration(
+                      color: colorScheme.surfaceContainer,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: colorScheme.outlineVariant),
+                      image: const DecorationImage(
+                        image: NetworkImage('https://lh3.googleusercontent.com/aida-public/AB6AXuB-g0GXcIXDK0Pe2VB2CHkb1aUMUriNNcsPCYJjPXFizXMHEoSg5xm5uhP54rjBI7hDsVxt_d_TSM2_pejL6f3Z8M_bqZ2yS1rHTec-KHZowBaQQyH7ZpqfOim_56H-Gd2f0vD0gNd2T7j0ijlBOGZRk2TXgLmepKQhzOCUw0u37tL5aLMfRAUi9B-JssAZFHEeaBD2NbaRkWzf-thml_vsTEQJz9cACGIAgXxvhIv809JN7ctbEWJe_2VKN1eyUYa0WOZMqiPf-z0'),
+                        fit: BoxFit.cover,
+                        opacity: 0.3,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Configure personal data masking rules, record retention '
-                    'schedules, and oversee regulatory compliance policies.',
-                    style: TextStyle(
-                      color: colorScheme.onSurfaceVariant,
-                      fontSize: 16,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(16),
+                        gradient: LinearGradient(
+                          colors: [colorScheme.surface.withOpacity(0.8), Colors.transparent],
+                          stops: const [0.0, 1.0],
+                        ),
+                      ),
+                      padding: const EdgeInsets.all(32.0),
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 600),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Privacy & Data Governance',
+                                style: TextStyle(
+                                  fontFamily: 'Hanken Grotesk',
+                                  fontSize: 32,
+                                  fontWeight: FontWeight.bold,
+                                  color: colorScheme.onSurface,
+                                  letterSpacing: -0.02,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Configure personal data masking rules, record retention schedules, and oversee regulatory compliance policies.',
+                                style: TextStyle(
+                                  fontFamily: 'Inter',
+                                  fontSize: 16,
+                                  color: colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
                     ),
                   ),
                   const SizedBox(height: 32),
@@ -305,7 +344,7 @@ class _PrivacySettingsScreenState
   Widget _buildSettingsCard(ColorScheme colorScheme) {
     return Card(
       elevation: 0,
-      color: colorScheme.surfaceContainer,
+      color: colorScheme.surfaceContainerHigh,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
         side: BorderSide(color: colorScheme.outlineVariant),
@@ -461,7 +500,7 @@ class _PrivacySettingsScreenState
   Widget _buildComplianceSummaryCard(ColorScheme colorScheme) {
     return Card(
       elevation: 0,
-      color: colorScheme.surfaceContainer,
+      color: colorScheme.surfaceContainerHigh,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
         side: BorderSide(color: colorScheme.outlineVariant),
@@ -531,7 +570,7 @@ class _PrivacySettingsScreenState
   Widget _buildGovernanceInfoCard(ColorScheme colorScheme) {
     return Card(
       elevation: 0,
-      color: colorScheme.surfaceContainer,
+      color: colorScheme.surfaceContainerHigh,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
         side: BorderSide(color: colorScheme.outlineVariant),
