@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:math';
+import 'dart:ui' as ui;
 
 import 'package:camera/camera.dart';
 import 'package:flutter/foundation.dart';
@@ -12,6 +13,9 @@ import 'package:permission_handler/permission_handler.dart';
 
 import '../../services/receipt_scanner_service.dart';
 import 'add_expense_screen.dart';
+
+const Color luminaPrimary = Color(0xFFC0C1FF);
+const Color luminaGlow = Color(0xFF8083FF);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Entry point
@@ -36,12 +40,11 @@ class _CameraScannerViewState extends State<CameraScannerView>
   bool _isCameraReady = false;
 
   // ── Flash ────────────────────────────────────────────────────────────────────
-  FlashMode _flashMode = FlashMode.auto;
+  FlashMode _flashMode = FlashMode.off;
   final List<FlashMode> _flashCycle = [
-    FlashMode.auto,
     FlashMode.off,
+    FlashMode.auto,
     FlashMode.always,
-    FlashMode.torch,
   ];
 
   // ── ML Kit ──────────────────────────────────────────────────────────────────
@@ -51,26 +54,21 @@ class _CameraScannerViewState extends State<CameraScannerView>
   bool _isProcessingFrame = false;
   bool _isCapturing = false;
 
+  // ── Live Data ───────────────────────────────────────────────────────────────
+  String? _liveMerchant;
+  String? _liveAmount;
+
   // ── Stable-frame detection ───────────────────────────────────────────────────
-  /// Number of recognised text blocks in the last stable frame.
   int _lastBlockCount = 0;
-
-  /// Rough hash of detected text so we can detect change.
   String _lastTextHash = '';
-
-  /// How many consecutive frames saw the same text.
   int _stableFrameCount = 0;
-
-  /// Frames that must be stable before auto-capture fires.
-  /// At ~1 frame per 800 ms → 2 frames ≈ 1.6 s.
   static const int _stableFrameThreshold = 2;
-
-  /// Minimum number of text blocks to even start the stable counter.
   static const int _minBlocksToConsider = 2;
 
   // ── Overlay animation ────────────────────────────────────────────────────────
   late AnimationController _cornerAnimCtrl;
   late Animation<Color?> _cornerColorAnim;
+  late AnimationController _scanLineAnimCtrl;
   bool _textDetectedLastFrame = false;
 
   // ── Permission ────────────────────────────────────────────────────────────────
@@ -78,7 +76,7 @@ class _CameraScannerViewState extends State<CameraScannerView>
   bool _permissionChecked = false;
 
   // ── Countdown display ────────────────────────────────────────────────────────
-  double _captureProgress = 0.0; // 0.0 → 1.0 as stable frames accumulate
+  double _captureProgress = 0.0;
 
   // ─────────────────────────────────────────────────────────────────────────────
   // Lifecycle
@@ -95,16 +93,27 @@ class _CameraScannerViewState extends State<CameraScannerView>
     );
     _cornerColorAnim = ColorTween(
       begin: Colors.white,
-      end: const Color(0xFF115E59),
+      end: luminaPrimary,
     ).animate(CurvedAnimation(parent: _cornerAnimCtrl, curve: Curves.easeOut));
 
-    _requestCameraPermission();
+    _scanLineAnimCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 2),
+    )..repeat(reverse: true);
+
+    // Initialize camera immediately instead of waiting 400ms
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _requestCameraPermission();
+      }
+    });
   }
 
   @override
   void dispose() {
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     _cornerAnimCtrl.dispose();
+    _scanLineAnimCtrl.dispose();
     try {
       _controller?.stopImageStream();
     } catch (_) {}
@@ -154,7 +163,7 @@ class _CameraScannerViewState extends State<CameraScannerView>
       // ── Flash: always start with flash off ──────────────────────────────────
       await _controller!.setFlashMode(FlashMode.off);
 
-      // ── Autofocus: enable continuous AF + lock exposure to centre ──────────
+      // ── Autofocus ──────────
       await _applyFocusSettings();
 
       await _controller!.startImageStream(_onImageAvailable);
@@ -165,17 +174,13 @@ class _CameraScannerViewState extends State<CameraScannerView>
     }
   }
 
-  /// Applies stable continuous autofocus and auto-exposure centred on frame.
-  /// Silently ignores errors on devices that don't support these APIs.
   Future<void> _applyFocusSettings() async {
     final ctrl = _controller;
     if (ctrl == null || !ctrl.value.isInitialized) return;
     try {
-      // Continuous autofocus (re-focuses whenever the scene changes).
       await ctrl.setFocusMode(FocusMode.auto);
     } catch (_) {}
     try {
-      // Pin the focus-point to the very centre of the viewfinder.
       await ctrl.setFocusPoint(const Offset(0.5, 0.5));
     } catch (_) {}
     try {
@@ -190,7 +195,6 @@ class _CameraScannerViewState extends State<CameraScannerView>
   // Live frame processing
   // ─────────────────────────────────────────────────────────────────────────────
 
-  /// Throttle: one frame every 800 ms.
   DateTime _lastProcessedAt = DateTime(0);
 
   void _onImageAvailable(CameraImage image) {
@@ -249,20 +253,17 @@ class _CameraScannerViewState extends State<CameraScannerView>
       final textHash = result.text.trim();
       final hasText = blockCount >= _minBlocksToConsider;
 
-      // ── Update corner animation ──────────────────────────────────────────────
-      if (hasText && !_textDetectedLastFrame) {
-        _cornerAnimCtrl.forward();
-      } else if (!hasText && _textDetectedLastFrame) {
-        _cornerAnimCtrl.reverse();
-        _stableFrameCount = 0;
-        _lastTextHash = '';
-        _lastBlockCount = 0;
-        if (mounted) setState(() => _captureProgress = 0.0);
-      }
-      _textDetectedLastFrame = hasText;
-
-      // ── Stable-frame check ───────────────────────────────────────────────────
       if (hasText) {
+        final lines = result.text.split('\n').where((l) => l.trim().isNotEmpty).toList();
+        if (lines.isNotEmpty) {
+          if (mounted) setState(() => _liveMerchant = lines.first);
+        }
+        final amountRegex = RegExp(r'(?:TOTAL|GRAND TOTAL|AMOUNT DUE|JUMLAH|BAYARAN)[:\s]*(?:RM)?\s*(\d+\.\d{2})', caseSensitive: false);
+        final matches = amountRegex.allMatches(result.text);
+        if (matches.isNotEmpty) {
+          if (mounted) setState(() => _liveAmount = 'RM ${matches.last.group(1)}');
+        }
+
         if (textHash == _lastTextHash && blockCount == _lastBlockCount) {
           _stableFrameCount++;
         } else {
@@ -280,7 +281,26 @@ class _CameraScannerViewState extends State<CameraScannerView>
         if (_stableFrameCount >= _stableFrameThreshold && !_isCapturing) {
           _triggerCapture();
         }
+      } else {
+        if (mounted) {
+          setState(() {
+            _liveMerchant = null;
+            _liveAmount = null;
+          });
+        }
       }
+
+      if (hasText && !_textDetectedLastFrame) {
+        _cornerAnimCtrl.forward();
+      } else if (!hasText && _textDetectedLastFrame) {
+        _cornerAnimCtrl.reverse();
+        _stableFrameCount = 0;
+        _lastTextHash = '';
+        _lastBlockCount = 0;
+        if (mounted) setState(() => _captureProgress = 0.0);
+      }
+      _textDetectedLastFrame = hasText;
+
     } catch (_) {
       // Ignore per-frame errors silently.
     }
@@ -295,6 +315,12 @@ class _CameraScannerViewState extends State<CameraScannerView>
     _isCapturing = true;
 
     try {
+      // Stop the live stream first to avoid conflicts
+      try {
+        await _controller!.stopImageStream();
+      } catch (_) {}
+
+      // Set flash mode for the capture
       try {
         await _controller!.setFlashMode(_flashMode);
       } catch (_) {}
@@ -303,12 +329,8 @@ class _CameraScannerViewState extends State<CameraScannerView>
 
       final XFile file = await _controller!.takePicture();
 
-      // HACK: Samsung and some other Android devices have a bug where the flash
-      // stays permanently stuck ON after takePicture() if it was used.
-      // The proven workaround is to briefly force it to Torch, then Off.
+      // Reset flash to off after capture to avoid stuck flash
       try {
-        await _controller!.setFlashMode(FlashMode.torch);
-        await Future.delayed(const Duration(milliseconds: 50));
         await _controller!.setFlashMode(FlashMode.off);
       } catch (_) {}
 
@@ -324,12 +346,63 @@ class _CameraScannerViewState extends State<CameraScannerView>
   }
 
   Future<void> _navigateToConfirm(XFile imageFile) async {
-    // Show loading while cloud function runs
     if (!mounted) return;
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => const Center(child: CircularProgressIndicator()),
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        child: Container(
+          padding: const EdgeInsets.all(28),
+          decoration: BoxDecoration(
+            color: const Color(0xFF1A1A1A),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: luminaPrimary.withOpacity(0.3)),
+            boxShadow: [
+              BoxShadow(
+                color: luminaPrimary.withOpacity(0.1),
+                blurRadius: 30,
+                spreadRadius: 0,
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(
+                width: 44,
+                height: 44,
+                child: CircularProgressIndicator(
+                  color: luminaPrimary,
+                  strokeWidth: 3,
+                  backgroundColor: Colors.white.withOpacity(0.08),
+                ),
+              ),
+              const SizedBox(height: 24),
+              const Text(
+                'Scanning receipt with AI…',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: -0.3,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'This may take a few seconds',
+                style: TextStyle(
+                  color: Colors.white.withOpacity(0.45),
+                  fontSize: 13,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      ),
     );
 
     final inputImage = InputImage.fromFilePath(imageFile.path);
@@ -369,10 +442,8 @@ class _CameraScannerViewState extends State<CameraScannerView>
       _cornerAnimCtrl.reverse();
       setState(() => _captureProgress = 0.0);
 
-      // Restore the user's flash preference and re-apply stable AF/AE
-      // now that we are back in live-preview mode.
       try {
-        await _controller!.setFlashMode(_flashMode);
+        await _controller!.setFlashMode(FlashMode.off);
       } catch (_) {}
       await _applyFocusSettings();
 
@@ -387,15 +458,11 @@ class _CameraScannerViewState extends State<CameraScannerView>
   Future<void> _toggleFlash() async {
     final idx = (_flashCycle.indexOf(_flashMode) + 1) % _flashCycle.length;
     final next = _flashCycle[idx];
-    try {
-      await _controller?.setFlashMode(next);
-      if (mounted) setState(() => _flashMode = next);
-    } catch (_) {}
+    if (mounted) setState(() => _flashMode = next);
   }
 
   IconData get _flashIcon {
     switch (_flashMode) {
-      case FlashMode.torch:
       case FlashMode.always:
         return Icons.flash_on_rounded;
       case FlashMode.auto:
@@ -410,7 +477,6 @@ class _CameraScannerViewState extends State<CameraScannerView>
   // ─────────────────────────────────────────────────────────────────────────────
 
   Future<void> _pickFromGallery() async {
-    // Stop stream before opening gallery to avoid 'already streaming' error
     try {
       await _controller?.stopImageStream();
     } catch (_) {}
@@ -423,7 +489,6 @@ class _CameraScannerViewState extends State<CameraScannerView>
       maxHeight: 1920,
     );
     if (file == null || !mounted) {
-      // Restart stream if user cancelled
       if (mounted &&
           _controller != null &&
           _controller!.value.isInitialized) {
@@ -441,57 +506,114 @@ class _CameraScannerViewState extends State<CameraScannerView>
 
   @override
   Widget build(BuildContext context) {
-    // Show permission denied UI if camera access was not granted
+    // ── Permission denied ────────────────────────────────────────────────────
     if (_permissionChecked && !_hasCameraPermission) {
       return Scaffold(
-        backgroundColor: Colors.black,
+        backgroundColor: const Color(0xFF0A0A0A),
         body: SafeArea(
           child: Center(
             child: Padding(
-              padding: const EdgeInsets.all(32.0),
+              padding: const EdgeInsets.all(36.0),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.camera_alt_rounded,
-                      size: 80, color: Color(0xFF115E59)),
-                  const SizedBox(height: 24),
+                  Container(
+                    width: 100,
+                    height: 100,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          luminaPrimary.withOpacity(0.25),
+                          luminaPrimary.withOpacity(0.08),
+                        ],
+                      ),
+                      border: Border.all(
+                        color: luminaPrimary.withOpacity(0.3),
+                        width: 1.5,
+                      ),
+                    ),
+                    child: const Icon(
+                      Icons.camera_alt_rounded,
+                      size: 44,
+                      color: luminaPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 28),
                   const Text(
                     'Camera Access Required',
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 22,
-                      fontWeight: FontWeight.bold,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: -0.5,
                     ),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 12),
-                  const Text(
+                  Text(
                     'To scan receipts, ExpenseSplit Pro needs access to your camera. Please enable it in your device settings.',
-                    style: TextStyle(color: Colors.white70, fontSize: 15),
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.55),
+                      fontSize: 15,
+                      height: 1.5,
+                    ),
                     textAlign: TextAlign.center,
                   ),
-                  const SizedBox(height: 32),
-                  ElevatedButton.icon(
-                    onPressed: () async {
-                      await openAppSettings();
-                    },
-                    icon: const Icon(Icons.settings_rounded),
-                    label: const Text('Open Settings'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF115E59),
-                      foregroundColor: Colors.white,
+                  const SizedBox(height: 36),
+                  GestureDetector(
+                    onTap: () async => await openAppSettings(),
+                    child: Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 28, vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                        horizontal: 32,
+                        vertical: 15,
+                      ),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [luminaPrimary, luminaGlow],
+                        ),
+                        borderRadius: BorderRadius.circular(14),
+                        boxShadow: [
+                          BoxShadow(
+                            color: luminaPrimary.withOpacity(0.3),
+                            blurRadius: 16,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.settings_rounded,
+                            color: Colors.white,
+                            size: 20,
+                          ),
+                          SizedBox(width: 10),
+                          Text(
+                            'Open Settings',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 18),
                   TextButton(
                     onPressed: () => Navigator.pop(context),
-                    child: const Text('Go Back',
-                        style: TextStyle(color: Colors.white54)),
+                    child: Text(
+                      'Go Back',
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.4),
+                        fontSize: 14,
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -501,50 +623,113 @@ class _CameraScannerViewState extends State<CameraScannerView>
       );
     }
 
+    // ── Main scanner screen ──────────────────────────────────────────────────
     return Scaffold(
       backgroundColor: Colors.black,
       body: Stack(
         fit: StackFit.expand,
         children: [
-          // ── Camera preview ───────────────────────────────────────────────────
+          // ── Camera preview ─────────────────────────────────────────────────
           if (_isCameraReady && _controller != null)
             CameraPreview(_controller!)
           else
-            const Center(
-              child: CircularProgressIndicator(color: Color(0xFF115E59)),
-            ),
-
-          // ── Scanning overlay ─────────────────────────────────────────────────
-          if (_isCameraReady)
-            AnimatedBuilder(
-              animation: _cornerColorAnim,
-              builder: (_, __) => CustomPaint(
-                painter: _ScannerOverlayPainter(
-                  frameColor: _cornerColorAnim.value ?? Colors.white,
-                  progress: _captureProgress,
+            Container(
+              color: const Color(0xFF0A0A0A),
+              child: Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    SizedBox(
+                      width: 36,
+                      height: 36,
+                      child: CircularProgressIndicator(
+                        color: luminaPrimary,
+                        strokeWidth: 2.5,
+                        backgroundColor: Colors.white.withOpacity(0.06),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    Text(
+                      'Initializing camera...',
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.4),
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        letterSpacing: -0.2,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
 
-          // ── Top bar ────────────────────────────────────────────────────────
-          _buildTopBar(),
+          // ── Scanning overlay ───────────────────────────────────────────────
+          if (_isCameraReady)
+            AnimatedBuilder(
+              animation: Listenable.merge([_cornerColorAnim, _scanLineAnimCtrl]),
+              builder: (_, __) => IgnorePointer(
+                child: CustomPaint(
+                  painter: _ScannerOverlayPainter(
+                    frameColor: _cornerColorAnim.value ?? Colors.white,
+                    progress: _captureProgress,
+                    scanLinePosition: _scanLineAnimCtrl.value,
+                  ),
+                ),
+              ),
+            ),
 
-          // ── Bottom control row ───────────────────────────────────────────────
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: _buildBottomControls(),
-          ),
+          // ── Gesture Detector for Focus ─────────────────────────────────────
+          if (_isCameraReady)
+            Positioned.fill(
+              child: GestureDetector(
+                behavior: HitTestBehavior.translucent,
+                onTapDown: (details) async {
+                  final ctrl = _controller;
+                  if (ctrl == null || !ctrl.value.isInitialized) return;
+                  try {
+                    final Size size = MediaQuery.of(context).size;
+                    final double x = details.localPosition.dx / size.width;
+                    final double y = details.localPosition.dy / size.height;
+                    await ctrl.setFocusPoint(Offset(x, y));
+                    await ctrl.setExposurePoint(Offset(x, y));
+                  } catch (_) {}
+                },
+              ),
+            ),
 
-          // ── Status pill ──────────────────────────────────────────────────────
+          // ── Status pill ────────────────────────────────────────────────────
           if (_isCameraReady)
             Positioned(
               left: 0,
               right: 0,
-              bottom: 160,
+              bottom: MediaQuery.of(context).size.height * 0.35,
               child: _buildStatusPill(),
             ),
+
+          // ── Data Preview Card ──────────────────────────────────────────────
+          if (_isCameraReady)
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 140,
+              child: _buildDataPreviewCard(),
+            ),
+
+          // ── Bottom controls (pinned) ───────────────────────────────────────
+          Positioned(
+            bottom: 0,
+            left: 0,
+            right: 0,
+            child: _buildBottomControls(),
+          ),
+
+          // ── Top bar (pinned) ───────────────────────────────────────────────
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: _buildTopBar(),
+          ),
         ],
       ),
     );
@@ -560,82 +745,37 @@ class _CameraScannerViewState extends State<CameraScannerView>
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [Colors.black.withOpacity(0.4), Colors.transparent],
+          colors: [
+            Colors.black.withOpacity(0.70),
+            Colors.transparent,
+          ],
         ),
       ),
       child: SafeArea(
+        bottom: false,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 10, 20, 20),
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              _CircleButton(
+              // Left: back button
+              _GlassCircleButton(
                 icon: Icons.close_rounded,
-                size: 40,
-                iconSize: 22,
+                size: 42,
+                iconSize: 20,
                 onTap: () => Navigator.maybePop(context),
               ),
-              const Text(
-                'Scan Receipt',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 0.5,
-                ),
+              // Right: flash toggle
+              _GlassCircleButton(
+                icon: _flashIcon,
+                size: 42,
+                iconSize: 20,
+                onTap: _toggleFlash,
+                highlighted: _flashMode != FlashMode.off,
               ),
-              const SizedBox(width: 40),
             ],
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildBottomControls() {
-    return Container(
-      padding: EdgeInsets.only(
-        left: 32,
-        right: 32,
-        top: 24,
-        bottom: MediaQuery.of(context).padding.bottom + 24,
-      ),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.bottomCenter,
-          end: Alignment.topCenter,
-          colors: [Colors.black.withOpacity(0.85), Colors.transparent],
-          stops: const [0.0, 1.0],
-        ),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          // Gallery
-          _CircleButton(
-            icon: Icons.photo_library_outlined,
-            size: 50,
-            iconSize: 24,
-            onTap: _pickFromGallery,
-          ),
-
-          // Shutter
-          _ShutterButton(
-            isCapturing: _isCapturing,
-            progress: _captureProgress,
-            onTap: _triggerCapture,
-          ),
-
-          // Flash
-          _CircleButton(
-            icon: _flashIcon,
-            size: 50,
-            iconSize: 24,
-            onTap: _toggleFlash,
-            highlighted: _flashMode != FlashMode.off,
-          ),
-        ],
       ),
     );
   }
@@ -643,47 +783,201 @@ class _CameraScannerViewState extends State<CameraScannerView>
   Widget _buildStatusPill() {
     final bool textSeen = _textDetectedLastFrame;
     final String label = _isCapturing
-        ? 'Capturing…'
+        ? 'CAPTURING...'
         : textSeen
-        ? _captureProgress >= 0.99
-              ? 'Locking on…'
-              : 'Receipt detected — hold steady'
-        : 'Point camera at a receipt';
-
-    final Color pillColor = _isCapturing
-        ? const Color(0xFF115E59)
-        : textSeen
-        ? const Color(0xFF115E59).withOpacity(0.85)
-        : Colors.black54;
+            ? _captureProgress >= 0.99
+                ? 'LOCKING ON...'
+                : 'RECEIPT DETECTED...'
+            : 'AUTO-DETECTING RECEIPT...';
 
     return Center(
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 300),
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+        curve: Curves.easeOut,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
-          color: pillColor,
-          borderRadius: BorderRadius.circular(24),
+          color: Colors.black.withOpacity(0.6),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: textSeen ? luminaPrimary.withOpacity(0.5) : Colors.transparent,
+            width: 1,
+          ),
+          boxShadow: textSeen
+              ? [
+                  BoxShadow(
+                    color: luminaGlow.withOpacity(0.2),
+                    blurRadius: 12,
+                    spreadRadius: 0,
+                  ),
+                ]
+              : [],
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (textSeen) ...[
-              const Icon(
-                Icons.text_fields_rounded,
-                color: Colors.white,
-                size: 16,
+        child: Text(
+          label,
+          style: const TextStyle(
+            color: luminaPrimary,
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 1.2,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDataPreviewCard() {
+    final bool show = _textDetectedLastFrame || _liveMerchant != null || _liveAmount != null;
+
+    return AnimatedOpacity(
+      duration: const Duration(milliseconds: 300),
+      opacity: show ? 1.0 : 0.0,
+      child: IgnorePointer(
+        ignoring: !show,
+        child: Container(
+          margin: const EdgeInsets.symmetric(horizontal: 24),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.2),
+                blurRadius: 10,
+                spreadRadius: 2,
               ),
-              const SizedBox(width: 6),
             ],
-            Text(
-              label,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(20),
+            child: BackdropFilter(
+              filter: ui.ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: Colors.white.withOpacity(0.2)),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                width: 8,
+                                height: 8,
+                                decoration: const BoxDecoration(
+                                  color: luminaPrimary,
+                                  shape: BoxShape.circle,
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: luminaGlow,
+                                      blurRadius: 6,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              const Text(
+                                'MERCHANT',
+                                style: TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w600,
+                                  letterSpacing: 0.8,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            _liveMerchant ?? 'Scanning...',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text(
+                          'ESTIMATED',
+                          style: TextStyle(
+                            color: Colors.white70,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: 0.8,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          _liveAmount ?? '...',
+                          style: const TextStyle(
+                            color: luminaPrimary,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
-          ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBottomControls() {
+    return ClipRRect(
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+      child: BackdropFilter(
+        filter: ui.ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+        child: Container(
+          decoration: BoxDecoration(
+            color: const Color(0xFF201F22).withOpacity(0.8),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+          ),
+          child: SafeArea(
+            top: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(28, 24, 28, 24),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  // Gallery button
+                  _GlassCircleButton(
+                    icon: Icons.photo_library_outlined,
+                    size: 52,
+                    iconSize: 24,
+                    onTap: _pickFromGallery,
+                  ),
+                  // Premium shutter button
+                  _PremiumShutterButton(
+                    isCapturing: _isCapturing,
+                    progress: _captureProgress,
+                    onTap: _triggerCapture,
+                  ),
+                  // Spacer to balance the layout since the tune button was removed
+                  const SizedBox(width: 52),
+                ],
+              ),
+            ),
+          ),
         ),
       ),
     );
@@ -696,52 +990,142 @@ class _CameraScannerViewState extends State<CameraScannerView>
 
 class _ScannerOverlayPainter extends CustomPainter {
   final Color frameColor;
-  final double progress; // 0–1, drives the progress arc on shutter
+  final double progress;
+  final double scanLinePosition;
 
   const _ScannerOverlayPainter({
     required this.frameColor,
     required this.progress,
+    required this.scanLinePosition,
   });
 
   @override
   void paint(Canvas canvas, Size size) {
-    // Frame dimensions: tall portrait frame sized to fit a full receipt.
-    // Height-driven so it stays proportional on all screen sizes.
-    final double frameH = size.height * 0.72;
-    final double frameW = size.width * 0.88;
+    // ── Frame dimensions ────────────────────────────────────────────────────
+    final double frameH = size.height * 0.55;
+    final double frameW = size.width * 0.85;
     final double left = (size.width - frameW) / 2;
-    final double top = (size.height - frameH) / 2 - size.height * 0.02;
+    final double top = (size.height - frameH) / 2 - size.height * 0.03;
     final frameRect = Rect.fromLTWH(left, top, frameW, frameH);
     final frameRRect = RRect.fromRectAndRadius(
       frameRect,
-      const Radius.circular(16),
+      const Radius.circular(20),
     );
 
-    // ── Dark overlay with cutout ──────────────────────────────────────────────
-    final overlayPaint = Paint()..color = Colors.black.withOpacity(0.55);
+    // ── Dark overlay with cutout (0.65 opacity) ─────────────────────────────
+    final overlayPaint = Paint()..color = Colors.black.withOpacity(0.65);
     final overlayPath = Path()
       ..addRect(Rect.fromLTWH(0, 0, size.width, size.height))
       ..addRRect(frameRRect)
       ..fillType = PathFillType.evenOdd;
     canvas.drawPath(overlayPath, overlayPaint);
 
-    // ── Frame border (thin, always white) ─────────────────────────────────────
+    // ── Subtle thin white border (0.12 opacity) ─────────────────────────────
     final borderPaint = Paint()
-      ..color = Colors.white.withOpacity(0.25)
+      ..color = Colors.white.withOpacity(0.12)
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.5;
+      ..strokeWidth = 1.0;
     canvas.drawRRect(frameRRect, borderPaint);
 
-    // ── Corner accents ────────────────────────────────────────────────────────
+    // ── Corner brackets ─────────────────────────────────────────────────────
+    final bool hasGlow = frameColor != Colors.white;
+    final double cLen = min(frameW, frameH) * 0.12;
+    const double r = 20.0;
+
+    // Glow behind corners when text detected
+    if (hasGlow) {
+      final glowPaint = Paint()
+        ..color = luminaGlow.withOpacity(0.6)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 8.0
+        ..strokeCap = StrokeCap.round
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8.0);
+
+      _drawCornerBrackets(canvas, frameRect, cLen, r, glowPaint);
+    }
+
+    // Solid corner brackets
     final cornerPaint = Paint()
       ..color = frameColor
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 3.5
+      ..strokeWidth = 4.0
       ..strokeCap = StrokeCap.round;
 
-    final double cLen = min(frameW, frameH) * 0.18;
-    final double r = 16.0;
+    _drawCornerBrackets(canvas, frameRect, cLen, r, cornerPaint);
 
+    // ── Sweeping Line ───────────────────────────────────────────────────────
+    final lineY = frameRect.top + (frameRect.height * scanLinePosition);
+    final scanLinePaint = Paint()
+      ..color = luminaPrimary.withOpacity(0.4)
+      ..strokeWidth = 2.0
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4.0);
+      
+    final scanLineGradient = LinearGradient(
+      colors: [
+        luminaPrimary.withOpacity(0.0),
+        luminaPrimary.withOpacity(0.8),
+        luminaPrimary.withOpacity(0.0),
+      ],
+      stops: const [0.0, 0.5, 1.0],
+    ).createShader(Rect.fromLTWH(frameRect.left, lineY, frameRect.width, 2));
+
+    final scanLineGradientPaint = Paint()
+      ..shader = scanLineGradient
+      ..strokeWidth = 2.0;
+
+    canvas.drawLine(
+      Offset(frameRect.left, lineY),
+      Offset(frameRect.right, lineY),
+      scanLinePaint,
+    );
+    canvas.drawLine(
+      Offset(frameRect.left, lineY),
+      Offset(frameRect.right, lineY),
+      scanLineGradientPaint,
+    );
+
+    // ── Progress sweep: top AND bottom edges ────────────────────────────────
+    if (progress > 0) {
+      final sweepW = frameW * progress;
+      final startX = frameRect.left + (frameW - sweepW) / 2;
+
+      final progressPaint = Paint()
+        ..shader = LinearGradient(
+          colors: [
+            luminaPrimary.withOpacity(0.0),
+            luminaPrimary,
+            luminaPrimary,
+            luminaPrimary.withOpacity(0.0),
+          ],
+          stops: const [0.0, 0.15, 0.85, 1.0],
+        ).createShader(Rect.fromLTWH(startX, 0, sweepW, 1))
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 3.0
+        ..strokeCap = StrokeCap.round;
+
+      // Top edge
+      canvas.drawLine(
+        Offset(startX, frameRect.top),
+        Offset(startX + sweepW, frameRect.top),
+        progressPaint,
+      );
+
+      // Bottom edge
+      canvas.drawLine(
+        Offset(startX, frameRect.bottom),
+        Offset(startX + sweepW, frameRect.bottom),
+        progressPaint,
+      );
+    }
+  }
+
+  void _drawCornerBrackets(
+    Canvas canvas,
+    Rect frameRect,
+    double cLen,
+    double r,
+    Paint paint,
+  ) {
     void drawCorner(Offset origin, double dx, double dy) {
       // Horizontal arm
       final double hx1 = origin.dx + (dx > 0 ? r : -r);
@@ -749,63 +1133,43 @@ class _ScannerOverlayPainter extends CustomPainter {
       canvas.drawLine(
         Offset(hx1, origin.dy),
         Offset(hx2, origin.dy),
-        cornerPaint,
+        paint,
       );
-
       // Vertical arm
       final double vy1 = origin.dy + (dy > 0 ? r : -r);
       final double vy2 = vy1 + dy * cLen;
       canvas.drawLine(
         Offset(origin.dx, vy1),
         Offset(origin.dx, vy2),
-        cornerPaint,
+        paint,
       );
     }
 
-    // Top-left
     drawCorner(Offset(frameRect.left, frameRect.top), 1, 1);
-    // Top-right
     drawCorner(Offset(frameRect.right, frameRect.top), -1, 1);
-    // Bottom-left
     drawCorner(Offset(frameRect.left, frameRect.bottom), 1, -1);
-    // Bottom-right
     drawCorner(Offset(frameRect.right, frameRect.bottom), -1, -1);
-
-    // ── Progress sweep at top edge of frame ────────────────────────────────────
-    if (progress > 0) {
-      final progressPaint = Paint()
-        ..color = const Color(0xFF115E59).withOpacity(0.85)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 3
-        ..strokeCap = StrokeCap.round;
-
-      final sweepW = frameW * progress;
-      final startX = frameRect.left + (frameW - sweepW) / 2;
-      canvas.drawLine(
-        Offset(startX, frameRect.top),
-        Offset(startX + sweepW, frameRect.top),
-        progressPaint,
-      );
-    }
   }
 
   @override
   bool shouldRepaint(_ScannerOverlayPainter old) =>
-      old.frameColor != frameColor || old.progress != progress;
+      old.frameColor != frameColor || 
+      old.progress != progress ||
+      old.scanLinePosition != scanLinePosition;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Reusable sub-widgets
+// Glass Circle Button
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _CircleButton extends StatelessWidget {
+class _GlassCircleButton extends StatelessWidget {
   final IconData icon;
   final VoidCallback onTap;
   final double size;
   final double iconSize;
   final bool highlighted;
 
-  const _CircleButton({
+  const _GlassCircleButton({
     required this.icon,
     required this.onTap,
     this.size = 44,
@@ -822,10 +1186,15 @@ class _CircleButton extends StatelessWidget {
         height: size,
         decoration: BoxDecoration(
           color: highlighted
-              ? const Color(0xFF115E59).withOpacity(0.9)
-              : Colors.black.withOpacity(0.3),
+              ? luminaPrimary.withOpacity(0.25)
+              : Colors.white.withOpacity(0.08),
           shape: BoxShape.circle,
-          border: Border.all(color: Colors.white.withOpacity(0.2), width: 1),
+          border: Border.all(
+            color: highlighted
+                ? luminaPrimary.withOpacity(0.6)
+                : Colors.white.withOpacity(0.12),
+            width: 1,
+          ),
         ),
         child: Icon(icon, color: Colors.white, size: iconSize),
       ),
@@ -833,12 +1202,16 @@ class _CircleButton extends StatelessWidget {
   }
 }
 
-class _ShutterButton extends StatelessWidget {
+// ─────────────────────────────────────────────────────────────────────────────
+// Premium Shutter Button
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _PremiumShutterButton extends StatelessWidget {
   final bool isCapturing;
   final double progress;
   final VoidCallback onTap;
 
-  const _ShutterButton({
+  const _PremiumShutterButton({
     required this.isCapturing,
     required this.progress,
     required this.onTap,
@@ -848,58 +1221,54 @@ class _ShutterButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: isCapturing ? null : onTap,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          // Progress ring
-          SizedBox(
-            width: 84,
-            height: 84,
-            child: CircularProgressIndicator(
-              value: progress,
-              strokeWidth: 3,
-              backgroundColor: Colors.white24,
-              valueColor: const AlwaysStoppedAnimation<Color>(
-                Color(0xFF115E59),
+      child: SizedBox(
+        width: 80,
+        height: 80,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            // Outer progress ring
+            SizedBox(
+              width: 80,
+              height: 80,
+              child: CircularProgressIndicator(
+                value: progress,
+                strokeWidth: 3,
+                backgroundColor: Colors.white.withOpacity(0.15),
+                valueColor: const AlwaysStoppedAnimation<Color>(
+                  luminaPrimary,
+                ),
               ),
             ),
-          ),
-          // Inner circle
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            width: 68,
-            height: 68,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: isCapturing ? const Color(0xFF115E59) : Colors.white,
-              boxShadow: [
-                BoxShadow(
-                  color: const Color(
-                    0xFF115E59,
-                  ).withOpacity(isCapturing ? 0.6 : 0.0),
-                  blurRadius: 16,
-                  spreadRadius: 2,
+            // White ring (3px border, 68x68)
+            Container(
+              width: 68,
+              height: 68,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: Colors.white.withOpacity(0.9),
+                  width: 3,
                 ),
-              ],
+              ),
             ),
-            child: isCapturing
-                ? const Center(
-                    child: SizedBox(
-                      width: 22,
-                      height: 22,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2.5,
-                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                      ),
-                    ),
-                  )
-                : const Icon(
-                    Icons.camera_alt_rounded,
-                    color: Color(0xFF042F2E),
-                    size: 30,
-                  ),
-          ),
-        ],
+            // Inner fill: animates between white circle and red rounded rect
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 250),
+              curve: Curves.easeInOut,
+              width: isCapturing ? 28 : 56,
+              height: isCapturing ? 28 : 56,
+              decoration: BoxDecoration(
+                color: isCapturing
+                    ? const Color(0xFFEF4444)
+                    : Colors.white.withOpacity(0.9),
+                borderRadius: BorderRadius.circular(
+                  isCapturing ? 8 : 28,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
