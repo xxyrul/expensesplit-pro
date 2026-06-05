@@ -22,7 +22,9 @@ const Color luminaGlow = Color(0xFF8083FF);
 // ─────────────────────────────────────────────────────────────────────────────
 
 class CameraScannerView extends StatefulWidget {
-  const CameraScannerView({super.key});
+  final bool returnImageOnly;
+
+  const CameraScannerView({super.key, this.returnImageOnly = false});
 
   @override
   State<CameraScannerView> createState() => _CameraScannerViewState();
@@ -335,6 +337,10 @@ class _CameraScannerViewState extends State<CameraScannerView>
       } catch (_) {}
 
       if (!mounted) return;
+      if (widget.returnImageOnly) {
+        Navigator.of(context).pop(file.path);
+        return;
+      }
       await _navigateToConfirm(file);
     } catch (e) {
       debugPrint('Capture error: $e');
@@ -497,6 +503,10 @@ class _CameraScannerViewState extends State<CameraScannerView>
       return;
     }
 
+    if (widget.returnImageOnly) {
+      Navigator.of(context).pop(file.path);
+      return;
+    }
     await _navigateToConfirm(file);
   }
 

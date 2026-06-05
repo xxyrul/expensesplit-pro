@@ -15,6 +15,7 @@ import '../../services/receipt_scanner_service.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../theme/brand_theme.dart';
+import 'camera_scanner_view.dart';
 
 class AddExpenseScreen extends ConsumerStatefulWidget {
   final double? initialAmount;
@@ -95,6 +96,31 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
           );
         }
       });
+    }
+
+    _retrieveLostData();
+  }
+
+  Future<void> _retrieveLostData() async {
+    try {
+      if (!kIsWeb && Platform.isAndroid) {
+        final picker = ImagePicker();
+        final response = await picker.retrieveLostData();
+        if (response.isEmpty) {
+          return;
+        }
+        if (response.file != null && mounted) {
+          _processSelectedImage(response.file!.path);
+        } else if (response.exception != null && mounted) {
+          ModernBottomToast.show(
+            context,
+            message: 'Error retrieving image: ${response.exception}',
+            type: ModernToastType.error,
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint("Error in retrieveLostData: $e");
     }
   }
 
@@ -611,15 +637,15 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                   title: const Text("Take a Picture"),
                   onTap: () async {
                     Navigator.pop(context);
-                    final picker = ImagePicker();
-                    final pickedFile = await picker.pickImage(
-                      source: ImageSource.camera,
-                      imageQuality: 85,
-                      maxWidth: 1920,
-                      maxHeight: 1920,
+                    final String? imagePath = await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const CameraScannerView(returnImageOnly: true),
+                        fullscreenDialog: true,
+                      ),
                     );
-                    if (pickedFile != null) {
-                      _processSelectedImage(pickedFile.path);
+                    if (imagePath != null) {
+                      _processSelectedImage(imagePath);
                     }
                   },
                 ),
