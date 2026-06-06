@@ -15,35 +15,20 @@ class AuthWrapper extends ConsumerWidget {
     // Watch the provider that returns UserModel?
     final userAsync = ref.watch(userProfileProvider);
 
-    return AnimatedSwitcher(
-      duration: const Duration(milliseconds: 260),
-      switchInCurve: Curves.easeOutCubic,
-      switchOutCurve: Curves.easeInCubic,
-      transitionBuilder: (child, animation) {
-        final fade = CurvedAnimation(parent: animation, curve: Curves.easeOut);
-        final slide = Tween<Offset>(
-          begin: const Offset(0.02, 0.02),
-          end: Offset.zero,
-        ).animate(animation);
-        return FadeTransition(
-          opacity: fade,
-          child: SlideTransition(position: slide, child: child),
-        );
+    if (userAsync.isLoading) {
+      return const LoadingScreen(key: ValueKey('loading'));
+    }
+
+    return userAsync.when(
+      skipLoadingOnReload: true,
+      data: (user) {
+        if (user == null) {
+          return const LoginScreen(key: ValueKey('login'));
+        }
+        return const HomeScreen(key: ValueKey('home'));
       },
-      child: userAsync.isLoading
-          ? const LoadingScreen(key: ValueKey('loading'))
-          : userAsync.when(
-              skipLoadingOnReload: true,
-              data: (user) {
-                if (user == null) {
-                  return const LoginScreen(key: ValueKey('login'));
-                }
-                return const HomeScreen(key: ValueKey('home'));
-              },
-              loading: () => const LoadingScreen(key: ValueKey('loading')),
-              error: (err, stack) =>
-                  const LoginScreen(key: ValueKey('login-error')),
-            ),
+      loading: () => const LoadingScreen(key: ValueKey('loading')),
+      error: (err, stack) => const LoginScreen(key: ValueKey('login-error')),
     );
   }
 }

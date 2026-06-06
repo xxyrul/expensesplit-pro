@@ -46,7 +46,6 @@ class _EditProfileScreenState extends State<EditProfileScreen>
   late final TextEditingController _displayNameController;
   late final TextEditingController _usernameController;
   late final TextEditingController _emailController;
-  late final AnimationController _contentController;
 
   bool _isSavingProfile = false;
   bool _isLinkingGoogle = false;
@@ -63,10 +62,6 @@ class _EditProfileScreenState extends State<EditProfileScreen>
     _displayNameController = TextEditingController(text: widget.initialDisplayName);
     _usernameController = TextEditingController(text: widget.initialUsername);
     _emailController = TextEditingController(text: widget.email);
-    _contentController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 420),
-    )..forward();
   }
 
   @override
@@ -74,7 +69,6 @@ class _EditProfileScreenState extends State<EditProfileScreen>
     _displayNameController.dispose();
     _usernameController.dispose();
     _emailController.dispose();
-    _contentController.dispose();
     super.dispose();
   }
 
@@ -180,35 +174,18 @@ class _EditProfileScreenState extends State<EditProfileScreen>
             ),
           ),
           SliverToBoxAdapter(
-            child: FadeTransition(
-              opacity: CurvedAnimation(
-                parent: _contentController,
-                curve: Curves.easeOutCubic,
-              ),
-              child: SlideTransition(
-                position: Tween<Offset>(
-                  begin: const Offset(0, 0.05),
-                  end: Offset.zero,
-                ).animate(
-                  CurvedAnimation(
-                    parent: _contentController,
-                    curve: Curves.easeOutCubic,
-                  ),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _sectionTitle('PROFILE'),
-                      _profileCard(scheme),
-                      const SizedBox(height: 22),
-                      _sectionTitle('ACCOUNT'),
-                      _accountCard(scheme),
-                      const SizedBox(height: 26),
-                    ],
-                  ),
-                ),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _sectionTitle('PROFILE'),
+                  _profileCard(scheme),
+                  const SizedBox(height: 22),
+                  _sectionTitle('ACCOUNT'),
+                  _accountCard(scheme),
+                  const SizedBox(height: 26),
+                ],
               ),
             ),
           ),

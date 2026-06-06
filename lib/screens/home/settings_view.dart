@@ -453,10 +453,8 @@ class _SettingsViewState extends ConsumerState<SettingsView>
     String email,
   ) async {
     await Navigator.of(context).push(
-      PageRouteBuilder(
-        transitionDuration: const Duration(milliseconds: 320),
-        reverseTransitionDuration: const Duration(milliseconds: 260),
-        pageBuilder: (_, __, ___) => EditProfileScreen(
+      MaterialPageRoute(
+        builder: (_) => EditProfileScreen(
           initialDisplayName: name,
           initialUsername: rawUsername,
           email: email,
@@ -470,19 +468,6 @@ class _SettingsViewState extends ConsumerState<SettingsView>
           onLinkGoogle: _linkGoogleAccount,
           onUnlinkGoogle: _unlinkGoogleAccount,
         ),
-        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          final slide =
-              Tween<Offset>(
-                begin: const Offset(0.06, 0.0),
-                end: Offset.zero,
-              ).animate(
-                CurvedAnimation(parent: animation, curve: Curves.easeOutCubic),
-              );
-          return FadeTransition(
-            opacity: animation,
-            child: SlideTransition(position: slide, child: child),
-          );
-        },
       ),
     );
 

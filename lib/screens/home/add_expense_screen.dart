@@ -836,6 +836,8 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                                 CachedNetworkImage(
                                   imageUrl: _uploadedReceiptUrl!,
                                   fit: BoxFit.cover,
+                                  fadeInDuration: Duration.zero,
+                                  fadeOutDuration: Duration.zero,
                                   placeholder: (context, url) => Center(
                                     child: CircularProgressIndicator(
                                       color: Theme.of(context).colorScheme.primary,
@@ -942,6 +944,8 @@ class _FullScreenImageViewer extends StatelessWidget {
               ? Hero(tag: 'receipt_image', child: Image.file(File(imagePath!)))
               : CachedNetworkImage(
                   imageUrl: networkUrl!,
+                  fadeInDuration: Duration.zero,
+                  fadeOutDuration: Duration.zero,
                   placeholder: (context, url) => const Center(
                     child: CircularProgressIndicator(
                       color: Colors.white,

@@ -422,9 +422,8 @@ class _CameraScannerViewState extends State<CameraScannerView>
 
     await Navigator.push(
       context,
-      PageRouteBuilder(
-        transitionDuration: const Duration(milliseconds: 500),
-        pageBuilder: (_, __, ___) => AddExpenseScreen(
+      MaterialPageRoute(
+        builder: (_) => AddExpenseScreen(
           capturedImagePath: imageFile.path,
           initialAmount: parsed?['amount'],
           initialVendor: parsed?['vendor'],
@@ -433,9 +432,6 @@ class _CameraScannerViewState extends State<CameraScannerView>
           showScanSuccessBanner: true,
           needsReview: parsed?['needsReview'] ?? false,
         ),
-        transitionsBuilder: (_, animation, __, child) {
-          return FadeTransition(opacity: animation, child: child);
-        },
       ),
     );
 

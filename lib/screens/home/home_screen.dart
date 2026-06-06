@@ -157,42 +157,27 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       body: Stack(
         children: [
           Positioned.fill(
-            child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 240),
-              switchInCurve: Curves.easeOutCubic,
-              switchOutCurve: Curves.easeInCubic,
-              transitionBuilder: (child, animation) {
-                final slide = Tween<Offset>(
-                  begin: const Offset(0.04, 0.02),
-                  end: Offset.zero,
-                ).animate(animation);
-                return FadeTransition(
-                  opacity: animation,
-                  child: SlideTransition(position: slide, child: child),
-                );
-              },
-              child: Stack(
-                key: ValueKey(_selectedIndex),
-                children: [
-                  Positioned(
-                    top: -120,
-                    right: -70,
-                    child: _ambientCircle(
-                      size: 250,
-                      color: Theme.of(context).colorScheme.primary.withOpacity(0.12),
-                    ),
+            child: Stack(
+              key: ValueKey(_selectedIndex),
+              children: [
+                Positioned(
+                  top: -120,
+                  right: -70,
+                  child: _ambientCircle(
+                    size: 250,
+                    color: Theme.of(context).colorScheme.primary.withOpacity(0.12),
                   ),
-                  Positioned(
-                    bottom: -80,
-                    left: -90,
-                    child: _ambientCircle(
-                      size: 220,
-                      color: Theme.of(context).colorScheme.secondary.withOpacity(0.10),
-                    ),
+                ),
+                Positioned(
+                  bottom: -80,
+                  left: -90,
+                  child: _ambientCircle(
+                    size: 220,
+                    color: Theme.of(context).colorScheme.secondary.withOpacity(0.10),
                   ),
-                  currentScreen,
-                ],
-              ),
+                ),
+                currentScreen,
+              ],
             ),
           ),
         ],

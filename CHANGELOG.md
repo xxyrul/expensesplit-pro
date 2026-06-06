@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.0.12+14] - 2026-06-06
+### Fixed
+- Fixed massive UI stuttering and frame drops by removing redundant internal animations across the app.
+- Eliminated all loading lags when navigating between bottom tabs by removing the heavy AnimatedSwitcher container.
+- Completely replaced legacy PageRouteBuilder custom transitions with native, fully-optimized MaterialPageRoute transitions for the Camera Scanner and Settings screens.
+- Enabled instant image loading for all receipt thumbnails by utilizing a zero-fade CachedNetworkImage implementation.
 ## [1.0.11+13] - 2026-06-05
 ### Added
 - Implemented a new sleek Month Selector in the Expenses view, replacing the Category Filter based on the Stitch design mockup.
