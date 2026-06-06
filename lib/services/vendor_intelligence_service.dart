@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/vendor_category_mapping.dart';
 import '../models/ocr_log_model.dart';
+import 'offline_vendor_ai_model.dart';
 
 final vendorIntelligenceServiceProvider = Provider<VendorIntelligenceService>((ref) {
   return VendorIntelligenceService();
@@ -58,6 +59,7 @@ const _seedVendorKeywords = <String, String>{
 class VendorIntelligenceService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  final OfflineVendorAiModel _offlineAi = OfflineVendorAiModel();
 
   // ─────────────────────────────────────────────────────────────────────────
   // Normalise a vendor name for comparison
@@ -91,6 +93,9 @@ class VendorIntelligenceService {
             .collection('vendor_catalog')
             .get();
 
+        final catalogItems = snap.docs.map((doc) => doc.data()).toList();
+        _offlineAi.trainWithCatalog(catalogItems);
+
         for (final doc in snap.docs) {
           final data = doc.data();
           final savedName = data['vendorName'] as String? ?? '';
@@ -119,7 +124,8 @@ class VendorIntelligenceService {
       }
     }
 
-    return null;
+    // Offline AI Prediction fallback (Self-Learning)
+    return _offlineAi.predictCategory(vendorName);
   }
 
   // ─────────────────────────────────────────────────────────────────────────

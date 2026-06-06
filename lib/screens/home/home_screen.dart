@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/foundation.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -31,6 +33,32 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   void initState() {
     super.initState();
     _syncFcmToken();
+    _checkLostData();
+  }
+
+  Future<void> _checkLostData() async {
+    try {
+      if (!kIsWeb && Platform.isAndroid) {
+        final picker = ImagePicker();
+        final response = await picker.retrieveLostData();
+        if (response.isEmpty) {
+          return;
+        }
+        if (response.file != null && mounted) {
+          // The app was restarted by Android, but we caught the image!
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => AddExpenseScreen(
+                capturedImagePath: response.file!.path,
+              ),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint("Error retrieving lost data: $e");
+    }
   }
 
   Future<void> _syncFcmToken() async {

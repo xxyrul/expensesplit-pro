@@ -32,61 +32,27 @@ class GeminiAdvisorService {
   }
 
   Future<String> getSmartAdvice(double totalSpent, double targetBudget) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final cachedAdvice = prefs.getString(_cacheKey);
-      final cachedTimeStr = prefs.getString(_cacheTimeKey);
+    final prefs = await SharedPreferences.getInstance();
+    final cachedAdvice = prefs.getString(_cacheKey);
+    final cachedTimeStr = prefs.getString(_cacheTimeKey);
 
-      if (cachedAdvice != null && cachedTimeStr != null) {
-        final cachedTime = DateTime.parse(cachedTimeStr);
-        final difference = DateTime.now().difference(cachedTime);
+    if (cachedAdvice != null && cachedTimeStr != null) {
+      final cachedTime = DateTime.parse(cachedTimeStr);
+      final difference = DateTime.now().difference(cachedTime);
 
-        // If cached advice is younger than 24 hours, return it to save quota
-        if (difference.inHours < 24) {
-          return cachedAdvice;
-        }
+      // If cached advice is younger than 24 hours, return it
+      if (difference.inHours < 24) {
+        return cachedAdvice;
       }
-
-      // Initialize the model
-      final model = GenerativeModel(
-        model: 'gemini-1.5-flash',
-        apiKey: _apiKey,
-      );
-
-      final spendingSummary = "RM ${totalSpent.toStringAsFixed(0)} out of RM ${targetBudget.toStringAsFixed(0)}";
-      final prompt = "You are a financial advisor for a university student. Analyze this spending data: [$spendingSummary] and provide one concise, encouraging, and actionable tip in under 40 words.";
-      final content = [Content.text(prompt)];
-      
-      final response = await model.generateContent(content);
-      final newAdvice = response.text?.trim() ?? _generateLocalAdvice(totalSpent, targetBudget);
-
-      // Cache the new response
-      await prefs.setString(_cacheKey, newAdvice);
-      await prefs.setString(_cacheTimeKey, DateTime.now().toIso8601String());
-
-      return newAdvice;
-    } catch (e) {
-      // HYBRID FALLBACK 1: Try on-device Gemini Nano via AICore
-      try {
-        final nanoService = GeminiNanoService();
-        final spendingSummary = "RM ${totalSpent.toStringAsFixed(0)} out of RM ${targetBudget.toStringAsFixed(0)}";
-        final prompt = "You are a financial advisor. Given this spending data: [$spendingSummary], provide one very short actionable tip.";
-        
-        final nanoAdvice = await nanoService.generateAdvice(prompt);
-        if (nanoAdvice != null && nanoAdvice.isNotEmpty) {
-          // Cache the local nano advice too
-          final prefs = await SharedPreferences.getInstance();
-          await prefs.setString(_cacheKey, nanoAdvice.trim());
-          await prefs.setString(_cacheTimeKey, DateTime.now().toIso8601String());
-          return nanoAdvice.trim();
-        }
-      } catch (nanoError) {
-        // Nano failed or unavailable, proceed to rule-based fallback
-      }
-
-      // HYBRID FALLBACK 2: Local rule-based logic
-      return _generateLocalAdvice(totalSpent, targetBudget);
     }
+
+    final newAdvice = _generateLocalAdvice(totalSpent, targetBudget);
+
+    // Cache the new response
+    await prefs.setString(_cacheKey, newAdvice);
+    await prefs.setString(_cacheTimeKey, DateTime.now().toIso8601String());
+
+    return newAdvice;
   }
 
   String _generateLocalAdvice(double totalSpent, double targetBudget) {

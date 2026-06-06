@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 final receiptScannerProvider = Provider<ReceiptScannerService>((ref) {
   return ReceiptScannerService();
@@ -135,27 +136,108 @@ class ReceiptScannerService {
       };
     } catch (e) {
       print("AI analysis failed, using offline fallback: $e");
-      return _offlineParse(rawText);
+      return await _offlineParse(rawText);
     }
   }
 
-  /// Offline regex-based receipt parser used as a fallback when the
-  /// Firebase Cloud Function is unavailable (quota exceeded, network error, etc.).
-  static Map<String, dynamic>? _offlineParse(String rawText) {
+  /// Self-Learning Engine: Learns the keyword next to the correct amount
+  /// when a user manually overrides the total amount.
+  Future<void> learnTotalKeyword(String rawText, double correctAmount) async {
+    final lines = rawText.split('\n').map((l) => l.trim()).where((l) => l.isNotEmpty).toList();
+    final amountStr = correctAmount.toStringAsFixed(2);
+    
+    for (int i = 0; i < lines.length; i++) {
+      final line = lines[i];
+      if (line.contains(amountStr)) {
+        // Find the word immediately preceding the amount on the same line
+        final beforeStr = line.split(amountStr).first.trim().toUpperCase();
+        if (beforeStr.isNotEmpty) {
+          final words = beforeStr.split(RegExp(r'\s+'));
+          final keyword = words.last.replaceAll(RegExp(r'[^A-Z]'), '');
+          if (keyword.length > 2) {
+            await _saveLearnedKeyword(keyword);
+            return;
+          }
+        } else if (i > 0) {
+          // If the amount is on a line by itself, learn the last word from the previous line
+          final prevLineWords = lines[i - 1].toUpperCase().split(RegExp(r'\s+'));
+          if (prevLineWords.isNotEmpty) {
+            final keyword = prevLineWords.last.replaceAll(RegExp(r'[^A-Z]'), '');
+            if (keyword.length > 2) {
+              await _saveLearnedKeyword(keyword);
+              return;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  Future<void> _saveLearnedKeyword(String keyword) async {
+    final prefs = await SharedPreferences.getInstance();
+    final List<String> keywords = prefs.getStringList('learned_total_keywords') ?? [];
+    if (!keywords.contains(keyword)) {
+      keywords.add(keyword);
+      await prefs.setStringList('learned_total_keywords', keywords);
+      print("Self-Learning Scanner learned new total keyword: \$keyword");
+    }
+  }
+
+  /// Offline regex-based receipt parser used as a fallback
+  static Future<Map<String, dynamic>?> _offlineParse(String rawText) async {
     try {
       final lines = rawText.split('\n').where((l) => l.trim().isNotEmpty).toList();
       if (lines.isEmpty) return null;
 
       // --- 1. Total amount ---
       double? totalAmount;
+      
+      final prefs = await SharedPreferences.getInstance();
+      final learnedKeywords = prefs.getStringList('learned_total_keywords') ?? [];
+      final customKeywordsStr = learnedKeywords.isNotEmpty ? '|' + learnedKeywords.join('|') : '';
+
       final totalRegex = RegExp(
-        r'(?:TOTAL|GRAND\s*TOTAL|AMOUNT\s*DUE|JUMLAH|BAYARAN).*?(?:RM)?\s*(\d+\.\d{2})',
+        r'\b(?:TOTAL|GRAND\s*TOTAL|AMOUNT\s*DUE|AMOUNT\s*PAID|AMOUNT|JUMLAH|JUMLAH\s*BESAR|BAYARAN|NET\s*AMT|NET\s*AMOUNT|PAYABLE|CASH|BALANCE\s*DUE|TOTAL\s*PEMBAYARAN' + customKeywordsStr + r')\b.*?(?:RM|USD|\$)?\s*(\d+\.\d{2})',
         caseSensitive: false,
       );
       final totalMatches = totalRegex.allMatches(rawText);
       if (totalMatches.isNotEmpty) {
-        // Take the LAST match – usually the grand total
-        totalAmount = double.tryParse(totalMatches.last.group(1)!);
+        for (var i = totalMatches.length - 1; i >= 0; i--) {
+          final val = double.tryParse(totalMatches.elementAt(i).group(1)!);
+          if (val != null && val > 0.10) {
+            totalAmount = val;
+            break;
+          }
+        }
+        if (totalAmount == null) {
+          totalAmount = double.tryParse(totalMatches.last.group(1)!);
+        }
+      }
+
+      // --- 1.5 Handle Column Misalignment ---
+      // If no valid total was found on the SAME line as a keyword, check if the amount 
+      // was pushed to a completely separate line (common in ML Kit OCR misreads).
+      if (totalAmount == null || totalAmount <= 0.10) {
+        final lines = rawText.split('\n').where((l) => l.trim().isNotEmpty).toList();
+        final keywordRegex = RegExp(r'\b(?:TOTAL|AMOUNT|JUMLAH|BAYARAN|NET|PAYABLE|CASH|DUE' + customKeywordsStr + r')\b', caseSensitive: false);
+        final looseNumberRegex = RegExp(r'^(?:RM|USD|\$)?\s*(\d+\.\d{2})$', caseSensitive: false);
+
+        for (int i = lines.length - 1; i > 0; i--) {
+          final currentLine = lines[i].trim();
+          final prevLine = lines[i - 1].trim();
+          
+          final match = looseNumberRegex.firstMatch(currentLine);
+          if (match != null) {
+            final val = double.tryParse(match.group(1)!);
+            if (val != null && val > 0.10) {
+               // Check if the previous line looks like a total label
+               if (keywordRegex.hasMatch(prevLine)) {
+                 totalAmount = val;
+                 break;
+               }
+            }
+          }
+        }
       }
 
       // --- 2. Vendor / Merchant ---
@@ -163,7 +245,7 @@ class ReceiptScannerService {
       String vendor = 'Unknown Merchant';
       for (final line in lines) {
         final l = line.trim().toUpperCase();
-        if (l.contains('INVOICE') || l.contains('RECEIPT') || l == 'TAX' || l == 'CASH') {
+        if (l.contains('INVOICE') || l.contains('RECEIPT') || l == 'TAX' || l == 'CASH' || l.startsWith('TABLE:') || l.startsWith('BILL NO') || l.startsWith('DATE') || l.startsWith('CASHIER') || l.startsWith('PAYMENT') || l.startsWith('TO ') || l.startsWith('ITEM ') || l.startsWith('QTY ')) {
           continue;
         }
         vendor = line.trim();
@@ -173,13 +255,13 @@ class ReceiptScannerService {
       // --- 3. Date ---
       DateTime? parsedDate;
 
-      // DD/MM/YYYY  DD-MM-YYYY  DD.MM.YYYY
-      final dmyRegex = RegExp(r'(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{4})');
+      // DD/MM/YYYY  DD-MM-YYYY  DD.MM.YYYY (supports 2 or 4 digit year)
+      final dmyRegex = RegExp(r'(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{2,4})');
       // YYYY-MM-DD
       final ymdRegex = RegExp(r'(\d{4})-(\d{1,2})-(\d{1,2})');
-      // 05 Jun 2026 / 5 June 2026
+      // 05 Jun 2026 / 5 June 26
       final textDateRegex = RegExp(
-        r'(\d{1,2})\s+(Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+(\d{4})',
+        r'(\d{1,2})\s+(Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+(\d{2,4})',
         caseSensitive: false,
       );
 
@@ -196,8 +278,9 @@ class ReceiptScannerService {
       } else if (dmyMatch != null) {
         final day = int.tryParse(dmyMatch.group(1)!);
         final month = int.tryParse(dmyMatch.group(2)!);
-        final year = int.tryParse(dmyMatch.group(3)!);
+        int? year = int.tryParse(dmyMatch.group(3)!);
         if (day != null && month != null && year != null) {
+          if (year < 100) year += 2000;
           parsedDate = DateTime.tryParse(
             '$year-${month.toString().padLeft(2, '0')}-${day.toString().padLeft(2, '0')}',
           );
@@ -255,8 +338,9 @@ class ReceiptScannerService {
     };
     final day = int.tryParse(match.group(1)!);
     final month = months[match.group(2)!.toLowerCase()];
-    final year = int.tryParse(match.group(3)!);
+    int? year = int.tryParse(match.group(3)!);
     if (day != null && month != null && year != null) {
+      if (year < 100) year += 2000;
       return DateTime.tryParse(
         '$year-${month.toString().padLeft(2, '0')}-${day.toString().padLeft(2, '0')}',
       );

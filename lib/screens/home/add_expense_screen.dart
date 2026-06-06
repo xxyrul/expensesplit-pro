@@ -1,8 +1,11 @@
 import 'dart:io';
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../models/expense_model.dart';
 import '../../services/expense_service.dart';
 import '../../providers/expense_providers.dart';
@@ -25,6 +28,7 @@ class AddExpenseScreen extends ConsumerStatefulWidget {
   final String? rawText;
   final String? capturedImagePath;
   final String? expenseIdToEdit;
+  final String? initialReceiptUrl;
   final bool showScanSuccessBanner;
   final bool needsReview;
 
@@ -37,6 +41,7 @@ class AddExpenseScreen extends ConsumerStatefulWidget {
     this.rawText,
     this.capturedImagePath,
     this.expenseIdToEdit,
+    this.initialReceiptUrl,
     this.showScanSuccessBanner = false,
     this.needsReview = false,
   });
@@ -56,9 +61,9 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
   File? _selectedReceiptImage;
   bool _isUploadingReceipt = false;
   String? _uploadedReceiptUrl;
+  String? _lastScannedRawText;
   final ReceiptUploadService _receiptUploadService = ReceiptUploadService();
-
-
+  Timer? _debounceTimer;
 
   @override
   void initState() {
@@ -80,8 +85,19 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
       _selectedCategory = widget.initialCategory!;
     }
 
+    if (widget.initialReceiptUrl != null) {
+      _uploadedReceiptUrl = widget.initialReceiptUrl;
+    }
+
     if (widget.capturedImagePath != null) {
       _selectedReceiptImage = File(widget.capturedImagePath!);
+      if (!widget.showScanSuccessBanner && widget.initialAmount == null && widget.initialVendor == null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            _processSelectedImage(widget.capturedImagePath!);
+          }
+        });
+      }
     }
 
     _checkSmartVendor();
@@ -99,6 +115,23 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
     }
 
     _retrieveLostData();
+    _vendorController.addListener(_onVendorChanged);
+  }
+
+  void _onVendorChanged() {
+    if (_debounceTimer?.isActive ?? false) _debounceTimer!.cancel();
+    _debounceTimer = Timer(const Duration(milliseconds: 600), () async {
+      final text = _vendorController.text;
+      if (text.isNotEmpty && mounted) {
+        final category = await ref.read(vendorIntelligenceServiceProvider).getCategoryForVendor(text);
+        if (category != null && mounted && _selectedCategory != category) {
+          setState(() {
+            _selectedCategory = category;
+            _isAiCategory = true;
+          });
+        }
+      }
+    });
   }
 
   Future<void> _retrieveLostData() async {
@@ -110,13 +143,19 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
           return;
         }
         if (response.file != null && mounted) {
-          _processSelectedImage(response.file!.path);
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) _processSelectedImage(response.file!.path);
+          });
         } else if (response.exception != null && mounted) {
-          ModernBottomToast.show(
-            context,
-            message: 'Error retrieving image: ${response.exception}',
-            type: ModernToastType.error,
-          );
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              ModernBottomToast.show(
+                context,
+                message: 'Error retrieving image: ${response.exception}',
+                type: ModernToastType.error,
+              );
+            }
+          });
         }
       }
     } catch (e) {
@@ -142,6 +181,8 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
 
   @override
   void dispose() {
+    _debounceTimer?.cancel();
+    _vendorController.removeListener(_onVendorChanged);
     _amountController.dispose();
     _vendorController.dispose();
     super.dispose();
@@ -206,10 +247,19 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
     setState(() => _isSaving = true);
     
     try {
+      if (enteredAmount != null && _lastScannedRawText != null) {
+        try {
+          await ref.read(receiptScannerProvider).learnTotalKeyword(_lastScannedRawText!, enteredAmount);
+        } catch (e) {
+          debugPrint('Error learning keyword: $e');
+        }
+      }
+
       if (_selectedReceiptImage != null && _uploadedReceiptUrl == null) {
         setState(() => _isUploadingReceipt = true);
         final userId = FirebaseAuth.instance.currentUser?.uid ?? 'unknown_user';
         _uploadedReceiptUrl = await _receiptUploadService.uploadReceipt(userId, _selectedReceiptImage!, context);
+        if (!mounted) return;
         setState(() => _isUploadingReceipt = false);
       }
 
@@ -637,15 +687,15 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                   title: const Text("Take a Picture"),
                   onTap: () async {
                     Navigator.pop(context);
-                    final String? imagePath = await Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const CameraScannerView(returnImageOnly: true),
-                        fullscreenDialog: true,
-                      ),
+                    final picker = ImagePicker();
+                    final pickedFile = await picker.pickImage(
+                      source: ImageSource.camera,
+                      imageQuality: 85,
+                      maxWidth: 1920,
+                      maxHeight: 1920,
                     );
-                    if (imagePath != null) {
-                      _processSelectedImage(imagePath);
+                    if (pickedFile != null) {
+                      _processSelectedImage(pickedFile.path);
                     }
                   },
                 ),
@@ -691,13 +741,30 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
 
     if (result != null && mounted) {
       setState(() {
+        if (result['rawText'] != null) {
+          _lastScannedRawText = result['rawText'].toString();
+        }
         if (result['amount'] != null) {
           _amountController.text = result['amount'].toString();
         }
         if (result['vendor'] != null) {
-          _vendorController.text = result['vendor'].toString();
+          final scannedVendor = result['vendor'].toString();
+          _vendorController.text = scannedVendor;
+          
+          if (scannedVendor.isNotEmpty) {
+            ref.read(vendorIntelligenceServiceProvider)
+               .getCategoryForVendor(scannedVendor)
+               .then((smartCategory) {
+                 if (smartCategory != null && mounted) {
+                   setState(() {
+                     _selectedCategory = smartCategory;
+                     _isAiCategory = true;
+                   });
+                 }
+            });
+          }
         }
-        if (result['category'] != null && kCategories.contains(result['category'])) {
+        if (result['category'] != null && kCategories.contains(result['category']) && !_isAiCategory) {
           _selectedCategory = result['category'];
           _isAiCategory = true;
         }
@@ -733,6 +800,12 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                     builder: (_) => _FullScreenImageViewer(imagePath: _selectedReceiptImage!.path),
                   ),
                 );
+              } else if (_uploadedReceiptUrl != null) {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => _FullScreenImageViewer(networkUrl: _uploadedReceiptUrl),
+                  ),
+                );
               } else {
                 _showImagePickerModal();
               }
@@ -750,14 +823,27 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                   ),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(24),
-                    child: _selectedReceiptImage != null
+                    child: (_selectedReceiptImage != null || _uploadedReceiptUrl != null)
                         ? Stack(
                             fit: StackFit.expand,
                             children: [
-                              Image.file(
-                                _selectedReceiptImage!,
-                                fit: BoxFit.cover,
-                              ),
+                              if (_selectedReceiptImage != null)
+                                Image.file(
+                                  _selectedReceiptImage!,
+                                  fit: BoxFit.cover,
+                                )
+                              else if (_uploadedReceiptUrl != null)
+                                CachedNetworkImage(
+                                  imageUrl: _uploadedReceiptUrl!,
+                                  fit: BoxFit.cover,
+                                  placeholder: (context, url) => Center(
+                                    child: CircularProgressIndicator(
+                                      color: Theme.of(context).colorScheme.primary,
+                                    ),
+                                  ),
+                                  errorWidget: (context, url, error) =>
+                                      const Center(child: Icon(Icons.broken_image, size: 40)),
+                                ),
                               Container(
                                 color: Colors.black.withOpacity(0.2),
                                 child: const Center(
@@ -785,7 +871,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                           ),
                   ),
                 ),
-                if (_selectedReceiptImage != null)
+                if (_selectedReceiptImage != null || _uploadedReceiptUrl != null)
                   Positioned(
                     top: -10,
                     right: -10,
@@ -831,8 +917,10 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
 // Full-screen image viewer with pinch-to-zoom
 // ─────────────────────────────────────────────────────────────────────────────
 class _FullScreenImageViewer extends StatelessWidget {
-  final String imagePath;
-  const _FullScreenImageViewer({required this.imagePath});
+  final String? imagePath;
+  final String? networkUrl;
+
+  const _FullScreenImageViewer({this.imagePath, this.networkUrl});
 
   @override
   Widget build(BuildContext context) {
@@ -850,7 +938,18 @@ class _FullScreenImageViewer extends StatelessWidget {
         child: InteractiveViewer(
           minScale: 0.5,
           maxScale: 5.0,
-          child: Hero(tag: 'receipt_image', child: Image.file(File(imagePath))),
+          child: imagePath != null
+              ? Hero(tag: 'receipt_image', child: Image.file(File(imagePath!)))
+              : CachedNetworkImage(
+                  imageUrl: networkUrl!,
+                  placeholder: (context, url) => const Center(
+                    child: CircularProgressIndicator(
+                      color: Colors.white,
+                    ),
+                  ),
+                  errorWidget: (context, url, error) =>
+                      const Icon(Icons.broken_image, color: Colors.white, size: 50),
+                ),
         ),
       ),
     );

@@ -175,6 +175,7 @@ class _ExpensesViewState extends ConsumerState<ExpensesView> {
           initialDate: expense.date,
           initialCategory: expense.category,
           expenseIdToEdit: expense.id,
+          initialReceiptUrl: expense.receiptImageUrl,
         ),
       ),
     );
@@ -788,6 +789,17 @@ class _ExpensesViewState extends ConsumerState<ExpensesView> {
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
+                        if (expense.receiptImageUrl != null)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 6),
+                            child: Icon(
+                              Icons.receipt_long_rounded,
+                              size: 14,
+                              color: Theme.of(context).brightness == Brightness.dark
+                                  ? Colors.grey[400]
+                                  : Colors.grey[600],
+                            ),
+                          ),
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 6),
                           child: Text(

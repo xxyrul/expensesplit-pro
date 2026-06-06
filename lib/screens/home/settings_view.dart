@@ -1158,7 +1158,7 @@ class _SettingsViewState extends ConsumerState<SettingsView>
               children: [
                 _policySection(
                   'Data Collection',
-                  'We collect the following data to operate ExpenseSplit Pro:\n\n• Expense records, amounts, categories, and split allocations entered by you.\n• Receipt images you upload for OCR-based parsing.\n• Your login email address via Google OAuth 2.0 authentication.\n• An optional phone number if you link it for account recovery.',
+                  'We collect the following data to operate ExpenseSplit Pro:\n\n• Expense records, amounts, categories, and split allocations entered by you.\n• Receipt images you upload for OCR-based parsing.\n• Your login email address via Google OAuth 2.0 authentication.',
                 ),
                 _policySection(
                   'Data Usage',

@@ -147,6 +147,49 @@ export const sendSystemBroadcast = onDocumentCreated(
   }
 );
 
+// ─── Rule-Based Tip Generator ───────────────────────────────────────────────────
+function generateRuleBasedTip(): { message: string, category: string } {
+  const categories = ['saving', 'security', 'wisdom', 'positive_reinforcement'];
+  const category = categories[Math.floor(Math.random() * categories.length)];
+  
+  let message = '';
+  switch (category) {
+    case 'saving':
+      const savingTips = [
+        "Review your recurring subscriptions today to find hidden savings.",
+        "A simple home-cooked meal instead of eating out can save you up to RM 50 this week.",
+        "Consider using the 50/30/20 rule to structure your monthly budget."
+      ];
+      message = savingTips[Math.floor(Math.random() * savingTips.length)];
+      break;
+    case 'security':
+      const securityTips = [
+        "Never share your OTP with anyone. ExpenseSplit Pro will never ask for it.",
+        "Check your transaction history weekly to spot any unauthorized charges early.",
+        "Keep your banking passwords updated every 6 months for maximum security."
+      ];
+      message = securityTips[Math.floor(Math.random() * securityTips.length)];
+      break;
+    case 'positive_reinforcement':
+      const positiveTips = [
+        "Great job keeping track of your expenses! Consistency is the key to financial freedom.",
+        "Every receipt you log gets you one step closer to mastering your budget.",
+        "You're doing fantastic! Logging small expenses helps catch leaks before they sink the ship."
+      ];
+      message = positiveTips[Math.floor(Math.random() * positiveTips.length)];
+      break;
+    default:
+      const wisdomTips = [
+        "Pay yourself first: try putting 10% of your allowance into savings immediately.",
+        "Don't let small daily expenses add up invisibly. Track every coffee and snack.",
+        "A budget is telling your money where to go instead of wondering where it went."
+      ];
+      message = wisdomTips[Math.floor(Math.random() * wisdomTips.length)];
+      break;
+  }
+  return { message, category };
+}
+
 // ─── sendDailyFinancialNudge (v2 scheduler) ───────────────────────────────────
 export const sendDailyFinancialNudge = onSchedule(
   {
@@ -162,47 +205,23 @@ export const sendDailyFinancialNudge = onSchedule(
     let tipCategory = 'wisdom';
     let isDynamic = false;
 
-    const apiKey = process.env.GEMINI_API_KEY?.replace(/^\uFEFF/, '').trim();
-    if (apiKey) {
-      try {
-        const { GoogleGenAI } = require('@google/genai');
-        const ai = new GoogleGenAI({ apiKey });
-        const prompt = `Generate a short, engaging, and professional financial tip or nudge for a budgeting app user. Keep the tip text under 150 characters.
-Choose one of the following categories:
-- 'saving': tips on saving money, budgeting, checking recurring subscriptions.
-- 'security': tips on security, avoiding sharing OTPs, protecting identity.
-- 'wisdom': general financial tips, budgeting principles like the 50/30/20 rule, settling balances early.
-- 'positive_reinforcement': celebrating consistent tracking, positive reinforcement.
+    try {
+      const generated = generateRuleBasedTip();
+      tipMessage = generated.message;
+      tipCategory = generated.category;
+      isDynamic = true;
+      console.log(`Generated dynamic rule-based tip: ${tipMessage} (${tipCategory})`);
 
-Return the response as a JSON object with 'message' and 'category' fields.`;
-
-        const response = await ai.models.generateContent({
-          model: 'gemini-2.0-flash-lite',
-          contents: prompt,
-          config: { responseMimeType: 'application/json' },
-        });
-
-        if (response.text) {
-          const parsed = JSON.parse(response.text.trim());
-          if (parsed.message && parsed.category) {
-            tipMessage = parsed.message;
-            tipCategory = parsed.category;
-            isDynamic = true;
-            console.log(`Generated dynamic tip via Gemini: ${tipMessage} (${tipCategory})`);
-
-            await db.collection('daily_tips').add({
-              message: tipMessage,
-              category: tipCategory,
-              priority: 2,
-              isActive: true,
-              display_date: new Date().toISOString().split('T')[0],
-              generatedAt: FieldValue.serverTimestamp(),
-            });
-          }
-        }
-      } catch (err) {
-        console.error('Error generating dynamic tip with Gemini:', err);
-      }
+      await db.collection('daily_tips').add({
+        message: tipMessage,
+        category: tipCategory,
+        priority: 2,
+        isActive: true,
+        display_date: new Date().toISOString().split('T')[0],
+        generatedAt: FieldValue.serverTimestamp(),
+      });
+    } catch (err) {
+      console.error('Error generating rule-based tip:', err);
     }
 
     if (!isDynamic) {
@@ -295,48 +314,24 @@ export const generateNewDailyTip = onRequest(
     let tipMessage = 'Stay on top of your finances!';
     let tipCategory = 'wisdom';
 
-    const apiKey = process.env.GEMINI_API_KEY?.replace(/^\uFEFF/, '').trim();
-    if (apiKey) {
-      try {
-        const { GoogleGenAI } = require('@google/genai');
-        const ai = new GoogleGenAI({ apiKey });
-        const prompt = `Generate a short, engaging, and professional financial tip or nudge for a budgeting app user. Keep the tip text under 150 characters.
-Choose one of the following categories:
-- 'saving': tips on saving money, budgeting, checking recurring subscriptions.
-- 'security': tips on security, avoiding sharing OTPs, protecting identity.
-- 'wisdom': general financial tips, budgeting principles like the 50/30/20 rule, settling balances early.
-- 'positive_reinforcement': celebrating consistent tracking, positive reinforcement.
+    try {
+      const generated = generateRuleBasedTip();
+      tipMessage = generated.message;
+      tipCategory = generated.category;
 
-Return the response as a JSON object with 'message' and 'category' fields.`;
+      await db.collection('daily_tips').add({
+        message: tipMessage,
+        category: tipCategory,
+        priority: 2,
+        isActive: true,
+        display_date: new Date().toISOString().split('T')[0],
+        generatedAt: FieldValue.serverTimestamp(),
+      });
 
-        const response = await ai.models.generateContent({
-          model: 'gemini-2.0-flash-lite',
-          contents: prompt,
-          config: { responseMimeType: 'application/json' },
-        });
-
-        if (response.text) {
-          const parsed = JSON.parse(response.text.trim());
-          if (parsed.message && parsed.category) {
-            tipMessage = parsed.message;
-            tipCategory = parsed.category;
-
-            await db.collection('daily_tips').add({
-              message: tipMessage,
-              category: tipCategory,
-              priority: 2,
-              isActive: true,
-              display_date: new Date().toISOString().split('T')[0],
-              generatedAt: FieldValue.serverTimestamp(),
-            });
-
-            res.json({ status: 'success', message: tipMessage, category: tipCategory });
-            return;
-          }
-        }
-      } catch (err: any) {
-        console.error('Error generating dynamic tip with Gemini:', err);
-      }
+      res.json({ status: 'success', message: tipMessage, category: tipCategory });
+      return;
+    } catch (err: any) {
+      console.error('Error generating rule-based tip:', err);
     }
 
     try {
@@ -405,25 +400,14 @@ export const generateDailyInsight = onCall(
         dayOfMonth: new Date().getDate(),
       };
 
-      const promptText = `
-        You are an empathetic, professional Financial Coach.
-        Analyze the following user financial data:
-        - Current Month Spent: RM ${payload.currentMonthSpent}
-        - Monthly Budget: RM ${payload.monthlyBudget}
-        - Spending Velocity: ${payload.velocity}
-        - Day of Month: ${payload.dayOfMonth}
-        - Last Month Spent: RM ${payload.lastMonthSpent}
-
-        Provide exactly one specific, actionable nudge in under 200 characters.
-        Focus on their spending velocity. Be encouraging but firm.
-      `;
-
-      const llmResponse = await aiInstance.generate({
-        model: gemini20FlashLite,
-        prompt: promptText,
-      });
-
-      const insightText = llmResponse.text.trim();
+      let insightText = '';
+      if (payload.velocity.includes('High')) {
+        insightText = `You've spent RM ${payload.currentMonthSpent.toFixed(0)} so far, which is faster than expected. Try slowing down for the rest of the month to stay within your RM ${payload.monthlyBudget.toFixed(0)} limit!`;
+      } else if (payload.velocity.includes('Low')) {
+        insightText = `Great pacing! At RM ${payload.currentMonthSpent.toFixed(0)}, you're spending slower than time elapsed. Keep it up!`;
+      } else {
+        insightText = `You're exactly on track with RM ${payload.currentMonthSpent.toFixed(0)} spent. Maintain this balanced spending pattern.`;
+      }
 
       const insightData = {
         insight: insightText,
