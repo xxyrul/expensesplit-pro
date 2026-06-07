@@ -4,6 +4,7 @@ import 'package:expensesplit_pro/models/user_model.dart';
 import '../services/auth_service.dart';
 import 'auth/login_screen.dart'; 
 import 'home/home_screen.dart'; 
+import 'onboarding/user_onboarding_screen.dart';
 import '../theme/brand_theme.dart';
 
 // Use ConsumerWidget to listen to Riverpod providers
@@ -24,6 +25,9 @@ class AuthWrapper extends ConsumerWidget {
       data: (user) {
         if (user == null) {
           return const LoginScreen(key: ValueKey('login'));
+        }
+        if (!user.hasCompletedOnboarding) {
+          return const UserOnboardingScreen(key: ValueKey('onboarding'));
         }
         return const HomeScreen(key: ValueKey('home'));
       },

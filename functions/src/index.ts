@@ -477,3 +477,51 @@ export const analyzeReceiptText = onCall(
     }
   }
 );
+
+// ─── adminManageUser (v2 callable) ────────────────────────────────────────────
+export const adminManageUser = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'Requires authentication.');
+  }
+
+  // Verify the caller is an Admin from Firestore
+  const callerDoc = await admin.firestore().collection('users').doc(request.auth.uid).get();
+  if (callerDoc.data()?.role !== 'Admin') {
+    throw new HttpsError('permission-denied', 'Caller must be an admin.');
+  }
+
+  const { action, targetUid, isActive } = request.data;
+  if (!targetUid || !action) {
+    throw new HttpsError('invalid-argument', 'Missing targetUid or action.');
+  }
+
+  const db = admin.firestore();
+
+  try {
+    if (action === 'delete') {
+      try {
+        await admin.auth().deleteUser(targetUid);
+      } catch (authError: any) {
+        // If the user is already deleted from Auth, proceed to clean up Firestore
+        if (authError.code !== 'auth/user-not-found') {
+          throw authError;
+        }
+      }
+      
+      await admin.firestore().collection('users').doc(targetUid).delete();
+      return { success: true, message: `Deleted user ${targetUid}` };
+    } else if (action === 'toggleStatus') {
+      // 1. Update Firebase Auth status
+      const newStatus = !isActive;
+      await admin.auth().updateUser(targetUid, { disabled: !newStatus });
+      // 2. Update Firestore
+      await db.collection('users').doc(targetUid).update({ isActive: newStatus });
+      return { status: 'success', message: `User status updated to ${newStatus ? 'Active' : 'Deactivated'}.` };
+    } else {
+      throw new HttpsError('invalid-argument', 'Invalid action specified.');
+    }
+  } catch (error) {
+    console.error(`Failed to execute adminManageUser (${action}) for ${targetUid}:`, error);
+    throw new HttpsError('internal', 'An error occurred while managing the user.');
+  }
+});

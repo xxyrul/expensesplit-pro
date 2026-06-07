@@ -13,6 +13,17 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
   // ── State variables ──────────────────────────────────────────────────────
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   String _selectedActionFilter = 'All';
+  int _currentPage = 0;
+  final int _itemsPerPage = 10;
+  final ScrollController _vController = ScrollController();
+  final ScrollController _hController = ScrollController();
+
+  @override
+  void dispose() {
+    _vController.dispose();
+    _hController.dispose();
+    super.dispose();
+  }
 
   // ── Filter logic ─────────────────────────────────────────────────────────
   List<DocumentSnapshot> _applyFilters(List<DocumentSnapshot> docs) {
@@ -156,7 +167,11 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
                             }
 
                             final allLogs = snapshot.data?.docs ?? [];
-                            final filteredLogs = _applyFilters(allLogs);
+                            final allFilteredLogs = _applyFilters(allLogs);
+                            final totalLogs = allFilteredLogs.length;
+                            final int startIdx = _currentPage * _itemsPerPage;
+                            final int endIdx = (startIdx + _itemsPerPage > totalLogs) ? totalLogs : startIdx + _itemsPerPage;
+                            final filteredLogs = allFilteredLogs.skip(startIdx).take(_itemsPerPage).toList();
 
                             return Container(
                               width: double.infinity,
@@ -193,7 +208,7 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
                                         Row(
                                           children: [
                                             Text(
-                                              'Showing ${filteredLogs.length} entries',
+                                              totalLogs > 0 ? 'Showing ${startIdx + 1}-$endIdx of $totalLogs entries' : 'Showing 0 entries',
                                               style: TextStyle(
                                                 fontFamily: 'Inter',
                                                 fontSize: 14,
@@ -205,12 +220,12 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
                                               children: [
                                                 IconButton(
                                                   icon: const Icon(Icons.chevron_left, size: 20),
-                                                  onPressed: () {},
+                                                  onPressed: _currentPage > 0 ? () => setState(() => _currentPage--) : null,
                                                   visualDensity: VisualDensity.compact,
                                                 ),
                                                 IconButton(
                                                   icon: const Icon(Icons.chevron_right, size: 20),
-                                                  onPressed: () {},
+                                                  onPressed: endIdx < totalLogs ? () => setState(() => _currentPage++) : null,
                                                   visualDensity: VisualDensity.compact,
                                                 ),
                                               ],
@@ -377,12 +392,21 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
                                                   tableWidth - 750.0;
 
                                               return Scrollbar(
+                                                controller: _vController,
+                                                thumbVisibility: true,
                                                 child: SingleChildScrollView(
-                                                  scrollDirection:
-                                                      Axis.horizontal,
-                                                  child: SizedBox(
-                                                    width: tableWidth,
-                                                    child: DataTable(
+                                                  controller: _vController,
+                                                  scrollDirection: Axis.vertical,
+                                                  child: Scrollbar(
+                                                    controller: _hController,
+                                                    thumbVisibility: true,
+                                                    notificationPredicate: (notif) => notif.depth == 1,
+                                                    child: SingleChildScrollView(
+                                                      controller: _hController,
+                                                      scrollDirection: Axis.horizontal,
+                                                      child: ConstrainedBox(
+                                                        constraints: BoxConstraints(minWidth: tableWidth),
+                                                        child: DataTable(
                                                       columnSpacing: 24,
                                                       horizontalMargin: 20,
                                                       headingRowColor: WidgetStateProperty.all(
@@ -501,7 +525,9 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
                                                     ),
                                                   ),
                                                 ),
-                                              );
+                                              ),
+                                            ),
+                                          );
                                             },
                                           ),
                                   ),
@@ -556,7 +582,10 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
                 children: [
                   OutlinedButton(
                     onPressed: () {
-                      setState(() => _selectedActionFilter = 'All');
+                      setState(() {
+                        _selectedActionFilter = 'All';
+                        _currentPage = 0;
+                      });
                     },
                     style: OutlinedButton.styleFrom(
                       foregroundColor: colorScheme.onSurface,
@@ -612,7 +641,10 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
                       'SUSPEND_USER_ANOMALY',
                       'DELETE_VENDOR_MAPPING',
                     ],
-                    onChanged: (val) => setState(() => _selectedActionFilter = val ?? 'All'),
+                    onChanged: (val) => setState(() {
+                      _selectedActionFilter = val ?? 'All';
+                      _currentPage = 0;
+                    }),
                     colorScheme: colorScheme,
                   ),
                   _buildFilterDropdown(

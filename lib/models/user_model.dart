@@ -8,6 +8,7 @@ class UserModel {
   final double? monthlyBudget;
   final bool isNotificationsEnabled;
   final bool isDailyTipsEnabled;
+  final bool hasCompletedOnboarding;
 
   UserModel({
     required this.id, 
@@ -17,6 +18,7 @@ class UserModel {
     this.monthlyBudget,
     this.isNotificationsEnabled = true,
     this.isDailyTipsEnabled = true,
+    this.hasCompletedOnboarding = true,
   });
 
   // Factory constructor for creating a UserModel from a Firestore document
@@ -37,6 +39,8 @@ class UserModel {
       monthlyBudget: data['monthlyBudget']?.toDouble(),
       isNotificationsEnabled: data['isNotificationsEnabled'] ?? true,
       isDailyTipsEnabled: data['isDailyTipsEnabled'] ?? true,
+      // Default to true for old users who signed up before this feature
+      hasCompletedOnboarding: data['hasCompletedOnboarding'] ?? true,
     );
   }
 
@@ -50,6 +54,7 @@ class UserModel {
       "monthlyBudget": monthlyBudget,
       "isNotificationsEnabled": isNotificationsEnabled,
       "isDailyTipsEnabled": isDailyTipsEnabled,
+      "hasCompletedOnboarding": hasCompletedOnboarding,
       "createdAt": FieldValue.serverTimestamp(),
     };
   }

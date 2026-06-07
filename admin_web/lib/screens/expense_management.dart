@@ -505,7 +505,7 @@ class _ExpenseManagementScreenState extends ConsumerState<ExpenseManagementScree
                                             child: Scrollbar(
                                               controller: _horizontalScrollController,
                                               thumbVisibility: true,
-                                              trackVisibility: true,
+                                              notificationPredicate: (notif) => notif.depth == 1,
                                               child: SingleChildScrollView(
                                                 controller: _horizontalScrollController,
                                                 scrollDirection: Axis.horizontal,

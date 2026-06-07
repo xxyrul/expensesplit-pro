@@ -95,7 +95,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           type: ModernToastType.success,
         );
 
-        // AuthWrapper will automatically navigate to HomeScreen.
+        // AuthWrapper will automatically navigate to HomeScreen,
+        // but we need to pop the RegisterScreen route first.
+        Navigator.of(context).popUntil((route) => route.isFirst);
       }
     } on FirebaseAuthException catch (e) {
       String userFriendlyMessage = _mapFirebaseErrorToUserMessage(
@@ -385,7 +387,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                                     type: ModernToastType.success,
                                   );
 
-                                  // AuthWrapper will automatically navigate to HomeScreen.
+                                  // AuthWrapper will automatically navigate to HomeScreen,
+                                  // but we need to pop the RegisterScreen route first.
+                                  Navigator.of(context).popUntil((route) => route.isFirst);
                                 }
                               } on FirebaseAuthException catch (e) {
                                 String userFriendlyMessage =

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -16,6 +17,9 @@ class UserManagementScreen extends ConsumerStatefulWidget {
 
 class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final ScrollController _vController = ScrollController();
+  final ScrollController _hController = ScrollController();
+  bool _isProcessing = false;
 
   Future<bool> _isMaskingActive() async {
     try {
@@ -28,7 +32,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
   }
 
   String _maskEmail(String email, bool mask) {
-    if (!mask) return email;
+    if (!mask || email == 'No Email Provided') return email;
     final parts = email.split('@');
     if (parts.length != 2) return email;
     final name = parts[0];
@@ -48,7 +52,9 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
         final isMasked = maskingSnap.data ?? false;
 
         return Scaffold(
-          body: SafeArea(
+          body: Stack(
+            children: [
+              SafeArea(
             child: LayoutBuilder(
               builder: (context, constraints) {
                 final isMobile = constraints.maxWidth < 600;
@@ -200,8 +206,9 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                                             final doc = docs[index];
                                             final data = doc.data() as Map<String, dynamic>;
                                             final userId = doc.id;
-                                            final name = data['displayName'] ?? data['name'] ?? 'User';
-                                            final email = data['email'] ?? 'No Email';
+                                            final name = data['name'] ?? data['displayName'] ?? 'Unknown User';
+                                            final emailRaw = data['email'] ?? '';
+                                            final email = emailRaw.toString().trim().isEmpty ? 'No Email Provided' : emailRaw;
                                             final role = data['role'] ?? 'User';
                                             final isActive = data['isActive'] ?? true;
 
@@ -320,17 +327,27 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                                         )
                                       : LayoutBuilder(
                                           builder: (context, constraints) {
-                                            final tableWidth = constraints.maxWidth > 1000 ? constraints.maxWidth : 1000.0;
-                                            final emailColumnWidth = tableWidth - 620.0;
+                                            final tableWidth = constraints.maxWidth < 750 ? 750.0 : constraints.maxWidth;
+                                            final emailColumnWidth = (tableWidth - 600.0).clamp(100.0, double.infinity);
 
                                             return Scrollbar(
+                                              controller: _vController,
+                                              thumbVisibility: true,
                                               child: SingleChildScrollView(
-                                                scrollDirection: Axis.horizontal,
-                                                child: SizedBox(
-                                                  width: tableWidth,
+                                                controller: _vController,
+                                                scrollDirection: Axis.vertical,
+                                                child: Scrollbar(
+                                                  controller: _hController,
+                                                  thumbVisibility: true,
+                                                  notificationPredicate: (notif) => notif.depth == 1,
                                                   child: SingleChildScrollView(
-                                                    scrollDirection: Axis.vertical,
-                                                    child: DataTable(
+                                                    controller: _hController,
+                                                    scrollDirection: Axis.horizontal,
+                                                    child: ConstrainedBox(
+                                                      constraints: BoxConstraints(minWidth: tableWidth),
+                                                      child: DataTable(
+                                                        columnSpacing: 24,
+                                                        horizontalMargin: 16,
                                                       headingRowColor: WidgetStateProperty.all(
                                                         colorScheme.surfaceContainerLowest,
                                                       ),
@@ -345,14 +362,15 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                                                       rows: docs.map((doc) {
                                                         final data = doc.data() as Map<String, dynamic>;
                                                         final userId = doc.id;
-                                                        final name = data['displayName'] ?? data['name'] ?? 'User';
-                                                        final email = data['email'] ?? 'No Email';
+                                                        final name = data['name'] ?? data['displayName'] ?? 'Unknown User';
+                                                        final emailRaw = data['email'] ?? '';
+                                                        final email = emailRaw.toString().trim().isEmpty ? 'No Email Provided' : emailRaw;
                                                         final role = data['role'] ?? 'User';
                                                         final isActive = data['isActive'] ?? true;
 
                                                         return DataRow(cells: [
                                                           DataCell(SizedBox(
-                                                            width: 160,
+                                                            width: 130,
                                                             child: Text(name, style: const TextStyle(fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis),
                                                           )),
                                                           DataCell(SizedBox(
@@ -412,6 +430,15 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                                                                 ),
                                                               ),
                                                               IconButton(
+                                                                icon: const Icon(Icons.delete, color: Colors.red),
+                                                                tooltip: 'Delete User',
+                                                                onPressed: () => _deleteUserDialog(
+                                                                  context,
+                                                                  userId,
+                                                                  name,
+                                                                ),
+                                                              ),
+                                                              IconButton(
                                                                 icon: const Icon(Icons.analytics),
                                                                 tooltip: 'View User Stats',
                                                                 onPressed: () => _showStatsDialog(
@@ -428,7 +455,8 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                                                   ),
                                                 ),
                                               ),
-                                            );
+                                            ),
+                                          );
                                           },
                                         ),
                             ),
@@ -444,24 +472,55 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
               },
             ),
           ),
-        );
-      },
+          
+          if (_isProcessing)
+            Container(
+              color: Colors.black54,
+              child: const Center(
+                child: CircularProgressIndicator(),
+              ),
+            ),
+        ],
+      ),
     );
+  },
+);
   }
 
   Future<void> _toggleAccountStatus(String userId, String name, bool currentStatus) async {
+    if (_isProcessing) return;
+    setState(() => _isProcessing = true);
+    
     final newStatus = !currentStatus;
-    await _firestore.collection('users').doc(userId).update({'isActive': newStatus});
 
-    // Log governance action
-    ref.read(auditLogServiceProvider).logAction(
-      action: newStatus ? 'ACTIVATE_USER' : 'DEACTIVATE_USER',
-      targetId: userId,
-      targetType: 'user',
-      detail: newStatus
-          ? 'Activated user account for "$name".'
-          : 'Deactivated user account for "$name" (denied platform operations).',
-    );
+    try {
+      final callable = FirebaseFunctions.instance.httpsCallable('adminManageUser');
+      await callable.call({
+        'action': 'toggleStatus',
+        'targetUid': userId,
+        'isActive': newStatus,
+      });
+
+      // Log governance action
+      ref.read(auditLogServiceProvider).logAction(
+        action: newStatus ? 'ACTIVATE_USER' : 'DEACTIVATE_USER',
+        targetId: userId,
+        targetType: 'user',
+        detail: newStatus
+            ? 'Activated user account for "$name".'
+            : 'Deactivated user account for "$name" (denied platform operations).',
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to update status: $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isProcessing = false);
+      }
+    }
   }
 
   void _changeRoleDialog(
@@ -540,6 +599,57 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
           },
         );
       },
+    );
+  }
+
+  void _deleteUserDialog(BuildContext parentContext, String userId, String name) {
+    showDialog(
+      context: parentContext,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Delete User Account'),
+        content: Text('Are you sure you want to permanently delete the account for "$name"? This action cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+            onPressed: () async {
+              Navigator.pop(dialogContext); // Close confirmation dialog
+              
+              if (!mounted || _isProcessing) return;
+              setState(() => _isProcessing = true);
+
+              try {
+                final callable = FirebaseFunctions.instance.httpsCallable('adminManageUser');
+                await callable.call({
+                  'action': 'delete',
+                  'targetUid': userId,
+                });
+
+                ref.read(auditLogServiceProvider).logAction(
+                  action: 'DELETE_USER',
+                  targetId: userId,
+                  targetType: 'user',
+                  detail: 'Deleted user account for "$name".',
+                );
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Failed to delete user: $e'), backgroundColor: Colors.red),
+                  );
+                }
+              } finally {
+                if (mounted) {
+                  setState(() => _isProcessing = false);
+                }
+              }
+            },
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
     );
   }
 

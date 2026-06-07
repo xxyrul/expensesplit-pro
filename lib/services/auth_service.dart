@@ -101,16 +101,20 @@ class AuthService {
       
       // Update Firestore user document metadata
       final name = user.displayName ?? user.email?.split('@')[0] ?? 'User';
-      final newUser = UserModel(
-        id: user.uid,
-        name: name,
-        email: user.email ?? '',
-        displayName: name,
-      );
+      
+      // When linking, we don't want to accidentally overwrite hasCompletedOnboarding.
+      // We manually construct the map to merge.
+      final updateData = {
+        "id": user.uid,
+        "name": name,
+        "displayName": name,
+        "email": user.email ?? '',
+      };
+      
       await _firestore
           .collection('users')
           .doc(user.uid)
-          .set(newUser.toFirestore(), SetOptions(merge: true));
+          .set(updateData, SetOptions(merge: true));
     } on FirebaseAuthException catch (e) {
       throw e.message ?? e.code;
     }
@@ -170,6 +174,7 @@ class AuthService {
           name: initialName,
           email: email,
           displayName: initialName, 
+          hasCompletedOnboarding: false, // New users must complete onboarding
         );
 
         // 3. Save to Firestore
@@ -222,18 +227,36 @@ class AuthService {
       
       if (user != null) {
         final String name = user.displayName ?? user.email?.split('@')[0] ?? 'User';
-        final newUser = UserModel(
-          id: user.uid,
-          name: name,
-          email: user.email ?? '',
-          displayName: name,
-        );
-        // Use merge:true so this never overwrites existing data,
-        // but always ensures the document exists.
-        await _firestore
-            .collection('users')
-            .doc(user.uid)
-            .set(newUser.toFirestore(), SetOptions(merge: true));
+        
+        // Google Sign-in's isNewUser flag is unreliable when an account is deleted and re-created.
+        // Instead, we directly check if the user exists in our Firestore database.
+        final docSnapshot = await _firestore.collection('users').doc(user.uid).get();
+
+        if (!docSnapshot.exists) {
+          final newUser = UserModel(
+            id: user.uid,
+            name: name,
+            email: user.email ?? '',
+            displayName: name,
+            hasCompletedOnboarding: false, // New users must complete onboarding
+          );
+          await _firestore
+              .collection('users')
+              .doc(user.uid)
+              .set(newUser.toFirestore());
+        } else {
+          // For existing users, update basic info without overwriting hasCompletedOnboarding
+          final updateData = {
+            "id": user.uid,
+            "name": name,
+            "displayName": name,
+            "email": user.email ?? '',
+          };
+          await _firestore
+              .collection('users')
+              .doc(user.uid)
+              .set(updateData, SetOptions(merge: true));
+        }
       }
       return user;
     } on PlatformException catch (e) {

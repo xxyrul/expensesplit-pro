@@ -21,6 +21,19 @@ class _VendorIntelligenceHubState extends ConsumerState<VendorIntelligenceHub> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   String _ocrSearch = '';
   String _dictSearch = '';
+  final ScrollController _vController = ScrollController();
+  final ScrollController _hController = ScrollController();
+  final ScrollController _dialogVController = ScrollController();
+  final ScrollController _dialogHController = ScrollController();
+
+  @override
+  void dispose() {
+    _vController.dispose();
+    _hController.dispose();
+    _dialogVController.dispose();
+    _dialogHController.dispose();
+    super.dispose();
+  }
 
   DateTime? _parseLogDate(Map<String, dynamic> data) {
     final raw = data['createdAt'];
@@ -408,12 +421,22 @@ class _VendorIntelligenceHubState extends ConsumerState<VendorIntelligenceHub> {
                   return const Center(child: Text('No OCR corrections found.'));
                 }
 
-                return SingleChildScrollView(
+                return Scrollbar(
+                  controller: _vController,
+                  thumbVisibility: true,
                   child: SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: ConstrainedBox(
-                      constraints: BoxConstraints(minWidth: 600),
-                      child: DataTable(
+                    controller: _vController,
+                    scrollDirection: Axis.vertical,
+                    child: Scrollbar(
+                      controller: _hController,
+                      thumbVisibility: true,
+                      notificationPredicate: (notif) => notif.depth == 1,
+                      child: SingleChildScrollView(
+                        controller: _hController,
+                        scrollDirection: Axis.horizontal,
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(minWidth: 600),
+                          child: DataTable(
                         headingRowColor: WidgetStateProperty.all(colorScheme.surfaceContainerLow),
                         dataRowMaxHeight: 64,
                         dataRowMinHeight: 64,
@@ -508,7 +531,9 @@ class _VendorIntelligenceHubState extends ConsumerState<VendorIntelligenceHub> {
                       ),
                     ),
                   ),
-                );
+                ),
+              ),
+            );
               },
             ),
           ),
@@ -573,12 +598,22 @@ class _VendorIntelligenceHubState extends ConsumerState<VendorIntelligenceHub> {
                         return const Center(child: Text('No OCR corrections found.'));
                       }
                       
-                      return SingleChildScrollView(
+                      return Scrollbar(
+                        controller: _dialogVController,
+                        thumbVisibility: true,
                         child: SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          child: ConstrainedBox(
-                            constraints: const BoxConstraints(minWidth: 700),
-                            child: DataTable(
+                          controller: _dialogVController,
+                          scrollDirection: Axis.vertical,
+                          child: Scrollbar(
+                            controller: _dialogHController,
+                            thumbVisibility: true,
+                            notificationPredicate: (notif) => notif.depth == 1,
+                            child: SingleChildScrollView(
+                              controller: _dialogHController,
+                              scrollDirection: Axis.horizontal,
+                              child: ConstrainedBox(
+                                constraints: const BoxConstraints(minWidth: 700),
+                                child: DataTable(
                               headingRowColor: WidgetStateProperty.all(cs.surfaceContainerLow),
                               dataRowMaxHeight: 64,
                               dataRowMinHeight: 64,
@@ -667,7 +702,9 @@ class _VendorIntelligenceHubState extends ConsumerState<VendorIntelligenceHub> {
                             ),
                           ),
                         ),
-                      );
+                      ),
+                    ),
+                  );
                     }
                   ),
                 ),

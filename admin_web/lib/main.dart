@@ -8,6 +8,8 @@ import 'screens/dashboard_layout.dart';
 import 'theme/expressive_theme.dart';
 import 'router/admin_router.dart';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(

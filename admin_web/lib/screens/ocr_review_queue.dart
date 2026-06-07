@@ -19,6 +19,15 @@ class _OcrReviewQueueScreenState extends ConsumerState<OcrReviewQueueScreen> {
   String _selectedConfidenceFilter = 'All';
   String _selectedStatusFilter = 'All';
   Map<String, Map<String, String>> _userCache = {};
+  final ScrollController _vController = ScrollController();
+  final ScrollController _hController = ScrollController();
+
+  @override
+  void dispose() {
+    _vController.dispose();
+    _hController.dispose();
+    super.dispose();
+  }
 
   @override
   void initState() {
@@ -471,13 +480,22 @@ class _OcrReviewQueueScreenState extends ConsumerState<OcrReviewQueueScreen> {
                                                 );
                                               },
                                             )
-                                          : SingleChildScrollView(
-                                              scrollDirection: Axis.vertical,
+                                          : Scrollbar(
+                                              controller: _vController,
+                                              thumbVisibility: true,
                                               child: SingleChildScrollView(
-                                                scrollDirection: Axis.horizontal,
-                                                child: ConstrainedBox(
-                                                  constraints: BoxConstraints(minWidth: tableMinWidth),
-                                                  child: DataTable(
+                                                controller: _vController,
+                                                scrollDirection: Axis.vertical,
+                                                child: Scrollbar(
+                                                  controller: _hController,
+                                                  thumbVisibility: true,
+                                                  notificationPredicate: (notif) => notif.depth == 1,
+                                                  child: SingleChildScrollView(
+                                                    controller: _hController,
+                                                    scrollDirection: Axis.horizontal,
+                                                    child: ConstrainedBox(
+                                                      constraints: BoxConstraints(minWidth: tableMinWidth),
+                                                      child: DataTable(
                                                     columnSpacing: tableColumnSpacing,
                                                     horizontalMargin: tableHorizontalMargin,
                                                     headingRowColor: WidgetStateProperty.all(
@@ -666,6 +684,8 @@ class _OcrReviewQueueScreenState extends ConsumerState<OcrReviewQueueScreen> {
                                                 ),
                                               ),
                                             ),
+                                          ),
+                                        ),
                                   ),
                               ],
                             ),
