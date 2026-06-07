@@ -64,7 +64,7 @@ class _CameraScannerViewState extends State<CameraScannerView>
   int _lastBlockCount = 0;
   String _lastTextHash = '';
   int _stableFrameCount = 0;
-  static const int _stableFrameThreshold = 2;
+  static const int _stableFrameThreshold = 4; // Require 4 stable frames
   static const int _minBlocksToConsider = 2;
 
   // ── Overlay animation ────────────────────────────────────────────────────────
@@ -117,7 +117,11 @@ class _CameraScannerViewState extends State<CameraScannerView>
     _cornerAnimCtrl.dispose();
     _scanLineAnimCtrl.dispose();
     try {
-      _controller?.stopImageStream();
+      if (_controller != null && 
+          _controller!.value.isInitialized && 
+          _controller!.value.isStreamingImages) {
+        _controller?.stopImageStream();
+      }
     } catch (_) {}
     _controller?.dispose();
     _textRecognizer.close();
@@ -143,7 +147,7 @@ class _CameraScannerViewState extends State<CameraScannerView>
   Future<void> _initCamera() async {
     try {
       _cameras = await availableCameras();
-      if (_cameras.isEmpty) return;
+      if (_cameras.isEmpty || !mounted) return;
 
       final backCamera = _cameras.firstWhere(
         (c) => c.lensDirection == CameraLensDirection.back,
@@ -152,7 +156,7 @@ class _CameraScannerViewState extends State<CameraScannerView>
 
       _controller = CameraController(
         backCamera,
-        ResolutionPreset.medium,
+        ResolutionPreset.max,
         enableAudio: false,
         imageFormatGroup: !kIsWeb && Platform.isIOS
             ? ImageFormatGroup.bgra8888
@@ -160,15 +164,21 @@ class _CameraScannerViewState extends State<CameraScannerView>
       );
 
       await _controller!.initialize();
-      if (!mounted) return;
+      if (!mounted) {
+        _controller?.dispose();
+        return;
+      }
 
       // ── Flash: always start with flash off ──────────────────────────────────
       await _controller!.setFlashMode(FlashMode.off);
+      if (!mounted) return;
 
       // ── Autofocus ──────────
       await _applyFocusSettings();
+      if (!mounted) return;
 
       await _controller!.startImageStream(_onImageAvailable);
+      if (!mounted) return;
 
       setState(() => _isCameraReady = true);
     } catch (e) {
@@ -203,7 +213,8 @@ class _CameraScannerViewState extends State<CameraScannerView>
     if (_isProcessingFrame || _isCapturing) return;
 
     final now = DateTime.now();
-    if (now.difference(_lastProcessedAt).inMilliseconds < 800) return;
+    // Process frames more frequently (400ms) to check stability accurately
+    if (now.difference(_lastProcessedAt).inMilliseconds < 400) return;
     _lastProcessedAt = now;
 
     _isProcessingFrame = true;
@@ -313,24 +324,32 @@ class _CameraScannerViewState extends State<CameraScannerView>
   // ─────────────────────────────────────────────────────────────────────────────
 
   Future<void> _triggerCapture() async {
-    if (_isCapturing || _controller == null || !_isCameraReady) return;
+    if (_isCapturing || _controller == null || !_isCameraReady || !mounted) return;
     _isCapturing = true;
 
     try {
       // Stop the live stream first to avoid conflicts
       try {
-        await _controller!.stopImageStream();
+        if (_controller!.value.isStreamingImages) {
+          await _controller!.stopImageStream();
+        }
       } catch (_) {}
+
+      if (!mounted) return;
 
       // Set flash mode for the capture
       try {
         await _controller!.setFlashMode(_flashMode);
       } catch (_) {}
 
+      if (!mounted) return;
       await Future.delayed(const Duration(milliseconds: 200));
+      if (!mounted) return;
 
       final XFile file = await _controller!.takePicture();
 
+      if (!mounted) return;
+      
       // Reset flash to off after capture to avoid stuck flash
       try {
         await _controller!.setFlashMode(FlashMode.off);
@@ -345,9 +364,11 @@ class _CameraScannerViewState extends State<CameraScannerView>
     } catch (e) {
       debugPrint('Capture error: $e');
     } finally {
-      _isCapturing = false;
-      _stableFrameCount = 0;
-      if (mounted) setState(() => _captureProgress = 0.0);
+      if (mounted) {
+        _isCapturing = false;
+        _stableFrameCount = 0;
+        setState(() => _captureProgress = 0.0);
+      }
     }
   }
 
@@ -435,8 +456,8 @@ class _CameraScannerViewState extends State<CameraScannerView>
       ),
     );
 
-    // Restart stream on return.
-    if (mounted && _controller != null && _controller!.value.isInitialized) {
+    // Re-initialize camera on return to avoid Android stream freeze bugs.
+    if (mounted) {
       _isCapturing = false;
       _stableFrameCount = 0;
       _lastTextHash = '';
@@ -445,11 +466,13 @@ class _CameraScannerViewState extends State<CameraScannerView>
       setState(() => _captureProgress = 0.0);
 
       try {
-        await _controller!.setFlashMode(FlashMode.off);
+        await _controller?.dispose();
       } catch (_) {}
-      await _applyFocusSettings();
-
-      await _controller!.startImageStream(_onImageAvailable);
+      
+      _controller = null;
+      setState(() => _isCameraReady = false);
+      
+      await _initCamera();
     }
   }
 

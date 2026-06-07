@@ -9,12 +9,7 @@ import { onSchedule } from 'firebase-functions/v2/scheduler';
 
 admin.initializeApp();
 
-import { genkit, z } from 'genkit';
-import { gemini20FlashLite, googleAI } from '@genkit-ai/googleai';
-
-const aiInstance = genkit({
-  plugins: [googleAI({ apiKey: process.env.GEMINI_API_KEY })],
-});
+// Genkit removed
 
 const BATCH_LIMIT = 500;
 
@@ -432,51 +427,7 @@ export const generateDailyInsight = onCall(
   }
 );
 
-// ─── analyzeReceiptText (v2 callable) ─────────────────────────────────────────
-const ReceiptSchema = z.object({
-  merchant: z.string().describe('The name of the store or vendor.'),
-  total: z.number().describe('The final grand total amount paid. Do not include currency symbols.'),
-  date: z.string().describe('The date of the transaction in YYYY-MM-DD format.'),
-  category: z
-    .enum(['Food', 'Transport', 'Groceries', 'Utilities', 'Entertainment', 'Other', 'Shopping', 'Health'])
-    .describe('Categorize the receipt based on the merchant and items.'),
-});
-
-export const analyzeReceiptText = onCall(
-  { secrets: ['GEMINI_API_KEY'] },
-  async (request) => {
-    if (!request.auth) throw new HttpsError('unauthenticated', 'Requires auth.');
-
-    const rawText = request.data.rawText;
-    if (!rawText) throw new HttpsError('invalid-argument', 'Missing rawText');
-
-    try {
-      const prompt = `
-        Analyze the following raw OCR text extracted from a receipt.
-        Extract the merchant name, grand total, date, and infer the category.
-        If a value cannot be confidently found, do your best to infer it from context.
-
-        Raw OCR Text:
-        """
-        ${rawText}
-        """
-      `;
-
-      const llmResponse = await aiInstance.generate({
-        model: gemini20FlashLite,
-        prompt: prompt,
-        output: {
-          schema: ReceiptSchema,
-        },
-      });
-
-      return llmResponse.output;
-    } catch (error) {
-      console.error('AI Parsing Error:', error);
-      throw new HttpsError('internal', 'Failed to parse receipt text.');
-    }
-  }
-);
+// analyzeReceiptText has been removed. Client apps use offline local parsing.
 
 // ─── adminManageUser (v2 callable) ────────────────────────────────────────────
 export const adminManageUser = onCall(async (request) => {

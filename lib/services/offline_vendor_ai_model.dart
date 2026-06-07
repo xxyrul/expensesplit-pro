@@ -86,17 +86,21 @@ class OfflineVendorAiModel {
     for (final item in catalogItems) {
       final vendorName = item['vendorName'] as String?;
       final category = item['defaultCategoryId'] as String?;
+      final usageCount = item['usageCount'] as int? ?? 1;
       
       if (vendorName != null && category != null && kCategories.contains(category)) {
         final aliases = List<String>.from((item['aliases'] as List<dynamic>?)?.map((e) => e.toString()) ?? []);
         
-        _classifier.add(category, _tokenize(vendorName));
-        totalSamples++;
+        // Weight the tokens by usageCount to exponentially influence category prediction
+        for (int i = 0; i < usageCount; i++) {
+          _classifier.add(category, _tokenize(vendorName));
+          totalSamples++;
 
-        for (final alias in aliases) {
-          if (alias.isNotEmpty) {
-            _classifier.add(category, _tokenize(alias));
-            totalSamples++;
+          for (final alias in aliases) {
+            if (alias.isNotEmpty) {
+              _classifier.add(category, _tokenize(alias));
+              totalSamples++;
+            }
           }
         }
       }
@@ -104,7 +108,7 @@ class OfflineVendorAiModel {
 
     if (totalSamples > 0) {
       _isTrained = true;
-      debugPrint('OfflineVendorAiModel trained on $totalSamples samples.');
+      debugPrint('OfflineVendorAiModel trained on $totalSamples samples (frequency-weighted).');
     }
   }
 

@@ -104,7 +104,7 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
                   child: Column(
                     children: [
                       _buildHeader(context, ref, totalLimit, stats.totalSpent, stats.projectedSpending),
-                      _buildQuickActions(context, ref),
+                      _buildQuickActions(context, ref, totalLimit),
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 20),
                         child: DailyTipBentoCard(refreshCount: _nudgeRefreshCount),
@@ -325,7 +325,7 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
     );
   }
 
-  Widget _buildQuickActions(BuildContext context, WidgetRef ref) {
+  Widget _buildQuickActions(BuildContext context, WidgetRef ref, double totalLimit) {
     final colorScheme = Theme.of(context).colorScheme;
     return Container(
       margin: const EdgeInsets.fromLTRB(18, 22, 18, 18),
@@ -361,10 +361,14 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
                   label: "Add",
                   color: colorScheme.primary,
                   onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const AddExpenseScreen()),
-                    );
+                    if (totalLimit <= 0) {
+                      _showSetBudgetPrompt(context);
+                    } else {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const AddExpenseScreen()),
+                      );
+                    }
                   },
                 ),
               ),
@@ -375,7 +379,13 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
                   icon: Icons.document_scanner_outlined,
                   label: "Scan",
                   color: colorScheme.primary,
-                  onTap: () => ReceiptProcessingUI.startLiveScanFlow(context),
+                  onTap: () {
+                    if (totalLimit <= 0) {
+                      _showSetBudgetPrompt(context);
+                    } else {
+                      ReceiptProcessingUI.startLiveScanFlow(context);
+                    }
+                  },
                 ),
               ),
               const SizedBox(width: 12),
@@ -409,6 +419,32 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
                 ),
               ),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showSetBudgetPrompt(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Set Budget First'),
+        content: const Text('To help you track your finances effectively, please set your monthly budget before adding any expenses!'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const SetBudgetScreen()),
+              );
+            },
+            child: const Text('Set Budget Now'),
           ),
         ],
       ),

@@ -72,10 +72,35 @@ class VendorIntelligenceService {
         .trim();
   }
 
+  int _calculateLevenshteinDistance(String a, String b) {
+    if (a.isEmpty) return b.length;
+    if (b.isEmpty) return a.length;
+
+    List<int> v0 = List<int>.generate(b.length + 1, (i) => i);
+    List<int> v1 = List<int>.filled(b.length + 1, 0);
+
+    for (int i = 0; i < a.length; i++) {
+      v1[0] = i + 1;
+      for (int j = 0; j < b.length; j++) {
+        final cost = a[i] == b[j] ? 0 : 1;
+        v1[j + 1] = [
+          v1[j] + 1,
+          v0[j + 1] + 1,
+          v0[j] + cost
+        ].reduce((min, val) => val < min ? val : min);
+      }
+      for (int j = 0; j <= b.length; j++) {
+        v0[j] = v1[j];
+      }
+    }
+    return v1[b.length];
+  }
+
   bool _isFuzzyMatch(String a, String b) {
     final na = _normalise(a);
     final nb = _normalise(b);
-    return na == nb || na.contains(nb) || nb.contains(na);
+    if (na == nb || na.contains(nb) || nb.contains(na)) return true;
+    return _calculateLevenshteinDistance(na, nb) <= 3;
   }
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -251,18 +276,32 @@ class VendorIntelligenceService {
           .collection('vendor_catalog')
           .get();
 
+      DocumentReference? targetDoc;
+
       for (final doc in snap.docs) {
         final data = doc.data() as Map<String, dynamic>;
         final vendorName = data['vendorName'] as String? ?? '';
         if (_isFuzzyMatch(vendorName, correctedName)) {
+          targetDoc = doc.reference;
           final aliases = List<String>.from(
               (data['aliases'] as List<dynamic>?)?.map((e) => e.toString()) ?? []);
           if (!aliases.contains(ocrGuess)) {
             aliases.add(ocrGuess);
             await doc.reference.update({'aliases': aliases});
           }
-          return;
+          break;
         }
+      }
+
+      if (targetDoc == null) {
+        // If the mapping doesn't exist yet, create it immediately
+        await _db.collection('users').doc(uid).collection('vendor_catalog').add({
+          'vendorName': correctedName.trim(),
+          'defaultCategoryId': 'Other', // Fallback, will be updated by saveVendorCategory
+          'usageCount': 1,
+          'aliases': [ocrGuess],
+          'updatedAt': DateTime.now().toIso8601String(),
+        });
       }
     } catch (e) {
       debugPrint('Error learning vendor alias: $e');

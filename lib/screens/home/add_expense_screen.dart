@@ -19,6 +19,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../theme/brand_theme.dart';
 import 'camera_scanner_view.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
 
 class AddExpenseScreen extends ConsumerStatefulWidget {
   final double? initialAmount;
@@ -90,11 +91,17 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
     }
 
     if (widget.capturedImagePath != null) {
-      _selectedReceiptImage = File(widget.capturedImagePath!);
       if (!widget.showScanSuccessBanner && widget.initialAmount == null && widget.initialVendor == null) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted) {
-            _processSelectedImage(widget.capturedImagePath!);
+            _compressAndProcessImage(widget.capturedImagePath!);
+          }
+        });
+      } else {
+        // Just compress for display/upload
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            _compressOnly(widget.capturedImagePath!);
           }
         });
       }
@@ -144,7 +151,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
         }
         if (response.file != null && mounted) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted) _processSelectedImage(response.file!.path);
+            if (mounted) _compressAndProcessImage(response.file!.path);
           });
         } else if (response.exception != null && mounted) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -695,7 +702,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                       maxHeight: 1920,
                     );
                     if (pickedFile != null) {
-                      _processSelectedImage(pickedFile.path);
+                      _compressAndProcessImage(pickedFile.path);
                     }
                   },
                 ),
@@ -712,7 +719,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                       maxHeight: 1920,
                     );
                     if (pickedFile != null) {
-                      _processSelectedImage(pickedFile.path);
+                      _compressAndProcessImage(pickedFile.path);
                     }
                   },
                 ),
@@ -722,6 +729,43 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
         );
       },
     );
+  }
+
+  Future<String> _compressImage(String filePath) async {
+    final lastIndex = filePath.lastIndexOf(RegExp(r'\.jp'));
+    if (lastIndex == -1) return filePath; // if not jpeg/jpg
+
+    final outPath = "${filePath.substring(0, lastIndex)}_compressed.jpg";
+    
+    final result = await FlutterImageCompress.compressAndGetFile(
+      filePath, 
+      outPath,
+      quality: 50,
+      minWidth: 1080,
+      minHeight: 1080,
+    );
+    
+    return result?.path ?? filePath;
+  }
+
+  Future<void> _compressOnly(String filePath) async {
+    final compressedPath = await _compressImage(filePath);
+    if (mounted) {
+      setState(() {
+        _selectedReceiptImage = File(compressedPath);
+      });
+    }
+  }
+
+  Future<void> _compressAndProcessImage(String filePath) async {
+    ModernBottomToast.show(
+      context,
+      message: 'Processing image...',
+      type: ModernToastType.info,
+    );
+    
+    final compressedPath = await _compressImage(filePath);
+    await _processSelectedImage(compressedPath);
   }
 
   Future<void> _processSelectedImage(String filePath) async {

@@ -112,32 +112,9 @@ class ReceiptScannerService {
     if (rawText.trim().isEmpty) return null;
 
     print("========== RAW OCR TEXT ==========\n$rawText\n==============================");
-
-    try {
-      // Call Hybrid AI Cloud Function
-      final callable = FirebaseFunctions.instance.httpsCallable('analyzeReceiptText');
-      final response = await callable.call({'rawText': rawText});
-      
-      final Map<String, dynamic> parsedData = Map<String, dynamic>.from(response.data);
-      
-      // Map JSON to the expected output format
-      DateTime? parsedDate;
-      if (parsedData['date'] != null) {
-        parsedDate = DateTime.tryParse(parsedData['date'].toString());
-      }
-
-      return {
-        'vendor': parsedData['merchant'],
-        'amount': parsedData['total'] is int ? (parsedData['total'] as int).toDouble() : parsedData['total'],
-        'date': parsedDate,
-        'category': parsedData['category'],
-        'rawText': rawText,
-        'needsReview': true, // Always allow user to review AI output
-      };
-    } catch (e) {
-      print("AI analysis failed, using offline fallback: $e");
-      return await _offlineParse(rawText);
-    }
+    print("AI Analysis disabled. Using offline Regex parser directly.");
+    
+    return await _offlineParse(rawText);
   }
 
   /// Self-Learning Engine: Learns the keyword next to the correct amount
@@ -149,20 +126,26 @@ class ReceiptScannerService {
     for (int i = 0; i < lines.length; i++) {
       final line = lines[i];
       if (line.contains(amountStr)) {
-        // Find the word immediately preceding the amount on the same line
+        // Find the words immediately preceding the amount on the same line
         final beforeStr = line.split(amountStr).first.trim().toUpperCase();
         if (beforeStr.isNotEmpty) {
           final words = beforeStr.split(RegExp(r'\s+'));
-          final keyword = words.last.replaceAll(RegExp(r'[^A-Z]'), '');
-          if (keyword.length > 2) {
-            await _saveLearnedKeyword(keyword);
-            return;
+          final cleanWords = words.map((w) => w.replaceAll(RegExp(r'[^A-Z]'), '')).where((w) => w.isNotEmpty).toList();
+          if (cleanWords.isNotEmpty) {
+            final takeCount = cleanWords.length > 3 ? 3 : cleanWords.length;
+            final keyword = cleanWords.sublist(cleanWords.length - takeCount).join(' ');
+            if (keyword.length > 2) {
+              await _saveLearnedKeyword(keyword);
+              return;
+            }
           }
         } else if (i > 0) {
-          // If the amount is on a line by itself, learn the last word from the previous line
+          // If the amount is on a line by itself, learn from the previous line
           final prevLineWords = lines[i - 1].toUpperCase().split(RegExp(r'\s+'));
-          if (prevLineWords.isNotEmpty) {
-            final keyword = prevLineWords.last.replaceAll(RegExp(r'[^A-Z]'), '');
+          final cleanWords = prevLineWords.map((w) => w.replaceAll(RegExp(r'[^A-Z]'), '')).where((w) => w.isNotEmpty).toList();
+          if (cleanWords.isNotEmpty) {
+            final takeCount = cleanWords.length > 3 ? 3 : cleanWords.length;
+            final keyword = cleanWords.sublist(cleanWords.length - takeCount).join(' ');
             if (keyword.length > 2) {
               await _saveLearnedKeyword(keyword);
               return;
@@ -256,17 +239,17 @@ class ReceiptScannerService {
       DateTime? parsedDate;
 
       // DD/MM/YYYY  DD-MM-YYYY  DD.MM.YYYY (supports 2 or 4 digit year)
-      final dmyRegex = RegExp(r'(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{2,4})');
-      // YYYY-MM-DD
-      final ymdRegex = RegExp(r'(\d{4})-(\d{1,2})-(\d{1,2})');
+      final dmyRegex = RegExp(r'\b(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{2,4})\b');
+      // YYYY-MM-DD  YYYY.MM.DD  YYYY/MM/DD
+      final ymdRegex = RegExp(r'\b(\d{4})[/\-.](\d{1,2})[/\-.](\d{1,2})\b');
       // 05 Jun 2026 / 5 June 26
       final textDateRegex = RegExp(
-        r'(\d{1,2})\s+(Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+(\d{2,4})',
+        r'\b(\d{1,2})\s+(Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+(\d{2,4})\b',
         caseSensitive: false,
       );
 
-      final dmyMatch = dmyRegex.firstMatch(rawText);
       final ymdMatch = ymdRegex.firstMatch(rawText);
+      final dmyMatch = dmyRegex.firstMatch(rawText);
       final textDateMatch = textDateRegex.firstMatch(rawText);
 
       if (textDateMatch != null) {

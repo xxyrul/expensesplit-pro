@@ -17,11 +17,9 @@
   "dependencies": {
     "@genkit-ai/ai": "^1.36.0",
     "@genkit-ai/core": "^1.36.0",
-    "@genkit-ai/googleai": "^1.28.0",
     "@google/genai": "^2.8.0",
     "firebase-admin": "^12.7.0",
     "firebase-functions": "^6.3.2",
-    "genkit": "^1.36.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {
