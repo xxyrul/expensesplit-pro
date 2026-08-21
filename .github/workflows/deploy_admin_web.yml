@@ -1,11 +1,14 @@
-name: Build and deploy admin_web to Firebase Hosting
+name: Deploy Admin Web to Firebase Hosting
 
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
     paths:
       - 'admin_web/**'
       - 'firebase.json'
+      - '.github/workflows/deploy_admin_web.yml'
+  workflow_dispatch:
 
 jobs:
   build-and-deploy:
@@ -19,28 +22,30 @@ jobs:
         with:
           channel: 'stable'
 
-      - name: Install Node.js (for Firebase CLI)
+      - name: Install Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '20'
 
       - name: Install Firebase CLI
         run: npm install -g firebase-tools
 
-      - name: Install Flutter dependencies (admin_web)
-        run: |
-          cd admin_web
-          flutter pub get
+      - name: Install dependencies (admin_web)
+        working-directory: admin_web
+        run: flutter pub get
 
       - name: Build Flutter web (admin_web)
-        run: |
-          cd admin_web
-          flutter build web --release
+        working-directory: admin_web
+        run: flutter build web --release --no-wasm-dry-run
 
       - name: Deploy to Firebase Hosting
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
         run: |
+          if [ -z "$FIREBASE_SERVICE_ACCOUNT" ]; then
+            echo "FIREBASE_SERVICE_ACCOUNT secret is not configured. Skipping automated deploy."
+            exit 0
+          fi
           echo "$FIREBASE_SERVICE_ACCOUNT" > serviceAccount.json
           export GOOGLE_APPLICATION_CREDENTIALS="$(pwd)/serviceAccount.json"
           firebase deploy --only hosting --project expensesplit-pro-9e1c8
