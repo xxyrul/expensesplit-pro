@@ -6,6 +6,7 @@ class ExpenseModel {
   final DateTime date;
   final bool needsReview;
   final String? receiptImageUrl;
+  final Map<String, double>? splitSummary;
 
   ExpenseModel({
     this.id,
@@ -15,6 +16,7 @@ class ExpenseModel {
     required this.date,
     this.needsReview = false,
     this.receiptImageUrl,
+    this.splitSummary,
   });
 
   // Convert to Map for Firestore
@@ -26,6 +28,7 @@ class ExpenseModel {
       'date': date.toIso8601String(),
       'needsReview': needsReview,
       if (receiptImageUrl != null) 'receiptImageUrl': receiptImageUrl,
+      if (splitSummary != null) 'splitSummary': splitSummary,
     };
   }
 
@@ -39,6 +42,31 @@ class ExpenseModel {
       date: DateTime.parse(map['date']),
       needsReview: map['needsReview'] ?? false,
       receiptImageUrl: map['receiptImageUrl'] as String?,
+      splitSummary: map['splitSummary'] != null 
+          ? Map<String, double>.from((map['splitSummary'] as Map).map((k, v) => MapEntry(k.toString(), (v as num).toDouble())))
+          : null,
+    );
+  }
+
+  ExpenseModel copyWith({
+    String? id,
+    double? amount,
+    String? vendor,
+    String? category,
+    DateTime? date,
+    bool? needsReview,
+    String? receiptImageUrl,
+    Map<String, double>? splitSummary,
+  }) {
+    return ExpenseModel(
+      id: id ?? this.id,
+      amount: amount ?? this.amount,
+      vendor: vendor ?? this.vendor,
+      category: category ?? this.category,
+      date: date ?? this.date,
+      needsReview: needsReview ?? this.needsReview,
+      receiptImageUrl: receiptImageUrl ?? this.receiptImageUrl,
+      splitSummary: splitSummary ?? this.splitSummary,
     );
   }
 }

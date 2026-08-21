@@ -20,6 +20,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../../theme/brand_theme.dart';
 import 'camera_scanner_view.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
+import '../../utils/split_logic.dart';
 
 class AddExpenseScreen extends ConsumerStatefulWidget {
   final double? initialAmount;
@@ -30,6 +31,7 @@ class AddExpenseScreen extends ConsumerStatefulWidget {
   final String? capturedImagePath;
   final String? expenseIdToEdit;
   final String? initialReceiptUrl;
+  final Map<String, double>? initialSplits;
   final bool showScanSuccessBanner;
   final bool needsReview;
 
@@ -43,6 +45,7 @@ class AddExpenseScreen extends ConsumerStatefulWidget {
     this.capturedImagePath,
     this.expenseIdToEdit,
     this.initialReceiptUrl,
+    this.initialSplits,
     this.showScanSuccessBanner = false,
     this.needsReview = false,
   });
@@ -58,8 +61,10 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
   DateTime _selectedDate = DateTime.now();
   bool _isAiCategory = false;
   bool _isSaving = false;
+  bool _isSplit = false;
   
   File? _selectedReceiptImage;
+  late final TextEditingController _splitUsersController;
   bool _isUploadingReceipt = false;
   String? _uploadedReceiptUrl;
   String? _lastScannedRawText;
@@ -75,6 +80,16 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
           : '',
     );
     _vendorController = TextEditingController(text: widget.initialVendor ?? '');
+    
+    if (widget.initialSplits != null && widget.initialSplits!.isNotEmpty) {
+      _isSplit = true;
+      final keys = widget.initialSplits!.keys.toList();
+      final currentUserId = FirebaseAuth.instance.currentUser?.uid ?? 'Me';
+      keys.remove(currentUserId);
+      _splitUsersController = TextEditingController(text: keys.join(', '));
+    } else {
+      _splitUsersController = TextEditingController();
+    }
 
     if (widget.initialDate != null) {
       _selectedDate = widget.initialDate!;
@@ -192,6 +207,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
     _vendorController.removeListener(_onVendorChanged);
     _amountController.dispose();
     _vendorController.dispose();
+    _splitUsersController.dispose();
     super.dispose();
   }
 
@@ -282,10 +298,34 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
       final svc = ref.read(expenseServiceProvider);
       if (widget.expenseIdToEdit != null) {
         // Edit mode
-        await svc.updateExpense(widget.expenseIdToEdit!, newExpense);
+        if (_isSplit && _splitUsersController.text.trim().isNotEmpty) {
+          final usersStr = _splitUsersController.text.trim();
+          final userIds = usersStr.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+          final currentUserId = FirebaseAuth.instance.currentUser?.uid ?? 'Me';
+          if (!userIds.contains(currentUserId)) {
+            userIds.insert(0, currentUserId);
+          }
+          final splits = calculateEqualSplit(enteredAmount, userIds);
+          final expenseWithSplits = newExpense.copyWith(splitSummary: splits);
+          await svc.updateExpenseWithSplits(widget.expenseIdToEdit!, expenseWithSplits, splits);
+        } else {
+          await svc.updateExpense(widget.expenseIdToEdit!, newExpense);
+        }
       } else {
         // Add mode
-        await svc.addExpense(newExpense);
+        if (_isSplit && _splitUsersController.text.trim().isNotEmpty) {
+          final usersStr = _splitUsersController.text.trim();
+          final userIds = usersStr.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+          final currentUserId = FirebaseAuth.instance.currentUser?.uid ?? 'Me';
+          if (!userIds.contains(currentUserId)) {
+            userIds.insert(0, currentUserId);
+          }
+          final splits = calculateEqualSplit(enteredAmount, userIds);
+          final expenseWithSplits = newExpense.copyWith(splitSummary: splits);
+          await svc.addExpenseWithSplits(expenseWithSplits, splits);
+        } else {
+          await svc.addExpense(newExpense);
+        }
       }
 
       final vendorService = ref.read(vendorIntelligenceServiceProvider);
@@ -392,6 +432,8 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
               setState(() {
                 _amountController.clear();
                 _vendorController.clear();
+                _splitUsersController.clear();
+                _isSplit = false;
                 _selectedDate = DateTime.now();
                 _selectedCategory = 'Food';
                 _selectedReceiptImage = null;
@@ -530,6 +572,58 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                     ),
                   ),
                 ),
+                      const SizedBox(height: 24),
+                      
+                      // --- SPLIT OPTION ---
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            "SPLIT EXPENSE",
+                            style: TextStyle(
+                              color: subTextColor,
+                              fontSize: 12,
+                              letterSpacing: 1.2,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          Switch(
+                            value: _isSplit,
+                            activeColor: Theme.of(context).colorScheme.primary,
+                            onChanged: (val) {
+                              setState(() {
+                                _isSplit = val;
+                              });
+                            },
+                          ),
+                        ],
+                      ),
+                      if (_isSplit) ...[
+                        const SizedBox(height: 16),
+                        _buildInputField(
+                          label: "Split with (comma separated names/emails)",
+                          icon: Icons.people_alt_rounded,
+                          textColor: textColor,
+                          subTextColor: subTextColor,
+                          child: TextField(
+                            controller: _splitUsersController,
+                            style: TextStyle(color: textColor, fontSize: 16),
+                            decoration: InputDecoration(
+                              filled: false,
+                              border: InputBorder.none,
+                              enabledBorder: InputBorder.none,
+                              focusedBorder: InputBorder.none,
+                              errorBorder: InputBorder.none,
+                              disabledBorder: InputBorder.none,
+                              hintText: "e.g. Alice, Bob",
+                              hintStyle: TextStyle(color: subTextColor.withOpacity(0.5)),
+                              isDense: true,
+                              contentPadding: EdgeInsets.zero,
+                            ),
+                          ),
+                        ),
+                        _buildSplitPreview(),
+                      ],
                       const SizedBox(height: 32),
                       
                       // --- CATEGORY GRID ---
@@ -597,6 +691,65 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildSplitPreview() {
+    return AnimatedBuilder(
+      animation: Listenable.merge([_amountController, _splitUsersController]),
+      builder: (context, _) {
+        final amount = double.tryParse(_amountController.text) ?? 0.0;
+        final usersStr = _splitUsersController.text.trim();
+        if (amount <= 0 || usersStr.isEmpty) return const SizedBox.shrink();
+        
+        final userIds = usersStr.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+        final currentUserId = FirebaseAuth.instance.currentUser?.uid ?? 'Me';
+        if (!userIds.contains(currentUserId)) {
+          userIds.insert(0, currentUserId);
+        }
+        
+        final splits = calculateEqualSplit(amount, userIds);
+        
+        return Container(
+          margin: const EdgeInsets.only(top: 16),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Theme.of(context).colorScheme.primary.withOpacity(0.3)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                "Split Breakdown:",
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+              ),
+              const SizedBox(height: 8),
+              ...splits.entries.map((e) => Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      e.key == currentUserId ? "You" : e.key, 
+                      style: TextStyle(fontSize: 14, color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black87)
+                    ),
+                    Text(
+                      "RM ${e.value.toStringAsFixed(2)}", 
+                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Theme.of(context).colorScheme.primary)
+                    ),
+                  ],
+                ),
+              )),
+            ],
+          ),
+        );
+      },
     );
   }
 

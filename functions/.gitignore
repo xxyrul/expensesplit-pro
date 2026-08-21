@@ -2,3 +2,5 @@ node_modules/
 lib/
 *.tsbuildinfo
 npm-debug.log*
+logs.txt
+logs_utf8.txt

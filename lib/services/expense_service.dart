@@ -8,8 +8,10 @@ class ExpenseService {
   ExpenseService(this._repository);
 
   Future<void> addExpense(ExpenseModel expense) => _repository.addExpense(expense);
+  Future<void> addExpenseWithSplits(ExpenseModel expense, Map<String, double> splits) => _repository.addExpenseWithSplits(expense, splits);
   Future<void> deleteExpense(String expenseId) => _repository.deleteExpense(expenseId);
   Future<void> updateExpense(String expenseId, ExpenseModel expense) => _repository.updateExpense(expenseId, expense);
+  Future<void> updateExpenseWithSplits(String expenseId, ExpenseModel expense, Map<String, double> splits) => _repository.updateExpenseWithSplits(expenseId, expense, splits);
 
   Future<void> backfillMissingExpenseTimestamps() async {
     final uid = _repository.currentUserId;

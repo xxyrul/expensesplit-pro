@@ -138,7 +138,9 @@ class _SettingsViewState extends ConsumerState<SettingsView>
         await user.updateDisplayName(newName);
       }
 
-      if (newEmail.isNotEmpty && newEmail != user.email) {
+      final isGoogleUser = user.providerData.any((p) => p.providerId == 'google.com');
+      
+      if (!isGoogleUser && newEmail.isNotEmpty && newEmail != user.email) {
         await user.verifyBeforeUpdateEmail(newEmail);
         if (mounted) {
           ModernBottomToast.show(
@@ -150,9 +152,16 @@ class _SettingsViewState extends ConsumerState<SettingsView>
         }
       }
 
-      await FirebaseFirestore.instance.collection('users').doc(user.uid).update(
-        {'displayName': newName, 'name': newUsername, 'email': newEmail},
-      );
+      final updateData = <String, dynamic>{
+        'displayName': newName, 
+        'name': newUsername,
+      };
+      
+      if (!isGoogleUser) {
+        updateData['email'] = newEmail;
+      }
+
+      await FirebaseFirestore.instance.collection('users').doc(user.uid).update(updateData);
 
       if (!mounted) return;
       ModernBottomToast.show(

@@ -27,6 +27,43 @@ class ExpenseRepository {
     }
   }
 
+  Future<void> addExpenseWithSplits(ExpenseModel expense, Map<String, double> splits) async {
+    final uid = currentUserId;
+    if (uid == null) throw Exception('User is not authenticated');
+
+    try {
+      // Create a new document reference
+      final expenseRef = _db.collection('users').doc(uid).collection('expenses').doc();
+      
+      WriteBatch batch = _db.batch();
+      
+      // Save the main expense
+      batch.set(expenseRef, {
+        ...expense.toMap(),
+        'timestamp': FieldValue.serverTimestamp(),
+      });
+      
+      // Save the splits in a subcollection
+      splits.forEach((userId, amountOwed) {
+        DocumentReference splitDocRef = expenseRef.collection('splits').doc(userId);
+        batch.set(splitDocRef, {
+          'userId': userId,
+          'amountOwed': amountOwed,
+          'isPaid': false,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      });
+      
+      await batch.commit();
+    } on FirebaseException catch (e) {
+      debugPrint('Firestore Write Error: ${e.code} - ${e.message}');
+      throw Exception('Failed to save: ${e.message}');
+    } catch (e) {
+      debugPrint('Unknown Error: $e');
+      throw Exception('Failed to save: $e');
+    }
+  }
+
   Future<void> deleteExpense(String expenseId) async {
     final uid = currentUserId;
     if (uid == null) return;
@@ -50,6 +87,37 @@ class ExpenseRepository {
           ...expense.toMap(),
           'timestamp': Timestamp.fromDate(expense.date),
         });
+  }
+
+  Future<void> updateExpenseWithSplits(String expenseId, ExpenseModel expense, Map<String, double> splits) async {
+    final uid = currentUserId;
+    if (uid == null) throw Exception('User is not authenticated');
+
+    try {
+      final expenseRef = _db.collection('users').doc(uid).collection('expenses').doc(expenseId);
+      
+      WriteBatch batch = _db.batch();
+      
+      batch.update(expenseRef, {
+        ...expense.toMap(),
+        'timestamp': Timestamp.fromDate(expense.date),
+      });
+      
+      splits.forEach((userId, amountOwed) {
+        DocumentReference splitDocRef = expenseRef.collection('splits').doc(userId);
+        batch.set(splitDocRef, {
+          'userId': userId,
+          'amountOwed': amountOwed,
+          'isPaid': false,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      });
+      
+      await batch.commit();
+    } catch (e) {
+      debugPrint('Unknown Error: $e');
+      throw Exception('Failed to save: $e');
+    }
   }
 
   Stream<QuerySnapshot<Map<String, dynamic>>> getExpensesSnapshotStreamForUser(

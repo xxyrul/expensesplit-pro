@@ -436,8 +436,8 @@ export const adminManageUser = onCall(async (request) => {
   }
 
   // Verify the caller is an Admin from Firestore
-  const callerDoc = await admin.firestore().collection('users').doc(request.auth.uid).get();
-  if (callerDoc.data()?.role !== 'Admin') {
+  const adminDoc = await admin.firestore().collection('admins').doc(request.auth.uid).get();
+  if (!adminDoc.exists) {
     throw new HttpsError('permission-denied', 'Caller must be an admin.');
   }
 

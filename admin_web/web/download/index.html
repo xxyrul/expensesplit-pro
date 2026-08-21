@@ -150,11 +150,20 @@
         <h1>ExpenseSplit Pro</h1>
         <p class="subtitle">Experience the next generation of automated expense tracking.</p>
         
-        <a href="ExpenseSplitPro_v1.0.13.apk" class="btn" download>Download APK</a>
+        <a href="ExpenseSplitPro_v1.0.15.apk" class="btn" download>Download APK</a>
 
         <div class="changelog">
-            <h2>What's New <span class="version-badge">v1.0.13</span></h2>
+            <h2>What's New <span class="version-badge">v1.0.15</span></h2>
             <ul>
+                <li><strong>Google Account Security:</strong> Email field is now read-only for Google Sign-In users, preventing accidental email mismatches and account confusion.</li>
+                <li><strong>Login Stability Fix:</strong> Resolved an issue where changing Gmail addresses could cause users to be prompted to create a new account instead of logging into their existing one.</li>
+                <li><strong>Admin Web Dashboard:</strong> Fixed admin login flow to properly handle users who have migrated to a new Gmail address.</li>
+                <li><strong>Profile Update Guard:</strong> Firestore profile saves now skip email updates for Google-linked accounts, keeping data in sync with Google's identity provider.</li>
+            </ul>
+
+            <h2 style="margin-top: 30px;">Previous <span class="version-badge">v1.0.14</span></h2>
+            <ul>
+                <li><strong>Split Expense UI Improvements:</strong> Added a dynamic live preview breakdown when splitting expenses, and a split indicator in the transaction list.</li>
                 <li><strong>Offline AI Upgrades:</strong> Implemented frequency-weighted Naive Bayes classification for drastically smarter vendor category predictions.</li>
                 <li><strong>Fuzzy Autocorrect:</strong> Added Levenshtein Distance algorithm to perfectly map and learn from OCR typos (e.g. MCDNLD -> McDonalds).</li>
                 <li><strong>Phrase-Based Keyword Learning:</strong> The scanner now learns multi-word phrases (e.g. "GRAND TOTAL") instead of single words for flawless total extraction.</li>

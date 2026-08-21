@@ -176,6 +176,7 @@ class _ExpensesViewState extends ConsumerState<ExpensesView> {
           initialCategory: expense.category,
           expenseIdToEdit: expense.id,
           initialReceiptUrl: expense.receiptImageUrl,
+          initialSplits: expense.splitSummary,
         ),
       ),
     );
@@ -800,23 +801,15 @@ class _ExpensesViewState extends ConsumerState<ExpensesView> {
                                   : Colors.grey[600],
                             ),
                           ),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 6),
-                          child: Text(
-                            "•",
-                            style: TextStyle(
-                              color: Colors.grey[400],
-                              fontSize: 12,
+                        if (expense.splitSummary != null && expense.splitSummary!.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 6),
+                            child: Icon(
+                              Icons.call_split_rounded,
+                              size: 14,
+                              color: Theme.of(context).colorScheme.primary,
                             ),
                           ),
-                        ),
-                        Text(
-                          dateStr,
-                          style: TextStyle(
-                            color: Colors.grey[500],
-                            fontSize: 13,
-                          ),
-                        ),
                       ],
                     ),
                   ],

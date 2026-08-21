@@ -241,10 +241,13 @@ class _EditProfileScreenState extends State<EditProfileScreen>
             controller: _emailController,
             textInputAction: TextInputAction.done,
             keyboardType: TextInputType.emailAddress,
-            decoration: const InputDecoration(
+            readOnly: widget.isGoogleUser,
+            decoration: InputDecoration(
               labelText: 'Email Address',
-              prefixIcon: Icon(Icons.email_outlined),
-              helperText: 'Changing email will send a verification link to the new address.',
+              prefixIcon: const Icon(Icons.email_outlined),
+              helperText: widget.isGoogleUser
+                  ? 'Your email is managed securely by your Google Account. It cannot be changed here.'
+                  : 'Changing email will send a verification link to the new address.',
               helperMaxLines: 3,
             ),
           ),

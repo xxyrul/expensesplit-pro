@@ -49,3 +49,20 @@ app.*.map.json
 build/
 .dart_tool/
 .idea/
+
+# Firebase & Deployment Caches
+.firebase/
+
+# Logs & Dumps
+*.log
+*logcat*
+logs.txt
+logs_utf8.txt
+users.json
+
+# Scratch & Temporary Scripts
+scratch/
+test_*.dart
+old_*.dart
+release/
+
